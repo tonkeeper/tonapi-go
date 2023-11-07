@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"log"
 
-	"github.com/tonkeeper/opentonapi/tonapi"
+	"github.com/tonkeeper/tonapi-go"
 )
 
 func main() {

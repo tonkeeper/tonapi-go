@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"log"
 
-	"github.com/tonkeeper/opentonapi/tonapi"
+	"github.com/tonkeeper/tonapi-go"
 )
 
 const myAccount = "EQBszTJahYw3lpP64ryqscKQaDGk4QpsO7RO6LYVvKHSINS0"

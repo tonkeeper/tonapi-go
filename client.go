@@ -25,7 +25,7 @@ var _ ht.Client = &clientWithApiKey{}
 //
 // import (
 //
-//	tonapi "github.com/tonkeeper/opentonapi/tonapi"
+//	"github.com/tonkeeper/tonapi-go"
 //
 // )
 //

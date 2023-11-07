@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/tonkeeper/opentonapi/tonapi"
+	"github.com/tonkeeper/tonapi-go"
 )
 
 func subscribeToMempool(token string) {
