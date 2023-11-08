@@ -13,7 +13,7 @@ servers:
 paths:
   /v2/blockchain/blocks/{block_id}:
     get:
-      description: Get blockchain block data
+      description: Get blockchain block
       operationId: getBlockchainBlock
       tags:
         - Blockchain

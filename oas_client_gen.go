@@ -203,7 +203,7 @@ type Invoker interface {
 	GetBlockchainAccountTransactions(ctx context.Context, params GetBlockchainAccountTransactionsParams) (*Transactions, error)
 	// GetBlockchainBlock invokes getBlockchainBlock operation.
 	//
-	// Get blockchain block data.
+	// Get blockchain block.
 	//
 	// GET /v2/blockchain/blocks/{block_id}
 	GetBlockchainBlock(ctx context.Context, params GetBlockchainBlockParams) (*BlockchainBlock, error)
@@ -3925,7 +3925,7 @@ func (c *Client) sendGetBlockchainAccountTransactions(ctx context.Context, param
 
 // GetBlockchainBlock invokes getBlockchainBlock operation.
 //
-// Get blockchain block data.
+// Get blockchain block.
 //
 // GET /v2/blockchain/blocks/{block_id}
 func (c *Client) GetBlockchainBlock(ctx context.Context, params GetBlockchainBlockParams) (*BlockchainBlock, error) {
