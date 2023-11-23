@@ -13,6 +13,10 @@ import (
 // MempoolEventData represents the data part of a new-pending-message event.
 type MempoolEventData struct {
 	BOC []byte `json:"boc"`
+	// InvolvedAccounts is a list of accounts that are involved in the corresponding trace of the message.
+	// The trace is a result of emulation.
+	// This field is only present when you subscribe to mempool events for a particular set of accounts.
+	InvolvedAccounts []tongo.AccountID `json:"involved_accounts"`
 }
 
 // TransactionEventData represents the data part of a new-transaction event.
@@ -115,7 +119,7 @@ type Websocket interface {
 	UnsubscribeFromTraces(accounts []string) error
 	// SubscribeToMempool subscribes to notifications about new messages in the TON network.
 
-	SubscribeToMempool() error
+	SubscribeToMempool(accounts []string) error
 	// UnsubscribeFromMempool unsubscribes from notifications about new messages in the TON network.
 	UnsubscribeFromMempool() error
 
@@ -177,8 +181,11 @@ func (s *StreamingAPI) SubscribeToTraces(ctx context.Context, accounts []string,
 // When a new mempool event is received, the handler will be called.
 // This function returns an error when the underlying connection fails or context is canceled.
 // No automatic reconnection is performed.
-func (s *StreamingAPI) SubscribeToMempool(ctx context.Context, handler MempoolHandler) error {
+func (s *StreamingAPI) SubscribeToMempool(ctx context.Context, accounts []string, handler MempoolHandler) error {
 	url := fmt.Sprintf("%s/v2/sse/mempool", s.endpoint)
+	if len(accounts) > 0 {
+		url += "?accounts=" + strings.Join(accounts, ",")
+	}
 	return s.subscribe(ctx, url, s.apiKey, func(data []byte) {
 		eventData := MempoolEventData{}
 		if err := json.Unmarshal(data, &eventData); err != nil {
