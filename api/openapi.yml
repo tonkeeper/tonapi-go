@@ -35,14 +35,7 @@ paths:
       tags:
           - Blockchain
       parameters:
-        - name: masterchain_seqno
-          in: path
-          required: true
-          description: "masterchain block seqno"
-          schema:
-            type: integer
-            format: int32
-            example: 123456
+        - $ref: '#/components/parameters/masterchainSeqno'
       responses:
           '200':
             description: blockchain block shards
@@ -52,6 +45,40 @@ paths:
                   $ref: '#/components/schemas/BlockchainBlockShards'
           'default':
             $ref: '#/components/responses/Error'
+  /v2/blockchain/masterchain/{masterchain_seqno}/config:
+    get:
+      description: Get blockchain config from a specific block, if present.
+      operationId: getBlockchainConfigFromBlock
+      tags:
+        - Blockchain
+      parameters:
+        - $ref: '#/components/parameters/masterchainSeqno'
+      responses:
+        '200':
+          description: blockchain config
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BlockchainConfig'
+        'default':
+          $ref: '#/components/responses/Error'
+  /v2/blockchain/masterchain/{masterchain_seqno}/config/raw:
+    get:
+      description: Get raw blockchain config from a specific block, if present.
+      operationId: getRawBlockchainConfigFromBlock
+      tags:
+        - Blockchain
+      parameters:
+        - $ref: '#/components/parameters/masterchainSeqno'
+      responses:
+        '200':
+          description: blockchain config
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RawBlockchainConfig'
+        'default':
+          $ref: '#/components/responses/Error'
   /v2/blockchain/blocks/{block_id}/transactions:
     get:
       description: Get transactions from block
@@ -67,23 +94,6 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Transactions'
-        'default':
-          $ref: '#/components/responses/Error'
-  /v2/blockchain/blocks/{block_id}/config/raw:
-    get:
-      description: Get raw blockchain config from a specific block, if present.
-      operationId: getRawBlockchainConfigFromBlock
-      tags:
-        - Blockchain
-      parameters:
-        - $ref: '#/components/parameters/blockchainBlockIDParameter'
-      responses:
-        '200':
-          description: blockchain config
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/RawBlockchainConfig'
         'default':
           $ref: '#/components/responses/Error'
   /v2/blockchain/transactions/{transaction_id}:
@@ -356,6 +366,11 @@ paths:
         - Emulation
       parameters:
         - $ref: '#/components/parameters/i18n'
+        - name: ignore_signature_check
+          in: query
+          required: false
+          schema:
+            type: boolean
       requestBody:
         $ref: "#/components/requestBodies/Boc"
       responses:
@@ -373,6 +388,12 @@ paths:
       operationId: emulateMessageToTrace
       tags:
         - Emulation
+      parameters:
+        - name: ignore_signature_check
+          in: query
+          required: false
+          schema:
+            type: boolean
       requestBody:
         $ref: "#/components/requestBodies/Boc"
       responses:
@@ -393,7 +414,7 @@ paths:
       parameters:
         - $ref: '#/components/parameters/i18n'
       requestBody:
-        $ref: "#/components/requestBodies/Boc"
+        $ref: "#/components/requestBodies/EmulationBoc"
       responses:
         '200':
           description: emulated message
@@ -2205,6 +2226,15 @@ paths:
           $ref: '#/components/responses/Error'
 components:
   parameters:
+    masterchainSeqno:
+      in: path
+      name: masterchain_seqno
+      required: true
+      description: "masterchain block seqno"
+      schema:
+        type: integer
+        format: int32
+        example: 123456
     blockchainBlockIDParameter:
       in: path
       name: block_id
@@ -2486,6 +2516,34 @@ components:
                 items:
                   type: string
                   example: te6ccgECBQEAARUAAkWIAWTtae+KgtbrX26Bep8JSq8lFLfGOoyGR/xwdjfvpvEaHg
+    EmulationBoc:
+      description: bag-of-cells serialized to base64 and additional parameters to configure emulation
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            required:
+              - boc
+            properties:
+              boc:
+                type: string
+                example: te6ccgECBQEAARUAAkWIAWTtae+KgtbrX26Bep8JSq8lFLfGOoyGR/xwdjfvpvEaHg
+              params:
+                type: array
+                description: additional per account configuration
+                items:
+                  type: object
+                  required:
+                  - address
+                  properties:
+                    address:
+                      type: string
+                      example: "0:97146a46acc2654y27947f14c4a4b14273e954f78bc017790b41208b0043200b"
+                    balance:
+                      type: integer
+                      format: int64
+                      example: 10000000000
     Boc:
       description: bag-of-cells serialized to base64
       required: true
@@ -4497,6 +4555,7 @@ components:
             - SmartContractExec
             - ElectionsRecoverStake
             - ElectionsDepositStake
+            - DomainRenew
             - Unknown
         status:
           type: string
@@ -4538,6 +4597,8 @@ components:
           $ref: '#/components/schemas/JettonSwapAction'
         SmartContractExec:
           $ref: '#/components/schemas/SmartContractAction'
+        DomainRenew:
+          $ref: '#/components/schemas/DomainRenewAction'
         simple_preview:
           $ref: '#/components/schemas/ActionSimplePreview'
     TonTransferAction:
@@ -4587,6 +4648,21 @@ components:
           type: string
         refund:
           $ref: '#/components/schemas/Refund'
+    DomainRenewAction:
+      type: object
+      required:
+        - domain
+        - contract_address
+        - renewer
+      properties:
+        domain:
+          type: string
+          example: "vasya.ton"
+        contract_address:
+          type: string
+          example: "0:da6b1b6663a0e4d18cc8574ccd9db5296e367dd9324706f3bbd9eb1cd2caf0bf"
+        renewer:
+          $ref: '#/components/schemas/AccountAddress'
     NftItemTransferAction:
       type: object
       required:
