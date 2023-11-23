@@ -1,8 +1,8 @@
 module github.com/tonkeeper/tonapi-go/examples/tonapi-sdk
 
-go 1.21.3
+go 1.20
 
-require github.com/tonkeeper/tonapi-go v0.0.1
+require github.com/tonkeeper/tonapi-go v0.0.2
 
 require (
 	github.com/dlclark/regexp2 v1.10.0 // indirect
