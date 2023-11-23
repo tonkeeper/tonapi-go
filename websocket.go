@@ -76,8 +76,13 @@ func (w *websocketConnection) UnsubscribeFromTraces(accounts []string) error {
 	return w.conn.WriteJSON(request)
 }
 
-func (w *websocketConnection) SubscribeToMempool() error {
+func (w *websocketConnection) SubscribeToMempool(accounts []string) error {
 	request := JsonRPCRequest{ID: w.currentRequestID(), JSONRPC: "2.0", Method: "subscribe_mempool"}
+	if len(accounts) > 0 {
+		request.Params = []string{
+			fmt.Sprintf("accounts=%s", strings.Join(accounts, ",")),
+		}
+	}
 	w.mu.Lock()
 	defer w.mu.Unlock()
 	return w.conn.WriteJSON(request)
