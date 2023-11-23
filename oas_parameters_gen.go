@@ -35,7 +35,13 @@ type EmulateMessageToAccountEventParams struct {
 
 // EmulateMessageToEventParams is parameters of emulateMessageToEvent operation.
 type EmulateMessageToEventParams struct {
-	AcceptLanguage OptString
+	AcceptLanguage       OptString
+	IgnoreSignatureCheck OptBool
+}
+
+// EmulateMessageToTraceParams is parameters of emulateMessageToTrace operation.
+type EmulateMessageToTraceParams struct {
+	IgnoreSignatureCheck OptBool
 }
 
 // EmulateMessageToWalletParams is parameters of emulateMessageToWallet operation.
@@ -226,6 +232,12 @@ type GetBlockchainBlockTransactionsParams struct {
 	BlockID string
 }
 
+// GetBlockchainConfigFromBlockParams is parameters of getBlockchainConfigFromBlock operation.
+type GetBlockchainConfigFromBlockParams struct {
+	// Masterchain block seqno.
+	MasterchainSeqno int32
+}
+
 // GetBlockchainMasterchainShardsParams is parameters of getBlockchainMasterchainShards operation.
 type GetBlockchainMasterchainShardsParams struct {
 	// Masterchain block seqno.
@@ -391,8 +403,8 @@ type GetRawBlockchainBlockStateParams struct {
 
 // GetRawBlockchainConfigFromBlockParams is parameters of getRawBlockchainConfigFromBlock operation.
 type GetRawBlockchainConfigFromBlockParams struct {
-	// Block ID.
-	BlockID string
+	// Masterchain block seqno.
+	MasterchainSeqno int32
 }
 
 // GetRawConfigParams is parameters of getRawConfig operation.
