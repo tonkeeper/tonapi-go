@@ -101,7 +101,11 @@ func NewStreamingAPI(opts ...StreamingOption) *StreamingAPI {
 // happening in the TON blockchain.
 type Websocket interface {
 	// SubscribeToTransactions subscribes to notifications about new transactions for the specified accounts.
-	SubscribeToTransactions(accounts []string) error
+	// "operations" specifies a list of operations to receive.
+	// Each operation is a string containing either MsgOpName from https://github.com/tonkeeper/tongo/blob/master/abi/messages.go
+	// or a hex string representing an unsigned 32-bit integer.
+	// An example of "operations" is []string{"JettonBurn", "0x595f07bc"}.
+	SubscribeToTransactions(accounts []string, operations []string) error
 	// UnsubscribeFromTransactions unsubscribes from notifications about new transactions for the specified accounts.
 	UnsubscribeFromTransactions(accounts []string) error
 
@@ -188,14 +192,21 @@ func (s *StreamingAPI) SubscribeToMempool(ctx context.Context, handler MempoolHa
 // SubscribeToTransactions opens a new sse connection to tonapi.io and subscribes to new transactions for the specified accounts.
 // When a new transaction is received, the handler will be called.
 // If accounts is empty, all traces for all accounts will be received.
+// "operations" specifies a list of operations to receive.
+// Each operation is a string containing either MsgOpName from https://github.com/tonkeeper/tongo/blob/master/abi/messages.go
+// or a hex string representing an unsigned 32-bit integer.
+// An example of "operations" is []string{"JettonBurn", "0x595f07bc"}.
 // This function returns an error when the underlying connection fails or context is canceled.
 // No automatic reconnection is performed.
-func (s *StreamingAPI) SubscribeToTransactions(ctx context.Context, accounts []string, handler TransactionHandler) error {
+func (s *StreamingAPI) SubscribeToTransactions(ctx context.Context, accounts []string, operations []string, handler TransactionHandler) error {
 	accountsQueryStr := "ALL"
 	if len(accounts) > 0 {
 		accountsQueryStr = strings.Join(accounts, ",")
 	}
 	url := fmt.Sprintf("%s/v2/sse/accounts/transactions?accounts=%s", s.endpoint, accountsQueryStr)
+	if len(operations) > 0 {
+		url += "&operations=" + strings.Join(operations, ",")
+	}
 	return s.subscribe(ctx, url, s.apiKey, func(data []byte) {
 		eventData := TransactionEventData{}
 		if err := json.Unmarshal(data, &eventData); err != nil {
