@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 
 	"github.com/tonkeeper/tonapi-go"
@@ -11,8 +12,13 @@ func subscribeToMempool(token string) {
 	streamingAPI := tonapi.NewStreamingAPI(tonapi.WithStreamingToken(token))
 	for {
 		err := streamingAPI.SubscribeToMempool(context.Background(),
+			// this "accounts" parameter is optional,
+			// if not set, you will receive all mempool events.
+			// if defined, you will receive only mempool events that involve these accounts.
+			[]string{"-1:5555555555555555555555555555555555555555555555555555555555555555"},
 			func(data tonapi.MempoolEventData) {
-				fmt.Printf("mempool event: %#v\n", len(data.BOC))
+				value, _ := json.Marshal(data)
+				fmt.Printf("mempool event: %#v\n", value)
 			})
 		if err != nil {
 			fmt.Printf("mempool error: %v, reconnecting...\n", err)
@@ -23,7 +29,12 @@ func subscribeToMempool(token string) {
 func subscribeToTransactions(token string) {
 	streamingAPI := tonapi.NewStreamingAPI(tonapi.WithStreamingToken(token))
 	for {
-		err := streamingAPI.SubscribeToTransactions(context.Background(), []string{"-1:5555555555555555555555555555555555555555555555555555555555555555"},
+		err := streamingAPI.SubscribeToTransactions(context.Background(),
+			[]string{"-1:5555555555555555555555555555555555555555555555555555555555555555"},
+			// this "operations" is optional,
+			// if not set, you will receive all transactions.
+			// if defined, you will receive only transactions with these operations.
+			nil,
 			func(data tonapi.TransactionEventData) {
 				fmt.Printf("New tx with hash: %v\n", data.TxHash)
 			})

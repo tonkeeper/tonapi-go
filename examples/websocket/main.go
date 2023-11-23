@@ -29,10 +29,11 @@ func main() {
 		ws.SetTraceHandler(func(data tonapi.TraceEventData) {
 			fmt.Printf("New trace with hash: %v\n", data.Hash)
 		})
-		if err := ws.SubscribeToMempool(); err != nil {
+
+		if err := ws.SubscribeToMempool(accounts); err != nil {
 			return err
 		}
-		if err := ws.SubscribeToTransactions(accounts); err != nil {
+		if err := ws.SubscribeToTransactions(accounts, nil); err != nil {
 			return err
 		}
 		if err := ws.SubscribeToTraces(accounts); err != nil {
