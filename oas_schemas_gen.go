@@ -1519,6 +1519,57 @@ func (s *Auctions) SetTotal(val int64) {
 	s.Total = val
 }
 
+// Ref: #/components/schemas/BlockCurrencyCollection
+type BlockCurrencyCollection struct {
+	Grams int64                              `json:"grams"`
+	Other []BlockCurrencyCollectionOtherItem `json:"other"`
+}
+
+// GetGrams returns the value of Grams.
+func (s *BlockCurrencyCollection) GetGrams() int64 {
+	return s.Grams
+}
+
+// GetOther returns the value of Other.
+func (s *BlockCurrencyCollection) GetOther() []BlockCurrencyCollectionOtherItem {
+	return s.Other
+}
+
+// SetGrams sets the value of Grams.
+func (s *BlockCurrencyCollection) SetGrams(val int64) {
+	s.Grams = val
+}
+
+// SetOther sets the value of Other.
+func (s *BlockCurrencyCollection) SetOther(val []BlockCurrencyCollectionOtherItem) {
+	s.Other = val
+}
+
+type BlockCurrencyCollectionOtherItem struct {
+	ID    int64  `json:"id"`
+	Value string `json:"value"`
+}
+
+// GetID returns the value of ID.
+func (s *BlockCurrencyCollectionOtherItem) GetID() int64 {
+	return s.ID
+}
+
+// GetValue returns the value of Value.
+func (s *BlockCurrencyCollectionOtherItem) GetValue() string {
+	return s.Value
+}
+
+// SetID sets the value of ID.
+func (s *BlockCurrencyCollectionOtherItem) SetID(val int64) {
+	s.ID = val
+}
+
+// SetValue sets the value of Value.
+func (s *BlockCurrencyCollectionOtherItem) SetValue(val string) {
+	s.Value = val
+}
+
 // Ref: #/components/schemas/BlockLimits
 type BlockLimits struct {
 	Bytes   BlockParamLimits `json:"bytes"`
@@ -1652,6 +1703,120 @@ func (s *BlockRaw) SetFileHash(val string) {
 	s.FileHash = val
 }
 
+// Ref: #/components/schemas/BlockValueFlow
+type BlockValueFlow struct {
+	FromPrevBlk   BlockCurrencyCollection    `json:"from_prev_blk"`
+	ToNextBlk     BlockCurrencyCollection    `json:"to_next_blk"`
+	Imported      BlockCurrencyCollection    `json:"imported"`
+	Exported      BlockCurrencyCollection    `json:"exported"`
+	FeesCollected BlockCurrencyCollection    `json:"fees_collected"`
+	Burned        OptBlockCurrencyCollection `json:"burned"`
+	FeesImported  BlockCurrencyCollection    `json:"fees_imported"`
+	Recovered     BlockCurrencyCollection    `json:"recovered"`
+	Created       BlockCurrencyCollection    `json:"created"`
+	Minted        BlockCurrencyCollection    `json:"minted"`
+}
+
+// GetFromPrevBlk returns the value of FromPrevBlk.
+func (s *BlockValueFlow) GetFromPrevBlk() BlockCurrencyCollection {
+	return s.FromPrevBlk
+}
+
+// GetToNextBlk returns the value of ToNextBlk.
+func (s *BlockValueFlow) GetToNextBlk() BlockCurrencyCollection {
+	return s.ToNextBlk
+}
+
+// GetImported returns the value of Imported.
+func (s *BlockValueFlow) GetImported() BlockCurrencyCollection {
+	return s.Imported
+}
+
+// GetExported returns the value of Exported.
+func (s *BlockValueFlow) GetExported() BlockCurrencyCollection {
+	return s.Exported
+}
+
+// GetFeesCollected returns the value of FeesCollected.
+func (s *BlockValueFlow) GetFeesCollected() BlockCurrencyCollection {
+	return s.FeesCollected
+}
+
+// GetBurned returns the value of Burned.
+func (s *BlockValueFlow) GetBurned() OptBlockCurrencyCollection {
+	return s.Burned
+}
+
+// GetFeesImported returns the value of FeesImported.
+func (s *BlockValueFlow) GetFeesImported() BlockCurrencyCollection {
+	return s.FeesImported
+}
+
+// GetRecovered returns the value of Recovered.
+func (s *BlockValueFlow) GetRecovered() BlockCurrencyCollection {
+	return s.Recovered
+}
+
+// GetCreated returns the value of Created.
+func (s *BlockValueFlow) GetCreated() BlockCurrencyCollection {
+	return s.Created
+}
+
+// GetMinted returns the value of Minted.
+func (s *BlockValueFlow) GetMinted() BlockCurrencyCollection {
+	return s.Minted
+}
+
+// SetFromPrevBlk sets the value of FromPrevBlk.
+func (s *BlockValueFlow) SetFromPrevBlk(val BlockCurrencyCollection) {
+	s.FromPrevBlk = val
+}
+
+// SetToNextBlk sets the value of ToNextBlk.
+func (s *BlockValueFlow) SetToNextBlk(val BlockCurrencyCollection) {
+	s.ToNextBlk = val
+}
+
+// SetImported sets the value of Imported.
+func (s *BlockValueFlow) SetImported(val BlockCurrencyCollection) {
+	s.Imported = val
+}
+
+// SetExported sets the value of Exported.
+func (s *BlockValueFlow) SetExported(val BlockCurrencyCollection) {
+	s.Exported = val
+}
+
+// SetFeesCollected sets the value of FeesCollected.
+func (s *BlockValueFlow) SetFeesCollected(val BlockCurrencyCollection) {
+	s.FeesCollected = val
+}
+
+// SetBurned sets the value of Burned.
+func (s *BlockValueFlow) SetBurned(val OptBlockCurrencyCollection) {
+	s.Burned = val
+}
+
+// SetFeesImported sets the value of FeesImported.
+func (s *BlockValueFlow) SetFeesImported(val BlockCurrencyCollection) {
+	s.FeesImported = val
+}
+
+// SetRecovered sets the value of Recovered.
+func (s *BlockValueFlow) SetRecovered(val BlockCurrencyCollection) {
+	s.Recovered = val
+}
+
+// SetCreated sets the value of Created.
+func (s *BlockValueFlow) SetCreated(val BlockCurrencyCollection) {
+	s.Created = val
+}
+
+// SetMinted sets the value of Minted.
+func (s *BlockValueFlow) SetMinted(val BlockCurrencyCollection) {
+	s.Minted = val
+}
+
 // Ref: #/components/schemas/BlockchainAccountInspect
 type BlockchainAccountInspect struct {
 	Code     string                                `json:"code"`
@@ -1761,34 +1926,40 @@ func (s *BlockchainAccountInspectMethodsItem) SetMethod(val string) {
 
 // Ref: #/components/schemas/BlockchainBlock
 type BlockchainBlock struct {
-	WorkchainID             int32     `json:"workchain_id"`
-	Shard                   string    `json:"shard"`
-	Seqno                   int32     `json:"seqno"`
-	RootHash                string    `json:"root_hash"`
-	FileHash                string    `json:"file_hash"`
-	GlobalID                int32     `json:"global_id"`
-	Version                 int32     `json:"version"`
-	AfterMerge              bool      `json:"after_merge"`
-	BeforeSplit             bool      `json:"before_split"`
-	AfterSplit              bool      `json:"after_split"`
-	WantSplit               bool      `json:"want_split"`
-	WantMerge               bool      `json:"want_merge"`
-	KeyBlock                bool      `json:"key_block"`
-	GenUtime                int64     `json:"gen_utime"`
-	StartLt                 int64     `json:"start_lt"`
-	EndLt                   int64     `json:"end_lt"`
-	VertSeqno               int32     `json:"vert_seqno"`
-	GenCatchainSeqno        int32     `json:"gen_catchain_seqno"`
-	MinRefMcSeqno           int32     `json:"min_ref_mc_seqno"`
-	PrevKeyBlockSeqno       int32     `json:"prev_key_block_seqno"`
-	GenSoftwareVersion      OptInt32  `json:"gen_software_version"`
-	GenSoftwareCapabilities OptInt64  `json:"gen_software_capabilities"`
-	MasterRef               OptString `json:"master_ref"`
-	PrevRefs                []string  `json:"prev_refs"`
-	InMsgDescrLength        int64     `json:"in_msg_descr_length"`
-	OutMsgDescrLength       int64     `json:"out_msg_descr_length"`
-	RandSeed                string    `json:"rand_seed"`
-	CreatedBy               string    `json:"created_by"`
+	ValueFlow               BlockValueFlow `json:"value_flow"`
+	WorkchainID             int32          `json:"workchain_id"`
+	Shard                   string         `json:"shard"`
+	Seqno                   int32          `json:"seqno"`
+	RootHash                string         `json:"root_hash"`
+	FileHash                string         `json:"file_hash"`
+	GlobalID                int32          `json:"global_id"`
+	Version                 int32          `json:"version"`
+	AfterMerge              bool           `json:"after_merge"`
+	BeforeSplit             bool           `json:"before_split"`
+	AfterSplit              bool           `json:"after_split"`
+	WantSplit               bool           `json:"want_split"`
+	WantMerge               bool           `json:"want_merge"`
+	KeyBlock                bool           `json:"key_block"`
+	GenUtime                int64          `json:"gen_utime"`
+	StartLt                 int64          `json:"start_lt"`
+	EndLt                   int64          `json:"end_lt"`
+	VertSeqno               int32          `json:"vert_seqno"`
+	GenCatchainSeqno        int32          `json:"gen_catchain_seqno"`
+	MinRefMcSeqno           int32          `json:"min_ref_mc_seqno"`
+	PrevKeyBlockSeqno       int32          `json:"prev_key_block_seqno"`
+	GenSoftwareVersion      OptInt32       `json:"gen_software_version"`
+	GenSoftwareCapabilities OptInt64       `json:"gen_software_capabilities"`
+	MasterRef               OptString      `json:"master_ref"`
+	PrevRefs                []string       `json:"prev_refs"`
+	InMsgDescrLength        int64          `json:"in_msg_descr_length"`
+	OutMsgDescrLength       int64          `json:"out_msg_descr_length"`
+	RandSeed                string         `json:"rand_seed"`
+	CreatedBy               string         `json:"created_by"`
+}
+
+// GetValueFlow returns the value of ValueFlow.
+func (s *BlockchainBlock) GetValueFlow() BlockValueFlow {
+	return s.ValueFlow
 }
 
 // GetWorkchainID returns the value of WorkchainID.
@@ -1929,6 +2100,11 @@ func (s *BlockchainBlock) GetRandSeed() string {
 // GetCreatedBy returns the value of CreatedBy.
 func (s *BlockchainBlock) GetCreatedBy() string {
 	return s.CreatedBy
+}
+
+// SetValueFlow sets the value of ValueFlow.
+func (s *BlockchainBlock) SetValueFlow(val BlockValueFlow) {
+	s.ValueFlow = val
 }
 
 // SetWorkchainID sets the value of WorkchainID.
@@ -2098,6 +2274,21 @@ func (s *BlockchainBlockShardsShardsItem) GetLastKnownBlockID() string {
 // SetLastKnownBlockID sets the value of LastKnownBlockID.
 func (s *BlockchainBlockShardsShardsItem) SetLastKnownBlockID(val string) {
 	s.LastKnownBlockID = val
+}
+
+// Ref: #/components/schemas/BlockchainBlocks
+type BlockchainBlocks struct {
+	Blocks []BlockchainBlock `json:"blocks"`
+}
+
+// GetBlocks returns the value of Blocks.
+func (s *BlockchainBlocks) GetBlocks() []BlockchainBlock {
+	return s.Blocks
+}
+
+// SetBlocks sets the value of Blocks.
+func (s *BlockchainBlocks) SetBlocks(val []BlockchainBlock) {
+	s.Blocks = val
 }
 
 // Ref: #/components/schemas/BlockchainConfig
@@ -3988,6 +4179,307 @@ func (s *CreditPhase) SetFeesCollected(val int64) {
 // SetCredit sets the value of Credit.
 func (s *CreditPhase) SetCredit(val int64) {
 	s.Credit = val
+}
+
+type DecodeMessageReq struct {
+	Boc string `json:"boc"`
+}
+
+// GetBoc returns the value of Boc.
+func (s *DecodeMessageReq) GetBoc() string {
+	return s.Boc
+}
+
+// SetBoc sets the value of Boc.
+func (s *DecodeMessageReq) SetBoc(val string) {
+	s.Boc = val
+}
+
+// Ref: #/components/schemas/DecodedMessage
+type DecodedMessage struct {
+	Destination              AccountAddress                   `json:"destination"`
+	DestinationWalletVersion string                           `json:"destination_wallet_version"`
+	ExtInMsgDecoded          OptDecodedMessageExtInMsgDecoded `json:"ext_in_msg_decoded"`
+}
+
+// GetDestination returns the value of Destination.
+func (s *DecodedMessage) GetDestination() AccountAddress {
+	return s.Destination
+}
+
+// GetDestinationWalletVersion returns the value of DestinationWalletVersion.
+func (s *DecodedMessage) GetDestinationWalletVersion() string {
+	return s.DestinationWalletVersion
+}
+
+// GetExtInMsgDecoded returns the value of ExtInMsgDecoded.
+func (s *DecodedMessage) GetExtInMsgDecoded() OptDecodedMessageExtInMsgDecoded {
+	return s.ExtInMsgDecoded
+}
+
+// SetDestination sets the value of Destination.
+func (s *DecodedMessage) SetDestination(val AccountAddress) {
+	s.Destination = val
+}
+
+// SetDestinationWalletVersion sets the value of DestinationWalletVersion.
+func (s *DecodedMessage) SetDestinationWalletVersion(val string) {
+	s.DestinationWalletVersion = val
+}
+
+// SetExtInMsgDecoded sets the value of ExtInMsgDecoded.
+func (s *DecodedMessage) SetExtInMsgDecoded(val OptDecodedMessageExtInMsgDecoded) {
+	s.ExtInMsgDecoded = val
+}
+
+type DecodedMessageExtInMsgDecoded struct {
+	WalletV3         OptDecodedMessageExtInMsgDecodedWalletV3         `json:"wallet_v3"`
+	WalletV4         OptDecodedMessageExtInMsgDecodedWalletV4         `json:"wallet_v4"`
+	WalletHighloadV2 OptDecodedMessageExtInMsgDecodedWalletHighloadV2 `json:"wallet_highload_v2"`
+}
+
+// GetWalletV3 returns the value of WalletV3.
+func (s *DecodedMessageExtInMsgDecoded) GetWalletV3() OptDecodedMessageExtInMsgDecodedWalletV3 {
+	return s.WalletV3
+}
+
+// GetWalletV4 returns the value of WalletV4.
+func (s *DecodedMessageExtInMsgDecoded) GetWalletV4() OptDecodedMessageExtInMsgDecodedWalletV4 {
+	return s.WalletV4
+}
+
+// GetWalletHighloadV2 returns the value of WalletHighloadV2.
+func (s *DecodedMessageExtInMsgDecoded) GetWalletHighloadV2() OptDecodedMessageExtInMsgDecodedWalletHighloadV2 {
+	return s.WalletHighloadV2
+}
+
+// SetWalletV3 sets the value of WalletV3.
+func (s *DecodedMessageExtInMsgDecoded) SetWalletV3(val OptDecodedMessageExtInMsgDecodedWalletV3) {
+	s.WalletV3 = val
+}
+
+// SetWalletV4 sets the value of WalletV4.
+func (s *DecodedMessageExtInMsgDecoded) SetWalletV4(val OptDecodedMessageExtInMsgDecodedWalletV4) {
+	s.WalletV4 = val
+}
+
+// SetWalletHighloadV2 sets the value of WalletHighloadV2.
+func (s *DecodedMessageExtInMsgDecoded) SetWalletHighloadV2(val OptDecodedMessageExtInMsgDecodedWalletHighloadV2) {
+	s.WalletHighloadV2 = val
+}
+
+type DecodedMessageExtInMsgDecodedWalletHighloadV2 struct {
+	SubwalletID    uint32              `json:"subwallet_id"`
+	BoundedQueryID string              `json:"bounded_query_id"`
+	RawMessages    []DecodedRawMessage `json:"raw_messages"`
+}
+
+// GetSubwalletID returns the value of SubwalletID.
+func (s *DecodedMessageExtInMsgDecodedWalletHighloadV2) GetSubwalletID() uint32 {
+	return s.SubwalletID
+}
+
+// GetBoundedQueryID returns the value of BoundedQueryID.
+func (s *DecodedMessageExtInMsgDecodedWalletHighloadV2) GetBoundedQueryID() string {
+	return s.BoundedQueryID
+}
+
+// GetRawMessages returns the value of RawMessages.
+func (s *DecodedMessageExtInMsgDecodedWalletHighloadV2) GetRawMessages() []DecodedRawMessage {
+	return s.RawMessages
+}
+
+// SetSubwalletID sets the value of SubwalletID.
+func (s *DecodedMessageExtInMsgDecodedWalletHighloadV2) SetSubwalletID(val uint32) {
+	s.SubwalletID = val
+}
+
+// SetBoundedQueryID sets the value of BoundedQueryID.
+func (s *DecodedMessageExtInMsgDecodedWalletHighloadV2) SetBoundedQueryID(val string) {
+	s.BoundedQueryID = val
+}
+
+// SetRawMessages sets the value of RawMessages.
+func (s *DecodedMessageExtInMsgDecodedWalletHighloadV2) SetRawMessages(val []DecodedRawMessage) {
+	s.RawMessages = val
+}
+
+type DecodedMessageExtInMsgDecodedWalletV3 struct {
+	SubwalletID uint32              `json:"subwallet_id"`
+	ValidUntil  uint32              `json:"valid_until"`
+	Seqno       uint32              `json:"seqno"`
+	RawMessages []DecodedRawMessage `json:"raw_messages"`
+}
+
+// GetSubwalletID returns the value of SubwalletID.
+func (s *DecodedMessageExtInMsgDecodedWalletV3) GetSubwalletID() uint32 {
+	return s.SubwalletID
+}
+
+// GetValidUntil returns the value of ValidUntil.
+func (s *DecodedMessageExtInMsgDecodedWalletV3) GetValidUntil() uint32 {
+	return s.ValidUntil
+}
+
+// GetSeqno returns the value of Seqno.
+func (s *DecodedMessageExtInMsgDecodedWalletV3) GetSeqno() uint32 {
+	return s.Seqno
+}
+
+// GetRawMessages returns the value of RawMessages.
+func (s *DecodedMessageExtInMsgDecodedWalletV3) GetRawMessages() []DecodedRawMessage {
+	return s.RawMessages
+}
+
+// SetSubwalletID sets the value of SubwalletID.
+func (s *DecodedMessageExtInMsgDecodedWalletV3) SetSubwalletID(val uint32) {
+	s.SubwalletID = val
+}
+
+// SetValidUntil sets the value of ValidUntil.
+func (s *DecodedMessageExtInMsgDecodedWalletV3) SetValidUntil(val uint32) {
+	s.ValidUntil = val
+}
+
+// SetSeqno sets the value of Seqno.
+func (s *DecodedMessageExtInMsgDecodedWalletV3) SetSeqno(val uint32) {
+	s.Seqno = val
+}
+
+// SetRawMessages sets the value of RawMessages.
+func (s *DecodedMessageExtInMsgDecodedWalletV3) SetRawMessages(val []DecodedRawMessage) {
+	s.RawMessages = val
+}
+
+type DecodedMessageExtInMsgDecodedWalletV4 struct {
+	SubwalletID uint32              `json:"subwallet_id"`
+	ValidUntil  uint32              `json:"valid_until"`
+	Seqno       uint32              `json:"seqno"`
+	Op          int8                `json:"op"`
+	RawMessages []DecodedRawMessage `json:"raw_messages"`
+}
+
+// GetSubwalletID returns the value of SubwalletID.
+func (s *DecodedMessageExtInMsgDecodedWalletV4) GetSubwalletID() uint32 {
+	return s.SubwalletID
+}
+
+// GetValidUntil returns the value of ValidUntil.
+func (s *DecodedMessageExtInMsgDecodedWalletV4) GetValidUntil() uint32 {
+	return s.ValidUntil
+}
+
+// GetSeqno returns the value of Seqno.
+func (s *DecodedMessageExtInMsgDecodedWalletV4) GetSeqno() uint32 {
+	return s.Seqno
+}
+
+// GetOp returns the value of Op.
+func (s *DecodedMessageExtInMsgDecodedWalletV4) GetOp() int8 {
+	return s.Op
+}
+
+// GetRawMessages returns the value of RawMessages.
+func (s *DecodedMessageExtInMsgDecodedWalletV4) GetRawMessages() []DecodedRawMessage {
+	return s.RawMessages
+}
+
+// SetSubwalletID sets the value of SubwalletID.
+func (s *DecodedMessageExtInMsgDecodedWalletV4) SetSubwalletID(val uint32) {
+	s.SubwalletID = val
+}
+
+// SetValidUntil sets the value of ValidUntil.
+func (s *DecodedMessageExtInMsgDecodedWalletV4) SetValidUntil(val uint32) {
+	s.ValidUntil = val
+}
+
+// SetSeqno sets the value of Seqno.
+func (s *DecodedMessageExtInMsgDecodedWalletV4) SetSeqno(val uint32) {
+	s.Seqno = val
+}
+
+// SetOp sets the value of Op.
+func (s *DecodedMessageExtInMsgDecodedWalletV4) SetOp(val int8) {
+	s.Op = val
+}
+
+// SetRawMessages sets the value of RawMessages.
+func (s *DecodedMessageExtInMsgDecodedWalletV4) SetRawMessages(val []DecodedRawMessage) {
+	s.RawMessages = val
+}
+
+// Ref: #/components/schemas/DecodedRawMessage
+type DecodedRawMessage struct {
+	Message DecodedRawMessageMessage `json:"message"`
+	Mode    int                      `json:"mode"`
+}
+
+// GetMessage returns the value of Message.
+func (s *DecodedRawMessage) GetMessage() DecodedRawMessageMessage {
+	return s.Message
+}
+
+// GetMode returns the value of Mode.
+func (s *DecodedRawMessage) GetMode() int {
+	return s.Mode
+}
+
+// SetMessage sets the value of Message.
+func (s *DecodedRawMessage) SetMessage(val DecodedRawMessageMessage) {
+	s.Message = val
+}
+
+// SetMode sets the value of Mode.
+func (s *DecodedRawMessage) SetMode(val int) {
+	s.Mode = val
+}
+
+type DecodedRawMessageMessage struct {
+	Boc           string    `json:"boc"`
+	DecodedOpName OptString `json:"decoded_op_name"`
+	OpCode        OptString `json:"op_code"`
+	DecodedBody   jx.Raw    `json:"decoded_body"`
+}
+
+// GetBoc returns the value of Boc.
+func (s *DecodedRawMessageMessage) GetBoc() string {
+	return s.Boc
+}
+
+// GetDecodedOpName returns the value of DecodedOpName.
+func (s *DecodedRawMessageMessage) GetDecodedOpName() OptString {
+	return s.DecodedOpName
+}
+
+// GetOpCode returns the value of OpCode.
+func (s *DecodedRawMessageMessage) GetOpCode() OptString {
+	return s.OpCode
+}
+
+// GetDecodedBody returns the value of DecodedBody.
+func (s *DecodedRawMessageMessage) GetDecodedBody() jx.Raw {
+	return s.DecodedBody
+}
+
+// SetBoc sets the value of Boc.
+func (s *DecodedRawMessageMessage) SetBoc(val string) {
+	s.Boc = val
+}
+
+// SetDecodedOpName sets the value of DecodedOpName.
+func (s *DecodedRawMessageMessage) SetDecodedOpName(val OptString) {
+	s.DecodedOpName = val
+}
+
+// SetOpCode sets the value of OpCode.
+func (s *DecodedRawMessageMessage) SetOpCode(val OptString) {
+	s.OpCode = val
+}
+
+// SetDecodedBody sets the value of DecodedBody.
+func (s *DecodedRawMessageMessage) SetDecodedBody(val jx.Raw) {
+	s.DecodedBody = val
 }
 
 // Validator's participation in elections.
@@ -6881,6 +7373,7 @@ func (s *JettonsBalances) SetBalances(val []JettonBalance) {
 
 // Ref: #/components/schemas/Message
 type Message struct {
+	MsgType     MessageMsgType    `json:"msg_type"`
 	CreatedLt   int64             `json:"created_lt"`
 	IhrDisabled bool              `json:"ihr_disabled"`
 	Bounce      bool              `json:"bounce"`
@@ -6898,6 +7391,11 @@ type Message struct {
 	RawBody       OptString `json:"raw_body"`
 	DecodedOpName OptString `json:"decoded_op_name"`
 	DecodedBody   jx.Raw    `json:"decoded_body"`
+}
+
+// GetMsgType returns the value of MsgType.
+func (s *Message) GetMsgType() MessageMsgType {
+	return s.MsgType
 }
 
 // GetCreatedLt returns the value of CreatedLt.
@@ -6978,6 +7476,11 @@ func (s *Message) GetDecodedOpName() OptString {
 // GetDecodedBody returns the value of DecodedBody.
 func (s *Message) GetDecodedBody() jx.Raw {
 	return s.DecodedBody
+}
+
+// SetMsgType sets the value of MsgType.
+func (s *Message) SetMsgType(val MessageMsgType) {
+	s.MsgType = val
 }
 
 // SetCreatedLt sets the value of CreatedLt.
@@ -7095,6 +7598,54 @@ func (s *MessageConsequences) SetRisk(val Risk) {
 // SetEvent sets the value of Event.
 func (s *MessageConsequences) SetEvent(val AccountEvent) {
 	s.Event = val
+}
+
+type MessageMsgType string
+
+const (
+	MessageMsgTypeIntMsg    MessageMsgType = "int_msg"
+	MessageMsgTypeExtInMsg  MessageMsgType = "ext_in_msg"
+	MessageMsgTypeExtOutMsg MessageMsgType = "ext_out_msg"
+)
+
+// AllValues returns all MessageMsgType values.
+func (MessageMsgType) AllValues() []MessageMsgType {
+	return []MessageMsgType{
+		MessageMsgTypeIntMsg,
+		MessageMsgTypeExtInMsg,
+		MessageMsgTypeExtOutMsg,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s MessageMsgType) MarshalText() ([]byte, error) {
+	switch s {
+	case MessageMsgTypeIntMsg:
+		return []byte(s), nil
+	case MessageMsgTypeExtInMsg:
+		return []byte(s), nil
+	case MessageMsgTypeExtOutMsg:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *MessageMsgType) UnmarshalText(data []byte) error {
+	switch MessageMsgType(data) {
+	case MessageMsgTypeIntMsg:
+		*s = MessageMsgTypeIntMsg
+		return nil
+	case MessageMsgTypeExtInMsg:
+		*s = MessageMsgTypeExtInMsg
+		return nil
+	case MessageMsgTypeExtOutMsg:
+		*s = MessageMsgTypeExtOutMsg
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
 }
 
 // Ref: #/components/schemas/MethodExecutionResult
@@ -7995,6 +8546,52 @@ func (o OptAuctionBidAction) Get() (v AuctionBidAction, ok bool) {
 
 // Or returns value if set, or given parameter if does not.
 func (o OptAuctionBidAction) Or(d AuctionBidAction) AuctionBidAction {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptBlockCurrencyCollection returns new OptBlockCurrencyCollection with value set to v.
+func NewOptBlockCurrencyCollection(v BlockCurrencyCollection) OptBlockCurrencyCollection {
+	return OptBlockCurrencyCollection{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptBlockCurrencyCollection is optional BlockCurrencyCollection.
+type OptBlockCurrencyCollection struct {
+	Value BlockCurrencyCollection
+	Set   bool
+}
+
+// IsSet returns true if OptBlockCurrencyCollection was set.
+func (o OptBlockCurrencyCollection) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptBlockCurrencyCollection) Reset() {
+	var v BlockCurrencyCollection
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptBlockCurrencyCollection) SetTo(v BlockCurrencyCollection) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptBlockCurrencyCollection) Get() (v BlockCurrencyCollection, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptBlockCurrencyCollection) Or(d BlockCurrencyCollection) BlockCurrencyCollection {
 	if v, ok := o.Get(); ok {
 		return v
 	}
@@ -9789,6 +10386,190 @@ func (o OptCreditPhase) Get() (v CreditPhase, ok bool) {
 
 // Or returns value if set, or given parameter if does not.
 func (o OptCreditPhase) Or(d CreditPhase) CreditPhase {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptDecodedMessageExtInMsgDecoded returns new OptDecodedMessageExtInMsgDecoded with value set to v.
+func NewOptDecodedMessageExtInMsgDecoded(v DecodedMessageExtInMsgDecoded) OptDecodedMessageExtInMsgDecoded {
+	return OptDecodedMessageExtInMsgDecoded{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptDecodedMessageExtInMsgDecoded is optional DecodedMessageExtInMsgDecoded.
+type OptDecodedMessageExtInMsgDecoded struct {
+	Value DecodedMessageExtInMsgDecoded
+	Set   bool
+}
+
+// IsSet returns true if OptDecodedMessageExtInMsgDecoded was set.
+func (o OptDecodedMessageExtInMsgDecoded) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptDecodedMessageExtInMsgDecoded) Reset() {
+	var v DecodedMessageExtInMsgDecoded
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptDecodedMessageExtInMsgDecoded) SetTo(v DecodedMessageExtInMsgDecoded) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptDecodedMessageExtInMsgDecoded) Get() (v DecodedMessageExtInMsgDecoded, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptDecodedMessageExtInMsgDecoded) Or(d DecodedMessageExtInMsgDecoded) DecodedMessageExtInMsgDecoded {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptDecodedMessageExtInMsgDecodedWalletHighloadV2 returns new OptDecodedMessageExtInMsgDecodedWalletHighloadV2 with value set to v.
+func NewOptDecodedMessageExtInMsgDecodedWalletHighloadV2(v DecodedMessageExtInMsgDecodedWalletHighloadV2) OptDecodedMessageExtInMsgDecodedWalletHighloadV2 {
+	return OptDecodedMessageExtInMsgDecodedWalletHighloadV2{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptDecodedMessageExtInMsgDecodedWalletHighloadV2 is optional DecodedMessageExtInMsgDecodedWalletHighloadV2.
+type OptDecodedMessageExtInMsgDecodedWalletHighloadV2 struct {
+	Value DecodedMessageExtInMsgDecodedWalletHighloadV2
+	Set   bool
+}
+
+// IsSet returns true if OptDecodedMessageExtInMsgDecodedWalletHighloadV2 was set.
+func (o OptDecodedMessageExtInMsgDecodedWalletHighloadV2) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptDecodedMessageExtInMsgDecodedWalletHighloadV2) Reset() {
+	var v DecodedMessageExtInMsgDecodedWalletHighloadV2
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptDecodedMessageExtInMsgDecodedWalletHighloadV2) SetTo(v DecodedMessageExtInMsgDecodedWalletHighloadV2) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptDecodedMessageExtInMsgDecodedWalletHighloadV2) Get() (v DecodedMessageExtInMsgDecodedWalletHighloadV2, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptDecodedMessageExtInMsgDecodedWalletHighloadV2) Or(d DecodedMessageExtInMsgDecodedWalletHighloadV2) DecodedMessageExtInMsgDecodedWalletHighloadV2 {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptDecodedMessageExtInMsgDecodedWalletV3 returns new OptDecodedMessageExtInMsgDecodedWalletV3 with value set to v.
+func NewOptDecodedMessageExtInMsgDecodedWalletV3(v DecodedMessageExtInMsgDecodedWalletV3) OptDecodedMessageExtInMsgDecodedWalletV3 {
+	return OptDecodedMessageExtInMsgDecodedWalletV3{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptDecodedMessageExtInMsgDecodedWalletV3 is optional DecodedMessageExtInMsgDecodedWalletV3.
+type OptDecodedMessageExtInMsgDecodedWalletV3 struct {
+	Value DecodedMessageExtInMsgDecodedWalletV3
+	Set   bool
+}
+
+// IsSet returns true if OptDecodedMessageExtInMsgDecodedWalletV3 was set.
+func (o OptDecodedMessageExtInMsgDecodedWalletV3) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptDecodedMessageExtInMsgDecodedWalletV3) Reset() {
+	var v DecodedMessageExtInMsgDecodedWalletV3
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptDecodedMessageExtInMsgDecodedWalletV3) SetTo(v DecodedMessageExtInMsgDecodedWalletV3) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptDecodedMessageExtInMsgDecodedWalletV3) Get() (v DecodedMessageExtInMsgDecodedWalletV3, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptDecodedMessageExtInMsgDecodedWalletV3) Or(d DecodedMessageExtInMsgDecodedWalletV3) DecodedMessageExtInMsgDecodedWalletV3 {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptDecodedMessageExtInMsgDecodedWalletV4 returns new OptDecodedMessageExtInMsgDecodedWalletV4 with value set to v.
+func NewOptDecodedMessageExtInMsgDecodedWalletV4(v DecodedMessageExtInMsgDecodedWalletV4) OptDecodedMessageExtInMsgDecodedWalletV4 {
+	return OptDecodedMessageExtInMsgDecodedWalletV4{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptDecodedMessageExtInMsgDecodedWalletV4 is optional DecodedMessageExtInMsgDecodedWalletV4.
+type OptDecodedMessageExtInMsgDecodedWalletV4 struct {
+	Value DecodedMessageExtInMsgDecodedWalletV4
+	Set   bool
+}
+
+// IsSet returns true if OptDecodedMessageExtInMsgDecodedWalletV4 was set.
+func (o OptDecodedMessageExtInMsgDecodedWalletV4) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptDecodedMessageExtInMsgDecodedWalletV4) Reset() {
+	var v DecodedMessageExtInMsgDecodedWalletV4
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptDecodedMessageExtInMsgDecodedWalletV4) SetTo(v DecodedMessageExtInMsgDecodedWalletV4) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptDecodedMessageExtInMsgDecodedWalletV4) Get() (v DecodedMessageExtInMsgDecodedWalletV4, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptDecodedMessageExtInMsgDecodedWalletV4) Or(d DecodedMessageExtInMsgDecodedWalletV4) DecodedMessageExtInMsgDecodedWalletV4 {
 	if v, ok := o.Get(); ok {
 		return v
 	}

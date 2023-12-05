@@ -45,6 +45,40 @@ paths:
                   $ref: '#/components/schemas/BlockchainBlockShards'
           'default':
             $ref: '#/components/responses/Error'
+  /v2/blockchain/masterchain/{masterchain_seqno}/blocks:
+    get:
+      description: Get all blocks in all shards and workchains between target and previous masterchain block according to shards last blocks snapshot in masterchain.  We don't recommend to build your app around this method because it has problem with scalability and will work very slow in the future.
+      operationId: getBlockchainMasterchainBlocks
+      tags:
+          - Blockchain
+      parameters:
+        - $ref: '#/components/parameters/masterchainSeqno'
+      responses:
+          '200':
+            description: blockchain blocks
+            content:
+              application/json:
+                schema:
+                  $ref: '#/components/schemas/BlockchainBlocks'
+          'default':
+            $ref: '#/components/responses/Error'
+  /v2/blockchain/masterchain/{masterchain_seqno}/transactions:
+    get:
+      description: Get all transactions in all shards and workchains between target and previous masterchain block according to shards last blocks snapshot in masterchain. We don't recommend to build your app around this method because it has problem with scalability and will work very slow in the future.
+      operationId: getBlockchainMasterchainTransactions
+      tags:
+          - Blockchain
+      parameters:
+        - $ref: '#/components/parameters/masterchainSeqno'
+      responses:
+          '200':
+            description: blockchain transactions
+            content:
+              application/json:
+                schema:
+                  $ref: '#/components/schemas/Transactions'
+          'default':
+            $ref: '#/components/responses/Error'
   /v2/blockchain/masterchain/{masterchain_seqno}/config:
     get:
       description: Get blockchain config from a specific block, if present.
@@ -301,6 +335,23 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/BlockchainAccountInspect'
+        'default':
+          $ref: '#/components/responses/Error'
+  /v2/message/decode:
+    post:
+      description: Decode a given message. Only external incoming messages can be decoded currently.
+      operationId: decodeMessage
+      tags:
+        - Emulation
+      requestBody:
+        $ref: "#/components/requestBodies/Boc"
+      responses:
+        '200':
+          description: decoded message
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DecodedMessage'
         'default':
           $ref: '#/components/responses/Error'
   /v2/address/{account_id}/parse:
@@ -2680,6 +2731,65 @@ components:
         is_wallet:
           type: boolean
           example: true
+    BlockCurrencyCollection:
+      type: object
+      required:
+        - grams
+        - other
+      properties:
+        grams:
+          type: integer
+          format: int64
+          example: 10000000000
+        other:
+          type: array
+          items:
+            type: object
+            required:
+              - id
+              - value
+            properties:
+              id:
+                type: integer
+                format: int64
+                example: 13
+              value:
+                type: string
+                example: "10000000000"
+    BlockValueFlow:
+      type: object
+      required:
+        - from_prev_blk
+        - to_next_blk
+        - imported
+        - exported
+        - fees_collected
+        - fees_imported
+        - recovered
+        - created
+        - minted
+      properties:
+        from_prev_blk:
+          $ref: '#/components/schemas/BlockCurrencyCollection'
+        to_next_blk:
+          $ref: '#/components/schemas/BlockCurrencyCollection'
+        imported:
+          $ref: '#/components/schemas/BlockCurrencyCollection'
+        exported:
+          $ref: '#/components/schemas/BlockCurrencyCollection'
+        fees_collected:
+          $ref: '#/components/schemas/BlockCurrencyCollection'
+        burned:
+          $ref: '#/components/schemas/BlockCurrencyCollection'
+        fees_imported:
+          $ref: '#/components/schemas/BlockCurrencyCollection'
+        recovered:
+          $ref: '#/components/schemas/BlockCurrencyCollection'
+        created:
+          $ref: '#/components/schemas/BlockCurrencyCollection'
+        minted:
+          $ref: '#/components/schemas/BlockCurrencyCollection'
+
     BlockchainBlock:
       type: object
       required:
@@ -2689,7 +2799,7 @@ components:
         - root_hash
         - file_hash
         - global_id
-        # ValueFlow pgtype.JSONB
+        - value_flow
         - version
         - after_merge
         - before_split
@@ -2710,6 +2820,8 @@ components:
         - rand_seed
         - created_by
       properties:
+        value_flow:
+          $ref: '#/components/schemas/BlockValueFlow'
         workchain_id:
           type: integer
           example: 0
@@ -2811,6 +2923,15 @@ components:
         created_by:
           type: string
           example: A6A0BD6608672B11B79538A50B2204E748305C12AA0DED9C16CF0006CE3AF8DB
+    BlockchainBlocks:
+      type: object
+      required:
+        - blocks
+      properties:
+        blocks:
+          type: array
+          items:
+            $ref: '#/components/schemas/BlockchainBlock'
     BlockchainBlockShards:
       type: object
       required:
@@ -2845,6 +2966,7 @@ components:
     Message:
       type: object
       required:
+        - msg_type
         - created_lt
         - ihr_disabled
         - bounce
@@ -2855,6 +2977,13 @@ components:
         - import_fee
         - created_at
       properties:
+        msg_type:
+          type: string
+          example: int_msg
+          enum:
+            - int_msg
+            - ext_in_msg
+            - ext_out_msg
         created_lt:
           type: integer
           format: int64
@@ -5360,6 +5489,116 @@ components:
           $ref: '#/components/schemas/AccountAddress'
         jetton:
           $ref: '#/components/schemas/JettonPreview'
+    DecodedMessage:
+      type: object
+      required:
+        - destination
+        - destination_wallet_version
+      properties:
+        destination:
+          $ref: '#/components/schemas/AccountAddress'
+        destination_wallet_version:
+          type: string
+          example: "v3R2"
+        ext_in_msg_decoded:
+          type: object
+          properties:
+            wallet_v3:
+              type: object
+              required:
+                - subwallet_id
+                - valid_until
+                - seqno
+                - op
+                - raw_messages
+              properties:
+                subwallet_id:
+                  type: integer
+                  format: uint32
+                  example: 1
+                valid_until:
+                  type: integer
+                  format: uint32
+                  example: 1
+                seqno:
+                  type: integer
+                  format: uint32
+                  example: 1
+                raw_messages:
+                  type: array
+                  items:
+                    $ref: '#/components/schemas/DecodedRawMessage'
+            wallet_v4:
+              type: object
+              required:
+                - subwallet_id
+                - valid_until
+                - seqno
+                - op
+                - raw_messages
+              properties:
+                subwallet_id:
+                  type: integer
+                  format: uint32
+                  example: 1
+                valid_until:
+                  type: integer
+                  format: uint32
+                  example: 1
+                seqno:
+                  type: integer
+                  format: uint32
+                  example: 1
+                op:
+                  type: integer
+                  format: int8
+                  example: 1
+                raw_messages:
+                  type: array
+                  items:
+                    $ref: '#/components/schemas/DecodedRawMessage'
+            wallet_highload_v2:
+              type: object
+              required:
+                - subwallet_id
+                - bounded_query_id
+                - raw_messages
+              properties:
+                subwallet_id:
+                  type: integer
+                  format: uint32
+                  example: 1
+                bounded_query_id:
+                  type: string
+                  example: "34254528475294857"
+                raw_messages:
+                  type: array
+                  items:
+                    $ref: '#/components/schemas/DecodedRawMessage'
+    DecodedRawMessage:
+      type: object
+      required:
+        - message
+        - mode
+      properties:
+        message:
+          type: object
+          required:
+            - boc
+          properties:
+            boc:
+              type: string
+              example: "te6ccgEBAQEABgAACCiAmCMBAgEABwA="
+            decoded_op_name:
+              type: string
+              example: "nft_transfer"
+            op_code:
+              type: string
+              example: "0xdeadbeaf"
+            decoded_body: { } # Free-form JSON value
+        mode:
+          type: integer
+          example: 2
     Event:
       type: object
       required:
