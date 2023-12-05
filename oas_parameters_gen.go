@@ -238,8 +238,20 @@ type GetBlockchainConfigFromBlockParams struct {
 	MasterchainSeqno int32
 }
 
+// GetBlockchainMasterchainBlocksParams is parameters of getBlockchainMasterchainBlocks operation.
+type GetBlockchainMasterchainBlocksParams struct {
+	// Masterchain block seqno.
+	MasterchainSeqno int32
+}
+
 // GetBlockchainMasterchainShardsParams is parameters of getBlockchainMasterchainShards operation.
 type GetBlockchainMasterchainShardsParams struct {
+	// Masterchain block seqno.
+	MasterchainSeqno int32
+}
+
+// GetBlockchainMasterchainTransactionsParams is parameters of getBlockchainMasterchainTransactions operation.
+type GetBlockchainMasterchainTransactionsParams struct {
 	// Masterchain block seqno.
 	MasterchainSeqno int32
 }

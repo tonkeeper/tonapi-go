@@ -41,6 +41,12 @@ type Invoker interface {
 	//
 	// GET /v2/blockchain/accounts/{account_id}/inspect
 	BlockchainAccountInspect(ctx context.Context, params BlockchainAccountInspectParams) (*BlockchainAccountInspect, error)
+	// DecodeMessage invokes decodeMessage operation.
+	//
+	// Decode a given message. Only external incoming messages can be decoded currently.
+	//
+	// POST /v2/message/decode
+	DecodeMessage(ctx context.Context, request *DecodeMessageReq) (*DecodedMessage, error)
 	// DnsResolve invokes dnsResolve operation.
 	//
 	// DNS resolve for domain name.
@@ -225,6 +231,14 @@ type Invoker interface {
 	//
 	// GET /v2/blockchain/masterchain/{masterchain_seqno}/config
 	GetBlockchainConfigFromBlock(ctx context.Context, params GetBlockchainConfigFromBlockParams) (*BlockchainConfig, error)
+	// GetBlockchainMasterchainBlocks invokes getBlockchainMasterchainBlocks operation.
+	//
+	// Get all blocks in all shards and workchains between target and previous masterchain block
+	// according to shards last blocks snapshot in masterchain.  We don't recommend to build your app
+	// around this method because it has problem with scalability and will work very slow in the future.
+	//
+	// GET /v2/blockchain/masterchain/{masterchain_seqno}/blocks
+	GetBlockchainMasterchainBlocks(ctx context.Context, params GetBlockchainMasterchainBlocksParams) (*BlockchainBlocks, error)
 	// GetBlockchainMasterchainHead invokes getBlockchainMasterchainHead operation.
 	//
 	// Get last known masterchain block.
@@ -237,6 +251,14 @@ type Invoker interface {
 	//
 	// GET /v2/blockchain/masterchain/{masterchain_seqno}/shards
 	GetBlockchainMasterchainShards(ctx context.Context, params GetBlockchainMasterchainShardsParams) (*BlockchainBlockShards, error)
+	// GetBlockchainMasterchainTransactions invokes getBlockchainMasterchainTransactions operation.
+	//
+	// Get all transactions in all shards and workchains between target and previous masterchain block
+	// according to shards last blocks snapshot in masterchain. We don't recommend to build your app
+	// around this method because it has problem with scalability and will work very slow in the future.
+	//
+	// GET /v2/blockchain/masterchain/{masterchain_seqno}/transactions
+	GetBlockchainMasterchainTransactions(ctx context.Context, params GetBlockchainMasterchainTransactionsParams) (*Transactions, error)
 	// GetBlockchainRawAccount invokes getBlockchainRawAccount operation.
 	//
 	// Get low-level information about an account taken directly from the blockchain.
@@ -842,6 +864,81 @@ func (c *Client) sendBlockchainAccountInspect(ctx context.Context, params Blockc
 
 	stage = "DecodeResponse"
 	result, err := decodeBlockchainAccountInspectResponse(resp)
+	if err != nil {
+		return res, errors.Wrap(err, "decode response")
+	}
+
+	return result, nil
+}
+
+// DecodeMessage invokes decodeMessage operation.
+//
+// Decode a given message. Only external incoming messages can be decoded currently.
+//
+// POST /v2/message/decode
+func (c *Client) DecodeMessage(ctx context.Context, request *DecodeMessageReq) (*DecodedMessage, error) {
+	res, err := c.sendDecodeMessage(ctx, request)
+	return res, err
+}
+
+func (c *Client) sendDecodeMessage(ctx context.Context, request *DecodeMessageReq) (res *DecodedMessage, err error) {
+	otelAttrs := []attribute.KeyValue{
+		otelogen.OperationID("decodeMessage"),
+		semconv.HTTPMethodKey.String("POST"),
+		semconv.HTTPRouteKey.String("/v2/message/decode"),
+	}
+
+	// Run stopwatch.
+	startTime := time.Now()
+	defer func() {
+		// Use floating point division here for higher precision (instead of Millisecond method).
+		elapsedDuration := time.Since(startTime)
+		c.duration.Record(ctx, float64(float64(elapsedDuration)/float64(time.Millisecond)), metric.WithAttributes(otelAttrs...))
+	}()
+
+	// Increment request counter.
+	c.requests.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
+
+	// Start a span for this request.
+	ctx, span := c.cfg.Tracer.Start(ctx, "DecodeMessage",
+		trace.WithAttributes(otelAttrs...),
+		clientSpanKind,
+	)
+	// Track stage for error reporting.
+	var stage string
+	defer func() {
+		if err != nil {
+			span.RecordError(err)
+			span.SetStatus(codes.Error, stage)
+			c.errors.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
+		}
+		span.End()
+	}()
+
+	stage = "BuildURL"
+	u := uri.Clone(c.requestURL(ctx))
+	var pathParts [1]string
+	pathParts[0] = "/v2/message/decode"
+	uri.AddPathParts(u, pathParts[:]...)
+
+	stage = "EncodeRequest"
+	r, err := ht.NewRequest(ctx, "POST", u)
+	if err != nil {
+		return res, errors.Wrap(err, "create request")
+	}
+	if err := encodeDecodeMessageRequest(request, r); err != nil {
+		return res, errors.Wrap(err, "encode request")
+	}
+
+	stage = "SendRequest"
+	resp, err := c.cfg.Client.Do(r)
+	if err != nil {
+		return res, errors.Wrap(err, "do request")
+	}
+	defer resp.Body.Close()
+
+	stage = "DecodeResponse"
+	result, err := decodeDecodeMessageResponse(resp)
 	if err != nil {
 		return res, errors.Wrap(err, "decode response")
 	}
@@ -4315,6 +4412,99 @@ func (c *Client) sendGetBlockchainConfigFromBlock(ctx context.Context, params Ge
 	return result, nil
 }
 
+// GetBlockchainMasterchainBlocks invokes getBlockchainMasterchainBlocks operation.
+//
+// Get all blocks in all shards and workchains between target and previous masterchain block
+// according to shards last blocks snapshot in masterchain.  We don't recommend to build your app
+// around this method because it has problem with scalability and will work very slow in the future.
+//
+// GET /v2/blockchain/masterchain/{masterchain_seqno}/blocks
+func (c *Client) GetBlockchainMasterchainBlocks(ctx context.Context, params GetBlockchainMasterchainBlocksParams) (*BlockchainBlocks, error) {
+	res, err := c.sendGetBlockchainMasterchainBlocks(ctx, params)
+	return res, err
+}
+
+func (c *Client) sendGetBlockchainMasterchainBlocks(ctx context.Context, params GetBlockchainMasterchainBlocksParams) (res *BlockchainBlocks, err error) {
+	otelAttrs := []attribute.KeyValue{
+		otelogen.OperationID("getBlockchainMasterchainBlocks"),
+		semconv.HTTPMethodKey.String("GET"),
+		semconv.HTTPRouteKey.String("/v2/blockchain/masterchain/{masterchain_seqno}/blocks"),
+	}
+
+	// Run stopwatch.
+	startTime := time.Now()
+	defer func() {
+		// Use floating point division here for higher precision (instead of Millisecond method).
+		elapsedDuration := time.Since(startTime)
+		c.duration.Record(ctx, float64(float64(elapsedDuration)/float64(time.Millisecond)), metric.WithAttributes(otelAttrs...))
+	}()
+
+	// Increment request counter.
+	c.requests.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
+
+	// Start a span for this request.
+	ctx, span := c.cfg.Tracer.Start(ctx, "GetBlockchainMasterchainBlocks",
+		trace.WithAttributes(otelAttrs...),
+		clientSpanKind,
+	)
+	// Track stage for error reporting.
+	var stage string
+	defer func() {
+		if err != nil {
+			span.RecordError(err)
+			span.SetStatus(codes.Error, stage)
+			c.errors.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
+		}
+		span.End()
+	}()
+
+	stage = "BuildURL"
+	u := uri.Clone(c.requestURL(ctx))
+	var pathParts [3]string
+	pathParts[0] = "/v2/blockchain/masterchain/"
+	{
+		// Encode "masterchain_seqno" parameter.
+		e := uri.NewPathEncoder(uri.PathEncoderConfig{
+			Param:   "masterchain_seqno",
+			Style:   uri.PathStyleSimple,
+			Explode: false,
+		})
+		if err := func() error {
+			return e.EncodeValue(conv.Int32ToString(params.MasterchainSeqno))
+		}(); err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		encoded, err := e.Result()
+		if err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		pathParts[1] = encoded
+	}
+	pathParts[2] = "/blocks"
+	uri.AddPathParts(u, pathParts[:]...)
+
+	stage = "EncodeRequest"
+	r, err := ht.NewRequest(ctx, "GET", u)
+	if err != nil {
+		return res, errors.Wrap(err, "create request")
+	}
+
+	stage = "SendRequest"
+	resp, err := c.cfg.Client.Do(r)
+	if err != nil {
+		return res, errors.Wrap(err, "do request")
+	}
+	defer resp.Body.Close()
+
+	stage = "DecodeResponse"
+	result, err := decodeGetBlockchainMasterchainBlocksResponse(resp)
+	if err != nil {
+		return res, errors.Wrap(err, "decode response")
+	}
+
+	return result, nil
+}
+
 // GetBlockchainMasterchainHead invokes getBlockchainMasterchainHead operation.
 //
 // Get last known masterchain block.
@@ -4471,6 +4661,99 @@ func (c *Client) sendGetBlockchainMasterchainShards(ctx context.Context, params 
 
 	stage = "DecodeResponse"
 	result, err := decodeGetBlockchainMasterchainShardsResponse(resp)
+	if err != nil {
+		return res, errors.Wrap(err, "decode response")
+	}
+
+	return result, nil
+}
+
+// GetBlockchainMasterchainTransactions invokes getBlockchainMasterchainTransactions operation.
+//
+// Get all transactions in all shards and workchains between target and previous masterchain block
+// according to shards last blocks snapshot in masterchain. We don't recommend to build your app
+// around this method because it has problem with scalability and will work very slow in the future.
+//
+// GET /v2/blockchain/masterchain/{masterchain_seqno}/transactions
+func (c *Client) GetBlockchainMasterchainTransactions(ctx context.Context, params GetBlockchainMasterchainTransactionsParams) (*Transactions, error) {
+	res, err := c.sendGetBlockchainMasterchainTransactions(ctx, params)
+	return res, err
+}
+
+func (c *Client) sendGetBlockchainMasterchainTransactions(ctx context.Context, params GetBlockchainMasterchainTransactionsParams) (res *Transactions, err error) {
+	otelAttrs := []attribute.KeyValue{
+		otelogen.OperationID("getBlockchainMasterchainTransactions"),
+		semconv.HTTPMethodKey.String("GET"),
+		semconv.HTTPRouteKey.String("/v2/blockchain/masterchain/{masterchain_seqno}/transactions"),
+	}
+
+	// Run stopwatch.
+	startTime := time.Now()
+	defer func() {
+		// Use floating point division here for higher precision (instead of Millisecond method).
+		elapsedDuration := time.Since(startTime)
+		c.duration.Record(ctx, float64(float64(elapsedDuration)/float64(time.Millisecond)), metric.WithAttributes(otelAttrs...))
+	}()
+
+	// Increment request counter.
+	c.requests.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
+
+	// Start a span for this request.
+	ctx, span := c.cfg.Tracer.Start(ctx, "GetBlockchainMasterchainTransactions",
+		trace.WithAttributes(otelAttrs...),
+		clientSpanKind,
+	)
+	// Track stage for error reporting.
+	var stage string
+	defer func() {
+		if err != nil {
+			span.RecordError(err)
+			span.SetStatus(codes.Error, stage)
+			c.errors.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
+		}
+		span.End()
+	}()
+
+	stage = "BuildURL"
+	u := uri.Clone(c.requestURL(ctx))
+	var pathParts [3]string
+	pathParts[0] = "/v2/blockchain/masterchain/"
+	{
+		// Encode "masterchain_seqno" parameter.
+		e := uri.NewPathEncoder(uri.PathEncoderConfig{
+			Param:   "masterchain_seqno",
+			Style:   uri.PathStyleSimple,
+			Explode: false,
+		})
+		if err := func() error {
+			return e.EncodeValue(conv.Int32ToString(params.MasterchainSeqno))
+		}(); err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		encoded, err := e.Result()
+		if err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		pathParts[1] = encoded
+	}
+	pathParts[2] = "/transactions"
+	uri.AddPathParts(u, pathParts[:]...)
+
+	stage = "EncodeRequest"
+	r, err := ht.NewRequest(ctx, "GET", u)
+	if err != nil {
+		return res, errors.Wrap(err, "create request")
+	}
+
+	stage = "SendRequest"
+	resp, err := c.cfg.Client.Do(r)
+	if err != nil {
+		return res, errors.Wrap(err, "do request")
+	}
+	defer resp.Body.Close()
+
+	stage = "DecodeResponse"
+	result, err := decodeGetBlockchainMasterchainTransactionsResponse(resp)
 	if err != nil {
 		return res, errors.Wrap(err, "decode response")
 	}
