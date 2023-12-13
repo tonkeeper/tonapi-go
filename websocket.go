@@ -38,6 +38,7 @@ type websocketConnection struct {
 	mempoolHandler     MempoolHandler
 	transactionHandler TransactionHandler
 	traceHandler       TraceHandler
+	blockHandler       BlockHandler
 }
 
 func (w *websocketConnection) SubscribeToTransactions(accounts []string, operations []string) error {
@@ -95,6 +96,25 @@ func (w *websocketConnection) UnsubscribeFromMempool() error {
 	return w.conn.WriteJSON(request)
 }
 
+func (w *websocketConnection) SubscribeToBlocks(workchain *int) error {
+	request := JsonRPCRequest{ID: w.currentRequestID(), JSONRPC: "2.0", Method: "subscribe_block"}
+	if workchain != nil {
+		request.Params = []string{
+			fmt.Sprintf("workchain=%d", *workchain),
+		}
+	}
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	return w.conn.WriteJSON(request)
+}
+
+func (w *websocketConnection) UnsubscribeFromBlocks() error {
+	request := JsonRPCRequest{ID: w.currentRequestID(), JSONRPC: "2.0", Method: "unsubscribe_block"}
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	return w.conn.WriteJSON(request)
+}
+
 func (w *websocketConnection) SetMempoolHandler(handler MempoolHandler) {
 	w.mu.Lock()
 	defer w.mu.Unlock()
@@ -111,6 +131,12 @@ func (w *websocketConnection) SetTraceHandler(handler TraceHandler) {
 	w.mu.Lock()
 	defer w.mu.Unlock()
 	w.traceHandler = handler
+}
+
+func (w *websocketConnection) SetBlockHandler(handler BlockHandler) {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	w.blockHandler = handler
 }
 
 func websocketConnect(ctx context.Context, endpoint string, apiKey string) (*websocketConnection, error) {
@@ -137,6 +163,7 @@ func websocketConnect(ctx context.Context, endpoint string, apiKey string) (*web
 		mempoolHandler:     func(data MempoolEventData) {},
 		transactionHandler: func(data TransactionEventData) {},
 		traceHandler:       func(data TraceEventData) {},
+		blockHandler:       func(data BlockEventData) {},
 	}, nil
 }
 
@@ -184,6 +211,14 @@ func (w *websocketConnection) runJsonRPC(ctx context.Context, fn WebsocketConfig
 				}
 				w.processHandler(func() {
 					w.mempoolHandler(mempoolEvent)
+				})
+			case "block":
+				var block BlockEventData
+				if err := json.Unmarshal(response.Params, &block); err != nil {
+					return err
+				}
+				w.processHandler(func() {
+					w.blockHandler(block)
 				})
 			}
 		}
