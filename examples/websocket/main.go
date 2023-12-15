@@ -10,7 +10,7 @@ import (
 
 func main() {
 
-	accounts := []string{"-1:5555555555555555555555555555555555555555555555555555555555555555"}
+	accounts := []string{"-1:AFWYNFCNOWWI3WIAAAAARAXNR4D4ME532EJBDNZA6I4B4R7EEXNF2BRY7JRHNXRGI4MHH3Q"}
 
 	// When working with tonapi.io, you should consider getting an API key at https://tonconsole.com/
 	// because tonapi.io has per-ip limits for sse and websocket connections.
