@@ -8,6 +8,10 @@ import (
 	"github.com/tonkeeper/tonapi-go"
 )
 
+func intPointer(x int) *int {
+	return &x
+}
+
 func subscribeToMempool(token string) {
 	streamingAPI := tonapi.NewStreamingAPI(tonapi.WithStreamingToken(token))
 	for {
@@ -57,6 +61,19 @@ func subscribeToTraces(token string) {
 	}
 }
 
+func subscribeToBlocks(token string) {
+	streamingAPI := tonapi.NewStreamingAPI(tonapi.WithStreamingToken(token))
+	for {
+		err := streamingAPI.SubscribeToBlocks(context.Background(), intPointer(-1),
+			func(data tonapi.BlockEventData) {
+				fmt.Printf("New block: (%v,%v,%v)\n", data.Workchain, data.Shard, data.Seqno)
+			})
+		if err != nil {
+			fmt.Printf("block error: %v, reconnecting...\n", err)
+		}
+	}
+}
+
 func main() {
 	// When working with tonapi.io, you should consider getting an API key at https://tonconsole.com/
 	// because tonapi.io has per-ip limits for sse and websocket connections.
@@ -72,5 +89,6 @@ func main() {
 	go subscribeToTraces(token)
 	go subscribeToMempool(token)
 	go subscribeToTransactions(token)
+	go subscribeToBlocks(token)
 	select {}
 }

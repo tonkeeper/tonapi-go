@@ -29,14 +29,21 @@ func main() {
 		ws.SetTraceHandler(func(data tonapi.TraceEventData) {
 			fmt.Printf("New trace with hash: %v\n", data.Hash)
 		})
+		ws.SetBlockHandler(func(data tonapi.BlockEventData) {
+			fmt.Printf("New block: (%v,%v,%v)\n", data.Workchain, data.Shard, data.Seqno)
+		})
 
-		if err := ws.SubscribeToMempool(accounts); err != nil {
+		if err := ws.SubscribeToMempool(nil); err != nil {
 			return err
 		}
 		if err := ws.SubscribeToTransactions(accounts, nil); err != nil {
 			return err
 		}
 		if err := ws.SubscribeToTraces(accounts); err != nil {
+			return err
+		}
+		masterchain := -1
+		if err := ws.SubscribeToBlocks(&masterchain); err != nil {
 			return err
 		}
 		// It is possible to run a loop updating subscription on the go:
