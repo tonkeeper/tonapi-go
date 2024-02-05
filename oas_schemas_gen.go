@@ -68,16 +68,16 @@ type Account struct {
 	Address string `json:"address"`
 	Balance int64  `json:"balance"`
 	// Unix timestamp.
-	LastActivity int64     `json:"last_activity"`
-	Status       string    `json:"status"`
-	Interfaces   []string  `json:"interfaces"`
-	Name         OptString `json:"name"`
-	IsScam       OptBool   `json:"is_scam"`
-	Icon         OptString `json:"icon"`
-	MemoRequired OptBool   `json:"memo_required"`
-	GetMethods   []string  `json:"get_methods"`
-	IsSuspended  OptBool   `json:"is_suspended"`
-	IsWallet     bool      `json:"is_wallet"`
+	LastActivity int64         `json:"last_activity"`
+	Status       AccountStatus `json:"status"`
+	Interfaces   []string      `json:"interfaces"`
+	Name         OptString     `json:"name"`
+	IsScam       OptBool       `json:"is_scam"`
+	Icon         OptString     `json:"icon"`
+	MemoRequired OptBool       `json:"memo_required"`
+	GetMethods   []string      `json:"get_methods"`
+	IsSuspended  OptBool       `json:"is_suspended"`
+	IsWallet     bool          `json:"is_wallet"`
 }
 
 // GetAddress returns the value of Address.
@@ -96,7 +96,7 @@ func (s *Account) GetLastActivity() int64 {
 }
 
 // GetStatus returns the value of Status.
-func (s *Account) GetStatus() string {
+func (s *Account) GetStatus() AccountStatus {
 	return s.Status
 }
 
@@ -156,7 +156,7 @@ func (s *Account) SetLastActivity(val int64) {
 }
 
 // SetStatus sets the value of Status.
-func (s *Account) SetStatus(val string) {
+func (s *Account) SetStatus(val AccountStatus) {
 	s.Status = val
 }
 
@@ -3815,14 +3815,15 @@ func (s *BlockchainConfig9) SetMandatoryParams(val []int32) {
 
 // Ref: #/components/schemas/BlockchainRawAccount
 type BlockchainRawAccount struct {
-	Address           string                              `json:"address"`
-	Balance           int64                               `json:"balance"`
-	ExtraBalance      OptBlockchainRawAccountExtraBalance `json:"extra_balance"`
-	Code              OptString                           `json:"code"`
-	Data              OptString                           `json:"data"`
-	LastTransactionLt int64                               `json:"last_transaction_lt"`
-	Status            string                              `json:"status"`
-	Storage           AccountStorageInfo                  `json:"storage"`
+	Address             string                              `json:"address"`
+	Balance             int64                               `json:"balance"`
+	ExtraBalance        OptBlockchainRawAccountExtraBalance `json:"extra_balance"`
+	Code                OptString                           `json:"code"`
+	Data                OptString                           `json:"data"`
+	LastTransactionLt   int64                               `json:"last_transaction_lt"`
+	LastTransactionHash OptString                           `json:"last_transaction_hash"`
+	Status              AccountStatus                       `json:"status"`
+	Storage             AccountStorageInfo                  `json:"storage"`
 }
 
 // GetAddress returns the value of Address.
@@ -3855,8 +3856,13 @@ func (s *BlockchainRawAccount) GetLastTransactionLt() int64 {
 	return s.LastTransactionLt
 }
 
+// GetLastTransactionHash returns the value of LastTransactionHash.
+func (s *BlockchainRawAccount) GetLastTransactionHash() OptString {
+	return s.LastTransactionHash
+}
+
 // GetStatus returns the value of Status.
-func (s *BlockchainRawAccount) GetStatus() string {
+func (s *BlockchainRawAccount) GetStatus() AccountStatus {
 	return s.Status
 }
 
@@ -3895,8 +3901,13 @@ func (s *BlockchainRawAccount) SetLastTransactionLt(val int64) {
 	s.LastTransactionLt = val
 }
 
+// SetLastTransactionHash sets the value of LastTransactionHash.
+func (s *BlockchainRawAccount) SetLastTransactionHash(val OptString) {
+	s.LastTransactionHash = val
+}
+
 // SetStatus sets the value of Status.
-func (s *BlockchainRawAccount) SetStatus(val string) {
+func (s *BlockchainRawAccount) SetStatus(val AccountStatus) {
 	s.Status = val
 }
 

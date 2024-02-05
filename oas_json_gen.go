@@ -77,7 +77,7 @@ func (s *Account) encodeFields(e *jx.Encoder) {
 	}
 	{
 		e.FieldStart("status")
-		e.Str(s.Status)
+		s.Status.Encode(e)
 	}
 	{
 		if s.Interfaces != nil {
@@ -196,9 +196,7 @@ func (s *Account) Decode(d *jx.Decoder) error {
 		case "status":
 			requiredBitSet[0] |= 1 << 3
 			if err := func() error {
-				v, err := d.Str()
-				s.Status = string(v)
-				if err != nil {
+				if err := s.Status.Decode(d); err != nil {
 					return err
 				}
 				return nil
@@ -10443,8 +10441,14 @@ func (s *BlockchainRawAccount) encodeFields(e *jx.Encoder) {
 		e.Int64(s.LastTransactionLt)
 	}
 	{
+		if s.LastTransactionHash.Set {
+			e.FieldStart("last_transaction_hash")
+			s.LastTransactionHash.Encode(e)
+		}
+	}
+	{
 		e.FieldStart("status")
-		e.Str(s.Status)
+		s.Status.Encode(e)
 	}
 	{
 		e.FieldStart("storage")
@@ -10452,15 +10456,16 @@ func (s *BlockchainRawAccount) encodeFields(e *jx.Encoder) {
 	}
 }
 
-var jsonFieldsNameOfBlockchainRawAccount = [8]string{
+var jsonFieldsNameOfBlockchainRawAccount = [9]string{
 	0: "address",
 	1: "balance",
 	2: "extra_balance",
 	3: "code",
 	4: "data",
 	5: "last_transaction_lt",
-	6: "status",
-	7: "storage",
+	6: "last_transaction_hash",
+	7: "status",
+	8: "storage",
 }
 
 // Decode decodes BlockchainRawAccount from json.
@@ -10468,7 +10473,7 @@ func (s *BlockchainRawAccount) Decode(d *jx.Decoder) error {
 	if s == nil {
 		return errors.New("invalid: unable to decode BlockchainRawAccount to nil")
 	}
-	var requiredBitSet [1]uint8
+	var requiredBitSet [2]uint8
 
 	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
 		switch string(k) {
@@ -10538,12 +10543,20 @@ func (s *BlockchainRawAccount) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"last_transaction_lt\"")
 			}
-		case "status":
-			requiredBitSet[0] |= 1 << 6
+		case "last_transaction_hash":
 			if err := func() error {
-				v, err := d.Str()
-				s.Status = string(v)
-				if err != nil {
+				s.LastTransactionHash.Reset()
+				if err := s.LastTransactionHash.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"last_transaction_hash\"")
+			}
+		case "status":
+			requiredBitSet[0] |= 1 << 7
+			if err := func() error {
+				if err := s.Status.Decode(d); err != nil {
 					return err
 				}
 				return nil
@@ -10551,7 +10564,7 @@ func (s *BlockchainRawAccount) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"status\"")
 			}
 		case "storage":
-			requiredBitSet[0] |= 1 << 7
+			requiredBitSet[1] |= 1 << 0
 			if err := func() error {
 				if err := s.Storage.Decode(d); err != nil {
 					return err
@@ -10569,8 +10582,9 @@ func (s *BlockchainRawAccount) Decode(d *jx.Decoder) error {
 	}
 	// Validate required fields.
 	var failures []validate.FieldError
-	for i, mask := range [1]uint8{
-		0b11100011,
+	for i, mask := range [2]uint8{
+		0b10100011,
+		0b00000001,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
