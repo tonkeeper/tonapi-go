@@ -155,7 +155,7 @@ type GetAccountJettonsBalancesParams struct {
 	// Account ID.
 	AccountID string
 	// Accept ton and all possible fiat currencies, separated by commas.
-	Currencies OptString
+	Currencies []string
 }
 
 // GetAccountJettonsHistoryParams is parameters of getAccountJettonsHistory operation.
@@ -306,10 +306,11 @@ type GetBlockchainTransactionByMessageHashParams struct {
 // GetChartRatesParams is parameters of getChartRates operation.
 type GetChartRatesParams struct {
 	// Accept jetton master address.
-	Token     string
-	Currency  OptString
-	StartDate OptInt64
-	EndDate   OptInt64
+	Token       string
+	Currency    OptString
+	StartDate   OptInt64
+	EndDate     OptInt64
+	PointsCount OptInt
 }
 
 // GetDnsInfoParams is parameters of getDnsInfo operation.
@@ -410,9 +411,9 @@ type GetNftItemByAddressParams struct {
 // GetRatesParams is parameters of getRates operation.
 type GetRatesParams struct {
 	// Accept ton and jetton master addresses, separated by commas.
-	Tokens string
+	Tokens []string
 	// Accept ton and all possible fiat currencies, separated by commas.
-	Currencies string
+	Currencies []string
 }
 
 // GetRawAccountStateParams is parameters of getRawAccountState operation.

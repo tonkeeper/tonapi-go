@@ -543,6 +543,12 @@ type Invoker interface {
 	//
 	// GET /v2/pubkeys/{public_key}/wallets
 	GetWalletsByPublicKey(ctx context.Context, params GetWalletsByPublicKeyParams) (*Accounts, error)
+	// ReduceIndexingLatency invokes reduceIndexingLatency operation.
+	//
+	// Reduce indexing latency.
+	//
+	// GET /v2/status
+	ReduceIndexingLatency(ctx context.Context) (*ServiceStatus, error)
 	// ReindexAccount invokes reindexAccount operation.
 	//
 	// Update internal cache for a particular account.
@@ -3088,14 +3094,20 @@ func (c *Client) sendGetAccountJettonsBalances(ctx context.Context, params GetAc
 		cfg := uri.QueryParameterEncodingConfig{
 			Name:    "currencies",
 			Style:   uri.QueryStyleForm,
-			Explode: true,
+			Explode: false,
 		}
 
 		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
-			if val, ok := params.Currencies.Get(); ok {
-				return e.EncodeValue(conv.StringToString(val))
-			}
-			return nil
+			return e.EncodeArray(func(e uri.Encoder) error {
+				for i, item := range params.Currencies {
+					if err := func() error {
+						return e.EncodeValue(conv.StringToString(item))
+					}(); err != nil {
+						return errors.Wrapf(err, "[%d]", i)
+					}
+				}
+				return nil
+			})
 		}); err != nil {
 			return res, errors.Wrap(err, "encode query")
 		}
@@ -5690,6 +5702,23 @@ func (c *Client) sendGetChartRates(ctx context.Context, params GetChartRatesPara
 			return res, errors.Wrap(err, "encode query")
 		}
 	}
+	{
+		// Encode "points_count" parameter.
+		cfg := uri.QueryParameterEncodingConfig{
+			Name:    "points_count",
+			Style:   uri.QueryStyleForm,
+			Explode: true,
+		}
+
+		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
+			if val, ok := params.PointsCount.Get(); ok {
+				return e.EncodeValue(conv.IntToString(val))
+			}
+			return nil
+		}); err != nil {
+			return res, errors.Wrap(err, "encode query")
+		}
+	}
 	u.RawQuery = q.Values().Encode()
 
 	stage = "EncodeRequest"
@@ -7369,11 +7398,20 @@ func (c *Client) sendGetRates(ctx context.Context, params GetRatesParams) (res *
 		cfg := uri.QueryParameterEncodingConfig{
 			Name:    "tokens",
 			Style:   uri.QueryStyleForm,
-			Explode: true,
+			Explode: false,
 		}
 
 		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
-			return e.EncodeValue(conv.StringToString(params.Tokens))
+			return e.EncodeArray(func(e uri.Encoder) error {
+				for i, item := range params.Tokens {
+					if err := func() error {
+						return e.EncodeValue(conv.StringToString(item))
+					}(); err != nil {
+						return errors.Wrapf(err, "[%d]", i)
+					}
+				}
+				return nil
+			})
 		}); err != nil {
 			return res, errors.Wrap(err, "encode query")
 		}
@@ -7383,11 +7421,20 @@ func (c *Client) sendGetRates(ctx context.Context, params GetRatesParams) (res *
 		cfg := uri.QueryParameterEncodingConfig{
 			Name:    "currencies",
 			Style:   uri.QueryStyleForm,
-			Explode: true,
+			Explode: false,
 		}
 
 		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
-			return e.EncodeValue(conv.StringToString(params.Currencies))
+			return e.EncodeArray(func(e uri.Encoder) error {
+				for i, item := range params.Currencies {
+					if err := func() error {
+						return e.EncodeValue(conv.StringToString(item))
+					}(); err != nil {
+						return errors.Wrapf(err, "[%d]", i)
+					}
+				}
+				return nil
+			})
 		}); err != nil {
 			return res, errors.Wrap(err, "encode query")
 		}
@@ -9688,6 +9735,78 @@ func (c *Client) sendGetWalletsByPublicKey(ctx context.Context, params GetWallet
 
 	stage = "DecodeResponse"
 	result, err := decodeGetWalletsByPublicKeyResponse(resp)
+	if err != nil {
+		return res, errors.Wrap(err, "decode response")
+	}
+
+	return result, nil
+}
+
+// ReduceIndexingLatency invokes reduceIndexingLatency operation.
+//
+// Reduce indexing latency.
+//
+// GET /v2/status
+func (c *Client) ReduceIndexingLatency(ctx context.Context) (*ServiceStatus, error) {
+	res, err := c.sendReduceIndexingLatency(ctx)
+	return res, err
+}
+
+func (c *Client) sendReduceIndexingLatency(ctx context.Context) (res *ServiceStatus, err error) {
+	otelAttrs := []attribute.KeyValue{
+		otelogen.OperationID("reduceIndexingLatency"),
+		semconv.HTTPMethodKey.String("GET"),
+		semconv.HTTPRouteKey.String("/v2/status"),
+	}
+
+	// Run stopwatch.
+	startTime := time.Now()
+	defer func() {
+		// Use floating point division here for higher precision (instead of Millisecond method).
+		elapsedDuration := time.Since(startTime)
+		c.duration.Record(ctx, float64(float64(elapsedDuration)/float64(time.Millisecond)), metric.WithAttributes(otelAttrs...))
+	}()
+
+	// Increment request counter.
+	c.requests.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
+
+	// Start a span for this request.
+	ctx, span := c.cfg.Tracer.Start(ctx, "ReduceIndexingLatency",
+		trace.WithAttributes(otelAttrs...),
+		clientSpanKind,
+	)
+	// Track stage for error reporting.
+	var stage string
+	defer func() {
+		if err != nil {
+			span.RecordError(err)
+			span.SetStatus(codes.Error, stage)
+			c.errors.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
+		}
+		span.End()
+	}()
+
+	stage = "BuildURL"
+	u := uri.Clone(c.requestURL(ctx))
+	var pathParts [1]string
+	pathParts[0] = "/v2/status"
+	uri.AddPathParts(u, pathParts[:]...)
+
+	stage = "EncodeRequest"
+	r, err := ht.NewRequest(ctx, "GET", u)
+	if err != nil {
+		return res, errors.Wrap(err, "create request")
+	}
+
+	stage = "SendRequest"
+	resp, err := c.cfg.Client.Do(r)
+	if err != nil {
+		return res, errors.Wrap(err, "do request")
+	}
+	defer resp.Body.Close()
+
+	stage = "DecodeResponse"
+	result, err := decodeReduceIndexingLatencyResponse(resp)
 	if err != nil {
 		return res, errors.Wrap(err, "decode response")
 	}
