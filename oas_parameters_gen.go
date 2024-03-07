@@ -431,7 +431,7 @@ type GetRawBlockProofParams struct {
 	// Target block: (workchain,shard,seqno,root_hash,file_hash).
 	TargetBlock OptString
 	// Mode.
-	Mode uint32
+	Mode int32
 }
 
 // GetRawBlockchainBlockParams is parameters of getRawBlockchainBlock operation.
@@ -445,7 +445,7 @@ type GetRawBlockchainBlockHeaderParams struct {
 	// Block ID: (workchain,shard,seqno,root_hash,file_hash).
 	BlockID string
 	// Mode.
-	Mode uint32
+	Mode int32
 }
 
 // GetRawBlockchainBlockStateParams is parameters of getRawBlockchainBlockState operation.
@@ -465,7 +465,7 @@ type GetRawConfigParams struct {
 	// Block ID: (workchain,shard,seqno,root_hash,file_hash).
 	BlockID string
 	// Mode.
-	Mode uint32
+	Mode int32
 }
 
 // GetRawListBlockTransactionsParams is parameters of getRawListBlockTransactions operation.
@@ -473,19 +473,19 @@ type GetRawListBlockTransactionsParams struct {
 	// Block ID: (workchain,shard,seqno,root_hash,file_hash).
 	BlockID string
 	// Mode.
-	Mode uint32
+	Mode int32
 	// Count.
-	Count uint32
+	Count int32
 	// Account ID.
 	AccountID OptString
 	// Lt.
-	Lt OptUint64
+	Lt OptInt64
 }
 
 // GetRawMasterchainInfoExtParams is parameters of getRawMasterchainInfoExt operation.
 type GetRawMasterchainInfoExtParams struct {
 	// Mode.
-	Mode uint32
+	Mode int32
 }
 
 // GetRawShardBlockProofParams is parameters of getRawShardBlockProof operation.
@@ -499,9 +499,9 @@ type GetRawShardInfoParams struct {
 	// Block ID: (workchain,shard,seqno,root_hash,file_hash).
 	BlockID string
 	// Workchain.
-	Workchain uint32
+	Workchain int32
 	// Shard.
-	Shard uint64
+	Shard int64
 	// Exact.
 	Exact bool
 }
@@ -511,9 +511,9 @@ type GetRawTransactionsParams struct {
 	// Account ID.
 	AccountID string
 	// Count.
-	Count uint32
+	Count int32
 	// Lt.
-	Lt uint64
+	Lt int64
 	// Hash.
 	Hash string
 }

@@ -7666,7 +7666,7 @@ func (c *Client) sendGetRawBlockProof(ctx context.Context, params GetRawBlockPro
 		}
 
 		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
-			return e.EncodeValue(conv.Uint32ToString(params.Mode))
+			return e.EncodeValue(conv.Int32ToString(params.Mode))
 		}); err != nil {
 			return res, errors.Wrap(err, "encode query")
 		}
@@ -7864,7 +7864,7 @@ func (c *Client) sendGetRawBlockchainBlockHeader(ctx context.Context, params Get
 		}
 
 		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
-			return e.EncodeValue(conv.Uint32ToString(params.Mode))
+			return e.EncodeValue(conv.Int32ToString(params.Mode))
 		}); err != nil {
 			return res, errors.Wrap(err, "encode query")
 		}
@@ -8225,7 +8225,7 @@ func (c *Client) sendGetRawConfig(ctx context.Context, params GetRawConfigParams
 		}
 
 		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
-			return e.EncodeValue(conv.Uint32ToString(params.Mode))
+			return e.EncodeValue(conv.Int32ToString(params.Mode))
 		}); err != nil {
 			return res, errors.Wrap(err, "encode query")
 		}
@@ -8333,7 +8333,7 @@ func (c *Client) sendGetRawListBlockTransactions(ctx context.Context, params Get
 		}
 
 		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
-			return e.EncodeValue(conv.Uint32ToString(params.Mode))
+			return e.EncodeValue(conv.Int32ToString(params.Mode))
 		}); err != nil {
 			return res, errors.Wrap(err, "encode query")
 		}
@@ -8347,7 +8347,7 @@ func (c *Client) sendGetRawListBlockTransactions(ctx context.Context, params Get
 		}
 
 		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
-			return e.EncodeValue(conv.Uint32ToString(params.Count))
+			return e.EncodeValue(conv.Int32ToString(params.Count))
 		}); err != nil {
 			return res, errors.Wrap(err, "encode query")
 		}
@@ -8379,7 +8379,7 @@ func (c *Client) sendGetRawListBlockTransactions(ctx context.Context, params Get
 
 		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
 			if val, ok := params.Lt.Get(); ok {
-				return e.EncodeValue(conv.Uint64ToString(val))
+				return e.EncodeValue(conv.Int64ToString(val))
 			}
 			return nil
 		}); err != nil {
@@ -8543,7 +8543,7 @@ func (c *Client) sendGetRawMasterchainInfoExt(ctx context.Context, params GetRaw
 		}
 
 		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
-			return e.EncodeValue(conv.Uint32ToString(params.Mode))
+			return e.EncodeValue(conv.Int32ToString(params.Mode))
 		}); err != nil {
 			return res, errors.Wrap(err, "encode query")
 		}
@@ -8741,7 +8741,7 @@ func (c *Client) sendGetRawShardInfo(ctx context.Context, params GetRawShardInfo
 		}
 
 		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
-			return e.EncodeValue(conv.Uint32ToString(params.Workchain))
+			return e.EncodeValue(conv.Int32ToString(params.Workchain))
 		}); err != nil {
 			return res, errors.Wrap(err, "encode query")
 		}
@@ -8755,7 +8755,7 @@ func (c *Client) sendGetRawShardInfo(ctx context.Context, params GetRawShardInfo
 		}
 
 		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
-			return e.EncodeValue(conv.Uint64ToString(params.Shard))
+			return e.EncodeValue(conv.Int64ToString(params.Shard))
 		}); err != nil {
 			return res, errors.Wrap(err, "encode query")
 		}
@@ -8949,7 +8949,7 @@ func (c *Client) sendGetRawTransactions(ctx context.Context, params GetRawTransa
 		}
 
 		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
-			return e.EncodeValue(conv.Uint32ToString(params.Count))
+			return e.EncodeValue(conv.Int32ToString(params.Count))
 		}); err != nil {
 			return res, errors.Wrap(err, "encode query")
 		}
@@ -8963,7 +8963,7 @@ func (c *Client) sendGetRawTransactions(ctx context.Context, params GetRawTransa
 		}
 
 		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
-			return e.EncodeValue(conv.Uint64ToString(params.Lt))
+			return e.EncodeValue(conv.Int64ToString(params.Lt))
 		}); err != nil {
 			return res, errors.Wrap(err, "encode query")
 		}
