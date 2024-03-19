@@ -32,13 +32,29 @@ type TraceEventData struct {
 	Hash       string            `json:"hash"`
 }
 
-// BlockEventData represents a notification about a new block.
-type BlockEventData struct {
+// BlockHeaderEventData represents a notification about a new block.
+type BlockHeaderEventData struct {
 	Workchain int32  `json:"workchain"`
 	Shard     string `json:"shard"`
 	Seqno     uint32 `json:"seqno"`
 	RootHash  string `json:"root_hash"`
 	FileHash  string `json:"file_hash"`
+}
+
+type Block struct {
+	Workchain int32  `json:"workchain"`
+	Shard     string `json:"shard"`
+	Seqno     uint32 `json:"seqno"`
+	RootHash  string `json:"root_hash"`
+	FileHash  string `json:"file_hash"`
+	Raw       []byte `json:"raw"`
+}
+
+// BlockchainSliceEvent represents a notification about a new bunch of blocks in the blockchain.
+type BlockchainSliceEvent struct {
+	MasterchainSeqno uint32 `json:"masterchain_seqno"`
+	// Blocks contains one masterchain block and all blocks from the basechain created since the previous blockchain slice.
+	Blocks []Block `json:"blocks"`
 }
 
 // TraceHandler is a callback that handles a new trace event.
@@ -50,8 +66,11 @@ type TransactionHandler func(data TransactionEventData)
 // MempoolHandler is a callback that handles a new mempool event.
 type MempoolHandler func(data MempoolEventData)
 
-// BlockHandler is a callback that handles a new block event.
-type BlockHandler func(data BlockEventData)
+// BlockHeaderHandler is a callback that handles a new block event.
+type BlockHeaderHandler func(data BlockHeaderEventData)
+
+// BlockchainSliceHandler is a callback that handles a new block event.
+type BlockchainSliceHandler func(data BlockchainSliceEvent)
 
 // StreamingAPI provides a convenient way to receive events happening on the TON blockchain.
 type StreamingAPI struct {
@@ -147,7 +166,7 @@ type Websocket interface {
 	SetTransactionHandler(handler TransactionHandler)
 	// SetTraceHandler defines a callback that will be called when a new trace event is received.
 	SetTraceHandler(handler TraceHandler)
-	SetBlockHandler(handler BlockHandler)
+	SetBlockHandler(handler BlockHeaderHandler)
 }
 
 // WebsocketConfigurator configures an open websocket connection.
@@ -217,6 +236,19 @@ func (s *StreamingAPI) SubscribeToMempool(ctx context.Context, accounts []string
 	})
 }
 
+func (s *StreamingAPI) SubscribeToBlockchain(ctx context.Context, handler BlockchainSliceHandler) error {
+	url := fmt.Sprintf("%s/v2/sse/blockchain/full", s.endpoint)
+	return s.subscribe(ctx, url, s.apiKey, func(data []byte) {
+		eventData := BlockchainSliceEvent{}
+		if err := json.Unmarshal(data, &eventData); err != nil {
+			// this should never happen but anyway
+			s.logger.Errorf("sse connection received invalid blockchain slice data: %v", err)
+			return
+		}
+		handler(eventData)
+	})
+}
+
 // SubscribeToTransactions opens a new sse connection to tonapi.io and subscribes to new transactions for the specified accounts.
 // When a new transaction is received, the handler will be called.
 // If accounts is empty, all traces for all accounts will be received.
@@ -246,18 +278,18 @@ func (s *StreamingAPI) SubscribeToTransactions(ctx context.Context, accounts []s
 	})
 }
 
-// SubscribeToBlocks opens a new sse connection to tonapi.io and subscribes to new blocks in the specified workchain.
+// SubscribeToBlockHeaders opens a new sse connection to tonapi.io and subscribes to new blocks in the specified workchain.
 // When a new block is received, the handler will be called.
 // If workchain is nil, all blocks from all workchain will be received.
 // This function returns an error when the underlying connection fails or context is canceled.
 // No automatic reconnection is performed.
-func (s *StreamingAPI) SubscribeToBlocks(ctx context.Context, workchain *int, handler BlockHandler) error {
+func (s *StreamingAPI) SubscribeToBlockHeaders(ctx context.Context, workchain *int, handler BlockHeaderHandler) error {
 	url := fmt.Sprintf("%s/v2/sse/blocks", s.endpoint)
 	if workchain != nil {
 		url = fmt.Sprintf("%s/v2/sse/blocks?workchain=%d", s.endpoint, *workchain)
 	}
 	return s.subscribe(ctx, url, s.apiKey, func(data []byte) {
-		eventData := BlockEventData{}
+		eventData := BlockHeaderEventData{}
 		if err := json.Unmarshal(data, &eventData); err != nil {
 			// this should never happen but anyway
 			s.logger.Errorf("sse connection received invalid block event data: %v", err)

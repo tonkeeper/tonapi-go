@@ -38,7 +38,7 @@ type websocketConnection struct {
 	mempoolHandler     MempoolHandler
 	transactionHandler TransactionHandler
 	traceHandler       TraceHandler
-	blockHandler       BlockHandler
+	blockHandler       BlockHeaderHandler
 }
 
 func (w *websocketConnection) SubscribeToTransactions(accounts []string, operations []string) error {
@@ -133,7 +133,7 @@ func (w *websocketConnection) SetTraceHandler(handler TraceHandler) {
 	w.traceHandler = handler
 }
 
-func (w *websocketConnection) SetBlockHandler(handler BlockHandler) {
+func (w *websocketConnection) SetBlockHandler(handler BlockHeaderHandler) {
 	w.mu.Lock()
 	defer w.mu.Unlock()
 	w.blockHandler = handler
@@ -163,7 +163,7 @@ func websocketConnect(ctx context.Context, endpoint string, apiKey string) (*web
 		mempoolHandler:     func(data MempoolEventData) {},
 		transactionHandler: func(data TransactionEventData) {},
 		traceHandler:       func(data TraceEventData) {},
-		blockHandler:       func(data BlockEventData) {},
+		blockHandler:       func(data BlockHeaderEventData) {},
 	}, nil
 }
 
@@ -213,7 +213,7 @@ func (w *websocketConnection) runJsonRPC(ctx context.Context, fn WebsocketConfig
 					w.mempoolHandler(mempoolEvent)
 				})
 			case "block":
-				var block BlockEventData
+				var block BlockHeaderEventData
 				if err := json.Unmarshal(response.Params, &block); err != nil {
 					return err
 				}

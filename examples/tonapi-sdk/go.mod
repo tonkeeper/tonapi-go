@@ -1,6 +1,6 @@
 module github.com/tonkeeper/tonapi-go/examples/tonapi-sdk
 
-go 1.20
+go 1.21.3
 
 require github.com/tonkeeper/tonapi-go v0.0.2
 
