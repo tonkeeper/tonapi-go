@@ -13,7 +13,7 @@ func (c *Client) GetSeqno(ctx context.Context, account tongo.AccountID) (uint32,
 	if err != nil {
 		return 0, err
 	}
-	return res.Seqno, nil
+	return uint32(res.Seqno), nil
 }
 
 func (c *Client) SendMessage(ctx context.Context, payload []byte) (uint32, error) {
