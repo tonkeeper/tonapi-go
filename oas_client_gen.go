@@ -369,6 +369,12 @@ type Invoker interface {
 	//
 	// GET /v2/events/{event_id}/jettons
 	GetJettonsEvents(ctx context.Context, params GetJettonsEventsParams) (*Event, error)
+	// GetMarketsRates invokes getMarketsRates operation.
+	//
+	// Get the TON price from markets.
+	//
+	// GET /v2/rates/markets
+	GetMarketsRates(ctx context.Context) (*GetMarketsRatesOK, error)
 	// GetNftCollection invokes getNftCollection operation.
 	//
 	// Get NFT collection by collection address.
@@ -399,6 +405,12 @@ type Invoker interface {
 	//
 	// POST /v2/nfts/_bulk
 	GetNftItemsByAddresses(ctx context.Context, request OptGetNftItemsByAddressesReq) (*NftItems, error)
+	// GetOutMsgQueueSizes invokes getOutMsgQueueSizes operation.
+	//
+	// Get out msg queue sizes.
+	//
+	// GET /v2/liteserver/get_out_msg_queue_sizes
+	GetOutMsgQueueSizes(ctx context.Context) (*GetOutMsgQueueSizesOK, error)
 	// GetRates invokes getRates operation.
 	//
 	// Get the token price to the currency.
@@ -543,12 +555,6 @@ type Invoker interface {
 	//
 	// GET /v2/pubkeys/{public_key}/wallets
 	GetWalletsByPublicKey(ctx context.Context, params GetWalletsByPublicKeyParams) (*Accounts, error)
-	// ReduceIndexingLatency invokes reduceIndexingLatency operation.
-	//
-	// Reduce indexing latency.
-	//
-	// GET /v2/status
-	ReduceIndexingLatency(ctx context.Context) (*ServiceStatus, error)
 	// ReindexAccount invokes reindexAccount operation.
 	//
 	// Update internal cache for a particular account.
@@ -579,6 +585,12 @@ type Invoker interface {
 	//
 	// PUT /v2/wallet/backup
 	SetWalletBackup(ctx context.Context, request SetWalletBackupReq, params SetWalletBackupParams) error
+	// Status invokes status operation.
+	//
+	// Status.
+	//
+	// GET /v2/status
+	Status(ctx context.Context) (*ServiceStatus, error)
 	// TonConnectProof invokes tonConnectProof operation.
 	//
 	// Account verification and token issuance.
@@ -1138,6 +1150,27 @@ func (c *Client) sendEmulateMessageToAccountEvent(ctx context.Context, request *
 	}
 	pathParts[2] = "/events/emulate"
 	uri.AddPathParts(u, pathParts[:]...)
+
+	stage = "EncodeQueryParams"
+	q := uri.NewQueryEncoder()
+	{
+		// Encode "ignore_signature_check" parameter.
+		cfg := uri.QueryParameterEncodingConfig{
+			Name:    "ignore_signature_check",
+			Style:   uri.QueryStyleForm,
+			Explode: true,
+		}
+
+		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
+			if val, ok := params.IgnoreSignatureCheck.Get(); ok {
+				return e.EncodeValue(conv.BoolToString(val))
+			}
+			return nil
+		}); err != nil {
+			return res, errors.Wrap(err, "encode query")
+		}
+	}
+	u.RawQuery = q.Values().Encode()
 
 	stage = "EncodeRequest"
 	r, err := ht.NewRequest(ctx, "POST", u)
@@ -6783,6 +6816,78 @@ func (c *Client) sendGetJettonsEvents(ctx context.Context, params GetJettonsEven
 	return result, nil
 }
 
+// GetMarketsRates invokes getMarketsRates operation.
+//
+// Get the TON price from markets.
+//
+// GET /v2/rates/markets
+func (c *Client) GetMarketsRates(ctx context.Context) (*GetMarketsRatesOK, error) {
+	res, err := c.sendGetMarketsRates(ctx)
+	return res, err
+}
+
+func (c *Client) sendGetMarketsRates(ctx context.Context) (res *GetMarketsRatesOK, err error) {
+	otelAttrs := []attribute.KeyValue{
+		otelogen.OperationID("getMarketsRates"),
+		semconv.HTTPMethodKey.String("GET"),
+		semconv.HTTPRouteKey.String("/v2/rates/markets"),
+	}
+
+	// Run stopwatch.
+	startTime := time.Now()
+	defer func() {
+		// Use floating point division here for higher precision (instead of Millisecond method).
+		elapsedDuration := time.Since(startTime)
+		c.duration.Record(ctx, float64(float64(elapsedDuration)/float64(time.Millisecond)), metric.WithAttributes(otelAttrs...))
+	}()
+
+	// Increment request counter.
+	c.requests.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
+
+	// Start a span for this request.
+	ctx, span := c.cfg.Tracer.Start(ctx, "GetMarketsRates",
+		trace.WithAttributes(otelAttrs...),
+		clientSpanKind,
+	)
+	// Track stage for error reporting.
+	var stage string
+	defer func() {
+		if err != nil {
+			span.RecordError(err)
+			span.SetStatus(codes.Error, stage)
+			c.errors.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
+		}
+		span.End()
+	}()
+
+	stage = "BuildURL"
+	u := uri.Clone(c.requestURL(ctx))
+	var pathParts [1]string
+	pathParts[0] = "/v2/rates/markets"
+	uri.AddPathParts(u, pathParts[:]...)
+
+	stage = "EncodeRequest"
+	r, err := ht.NewRequest(ctx, "GET", u)
+	if err != nil {
+		return res, errors.Wrap(err, "create request")
+	}
+
+	stage = "SendRequest"
+	resp, err := c.cfg.Client.Do(r)
+	if err != nil {
+		return res, errors.Wrap(err, "do request")
+	}
+	defer resp.Body.Close()
+
+	stage = "DecodeResponse"
+	result, err := decodeGetMarketsRatesResponse(resp)
+	if err != nil {
+		return res, errors.Wrap(err, "decode response")
+	}
+
+	return result, nil
+}
+
 // GetNftCollection invokes getNftCollection operation.
 //
 // Get NFT collection by collection address.
@@ -7334,6 +7439,78 @@ func (c *Client) sendGetNftItemsByAddresses(ctx context.Context, request OptGetN
 
 	stage = "DecodeResponse"
 	result, err := decodeGetNftItemsByAddressesResponse(resp)
+	if err != nil {
+		return res, errors.Wrap(err, "decode response")
+	}
+
+	return result, nil
+}
+
+// GetOutMsgQueueSizes invokes getOutMsgQueueSizes operation.
+//
+// Get out msg queue sizes.
+//
+// GET /v2/liteserver/get_out_msg_queue_sizes
+func (c *Client) GetOutMsgQueueSizes(ctx context.Context) (*GetOutMsgQueueSizesOK, error) {
+	res, err := c.sendGetOutMsgQueueSizes(ctx)
+	return res, err
+}
+
+func (c *Client) sendGetOutMsgQueueSizes(ctx context.Context) (res *GetOutMsgQueueSizesOK, err error) {
+	otelAttrs := []attribute.KeyValue{
+		otelogen.OperationID("getOutMsgQueueSizes"),
+		semconv.HTTPMethodKey.String("GET"),
+		semconv.HTTPRouteKey.String("/v2/liteserver/get_out_msg_queue_sizes"),
+	}
+
+	// Run stopwatch.
+	startTime := time.Now()
+	defer func() {
+		// Use floating point division here for higher precision (instead of Millisecond method).
+		elapsedDuration := time.Since(startTime)
+		c.duration.Record(ctx, float64(float64(elapsedDuration)/float64(time.Millisecond)), metric.WithAttributes(otelAttrs...))
+	}()
+
+	// Increment request counter.
+	c.requests.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
+
+	// Start a span for this request.
+	ctx, span := c.cfg.Tracer.Start(ctx, "GetOutMsgQueueSizes",
+		trace.WithAttributes(otelAttrs...),
+		clientSpanKind,
+	)
+	// Track stage for error reporting.
+	var stage string
+	defer func() {
+		if err != nil {
+			span.RecordError(err)
+			span.SetStatus(codes.Error, stage)
+			c.errors.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
+		}
+		span.End()
+	}()
+
+	stage = "BuildURL"
+	u := uri.Clone(c.requestURL(ctx))
+	var pathParts [1]string
+	pathParts[0] = "/v2/liteserver/get_out_msg_queue_sizes"
+	uri.AddPathParts(u, pathParts[:]...)
+
+	stage = "EncodeRequest"
+	r, err := ht.NewRequest(ctx, "GET", u)
+	if err != nil {
+		return res, errors.Wrap(err, "create request")
+	}
+
+	stage = "SendRequest"
+	resp, err := c.cfg.Client.Do(r)
+	if err != nil {
+		return res, errors.Wrap(err, "do request")
+	}
+	defer resp.Body.Close()
+
+	stage = "DecodeResponse"
+	result, err := decodeGetOutMsgQueueSizesResponse(resp)
 	if err != nil {
 		return res, errors.Wrap(err, "decode response")
 	}
@@ -9742,78 +9919,6 @@ func (c *Client) sendGetWalletsByPublicKey(ctx context.Context, params GetWallet
 	return result, nil
 }
 
-// ReduceIndexingLatency invokes reduceIndexingLatency operation.
-//
-// Reduce indexing latency.
-//
-// GET /v2/status
-func (c *Client) ReduceIndexingLatency(ctx context.Context) (*ServiceStatus, error) {
-	res, err := c.sendReduceIndexingLatency(ctx)
-	return res, err
-}
-
-func (c *Client) sendReduceIndexingLatency(ctx context.Context) (res *ServiceStatus, err error) {
-	otelAttrs := []attribute.KeyValue{
-		otelogen.OperationID("reduceIndexingLatency"),
-		semconv.HTTPMethodKey.String("GET"),
-		semconv.HTTPRouteKey.String("/v2/status"),
-	}
-
-	// Run stopwatch.
-	startTime := time.Now()
-	defer func() {
-		// Use floating point division here for higher precision (instead of Millisecond method).
-		elapsedDuration := time.Since(startTime)
-		c.duration.Record(ctx, float64(float64(elapsedDuration)/float64(time.Millisecond)), metric.WithAttributes(otelAttrs...))
-	}()
-
-	// Increment request counter.
-	c.requests.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
-
-	// Start a span for this request.
-	ctx, span := c.cfg.Tracer.Start(ctx, "ReduceIndexingLatency",
-		trace.WithAttributes(otelAttrs...),
-		clientSpanKind,
-	)
-	// Track stage for error reporting.
-	var stage string
-	defer func() {
-		if err != nil {
-			span.RecordError(err)
-			span.SetStatus(codes.Error, stage)
-			c.errors.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
-		}
-		span.End()
-	}()
-
-	stage = "BuildURL"
-	u := uri.Clone(c.requestURL(ctx))
-	var pathParts [1]string
-	pathParts[0] = "/v2/status"
-	uri.AddPathParts(u, pathParts[:]...)
-
-	stage = "EncodeRequest"
-	r, err := ht.NewRequest(ctx, "GET", u)
-	if err != nil {
-		return res, errors.Wrap(err, "create request")
-	}
-
-	stage = "SendRequest"
-	resp, err := c.cfg.Client.Do(r)
-	if err != nil {
-		return res, errors.Wrap(err, "do request")
-	}
-	defer resp.Body.Close()
-
-	stage = "DecodeResponse"
-	result, err := decodeReduceIndexingLatencyResponse(resp)
-	if err != nil {
-		return res, errors.Wrap(err, "decode response")
-	}
-
-	return result, nil
-}
-
 // ReindexAccount invokes reindexAccount operation.
 //
 // Update internal cache for a particular account.
@@ -10236,6 +10341,78 @@ func (c *Client) sendSetWalletBackup(ctx context.Context, request SetWalletBacku
 
 	stage = "DecodeResponse"
 	result, err := decodeSetWalletBackupResponse(resp)
+	if err != nil {
+		return res, errors.Wrap(err, "decode response")
+	}
+
+	return result, nil
+}
+
+// Status invokes status operation.
+//
+// Status.
+//
+// GET /v2/status
+func (c *Client) Status(ctx context.Context) (*ServiceStatus, error) {
+	res, err := c.sendStatus(ctx)
+	return res, err
+}
+
+func (c *Client) sendStatus(ctx context.Context) (res *ServiceStatus, err error) {
+	otelAttrs := []attribute.KeyValue{
+		otelogen.OperationID("status"),
+		semconv.HTTPMethodKey.String("GET"),
+		semconv.HTTPRouteKey.String("/v2/status"),
+	}
+
+	// Run stopwatch.
+	startTime := time.Now()
+	defer func() {
+		// Use floating point division here for higher precision (instead of Millisecond method).
+		elapsedDuration := time.Since(startTime)
+		c.duration.Record(ctx, float64(float64(elapsedDuration)/float64(time.Millisecond)), metric.WithAttributes(otelAttrs...))
+	}()
+
+	// Increment request counter.
+	c.requests.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
+
+	// Start a span for this request.
+	ctx, span := c.cfg.Tracer.Start(ctx, "Status",
+		trace.WithAttributes(otelAttrs...),
+		clientSpanKind,
+	)
+	// Track stage for error reporting.
+	var stage string
+	defer func() {
+		if err != nil {
+			span.RecordError(err)
+			span.SetStatus(codes.Error, stage)
+			c.errors.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
+		}
+		span.End()
+	}()
+
+	stage = "BuildURL"
+	u := uri.Clone(c.requestURL(ctx))
+	var pathParts [1]string
+	pathParts[0] = "/v2/status"
+	uri.AddPathParts(u, pathParts[:]...)
+
+	stage = "EncodeRequest"
+	r, err := ht.NewRequest(ctx, "GET", u)
+	if err != nil {
+		return res, errors.Wrap(err, "create request")
+	}
+
+	stage = "SendRequest"
+	resp, err := c.cfg.Client.Do(r)
+	if err != nil {
+		return res, errors.Wrap(err, "do request")
+	}
+	defer resp.Body.Close()
+
+	stage = "DecodeResponse"
+	result, err := decodeStatusResponse(resp)
 	if err != nil {
 		return res, errors.Wrap(err, "decode response")
 	}

@@ -30,7 +30,8 @@ type DnsResolveParams struct {
 type EmulateMessageToAccountEventParams struct {
 	AcceptLanguage OptString
 	// Account ID.
-	AccountID string
+	AccountID            string
+	IgnoreSignatureCheck OptBool
 }
 
 // EmulateMessageToEventParams is parameters of emulateMessageToEvent operation.
