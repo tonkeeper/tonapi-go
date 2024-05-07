@@ -13,13 +13,13 @@ servers:
 paths:
   /v2/status:
     get:
-      description: Reduce indexing latency
-      operationId: reduceIndexingLatency
+      description: Status
+      operationId: status
       tags:
         - Blockchain
       responses:
         '200':
-          description: indexing latency
+          description: status
           content:
             application/json:
               schema:
@@ -508,6 +508,11 @@ paths:
       parameters:
         - $ref: '#/components/parameters/i18n'
         - $ref: '#/components/parameters/accountIDParameter'
+        - name: ignore_signature_check
+          in: query
+          required: false
+          schema:
+            type: boolean
       requestBody:
         $ref: "#/components/requestBodies/Boc"
       responses:
@@ -1745,6 +1750,28 @@ paths:
                     example: { }
         'default':
           $ref: '#/components/responses/Error'
+  /v2/rates/markets:
+    get:
+      description: Get the TON price from markets
+      operationId: getMarketsRates
+      tags:
+        - Rates
+      responses:
+        '200':
+          description: markets rates
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - markets
+                properties:
+                  markets:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/MarketTonRates'
+        'default':
+          $ref: '#/components/responses/Error'
   
   /v2/tonconnect/payload:
     get:
@@ -2489,6 +2516,42 @@ paths:
                           example: 131D0C65055F04E9C19D687B51BC70F952FD9CA6F02C2801D3B89964A779DF85
         'default':
           $ref: '#/components/responses/Error'
+  /v2/liteserver/get_out_msg_queue_sizes:
+    get:
+      description: Get out msg queue sizes
+      operationId: getOutMsgQueueSizes
+      tags:
+        - Lite Server
+      responses:
+        '200':
+          description: out msg queue sizes
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - ext_msg_queue_size_limit
+                  - shards
+                properties:
+                  ext_msg_queue_size_limit:
+                    type: integer
+                    format: uint32
+                  shards:
+                    type: array
+                    items:
+                      type: object
+                      required:
+                        - id
+                        - size
+                      properties:
+                        id:
+                          $ref: '#/components/schemas/BlockRaw'
+                        size:
+                          type: integer
+                          format: uint32
+        'default':
+          $ref: '#/components/responses/Error'
+
 components:
   parameters:
     masterchainSeqno:
@@ -3177,10 +3240,13 @@ components:
             type: object
             required:
               - last_known_block_id
+              - last_known_block
             properties:
               last_known_block_id:
                 type: string
                 example: (0,8000000000000000,4234234)
+              last_known_block:
+                $ref: '#/components/schemas/BlockchainBlock'
     AccountStatus:
       type: string
       example: active
@@ -3329,6 +3395,8 @@ components:
           type: integer
           format: int32
           example: 0
+        exit_code_description:
+          type: string
     StoragePhase:
       type: object
       required:
@@ -3392,6 +3460,8 @@ components:
           type: integer
           format: int64
           example: 1000
+        result_code_description:
+          type: string
     Transaction:
       type: object
       required:
@@ -4748,6 +4818,19 @@ components:
           $ref: '#/components/schemas/AccountAddress'
         jetton:
           $ref: '#/components/schemas/JettonPreview'
+        lock:
+          type: object
+          required:
+            - amount
+            - till
+          properties:
+            amount:
+              type: string
+              example: 597968399
+            till:
+              type: integer
+              format: int64
+              example: 1678223064
     JettonsBalances:
       type: object
       required:
@@ -4858,6 +4941,9 @@ components:
           example: crypto.ton
         approved_by:
           $ref: '#/components/schemas/NftApprovedBy'
+        include_cnft:
+          type: boolean
+          example: false
     NftItems:
       type: object
       required:
@@ -4923,6 +5009,7 @@ components:
         - type
         - status
         - simple_preview
+        - base_transactions
       properties:
         type:
           type: string
@@ -4997,6 +5084,11 @@ components:
           $ref: '#/components/schemas/InscriptionMintAction'
         simple_preview:
           $ref: '#/components/schemas/ActionSimplePreview'
+        base_transactions:
+          type: array
+          items:
+            type: string
+            example: e8b0e3fee4a26bd2317ac1f9952fcdc87dc08fdb617656b5202416323337372e
     TonTransferAction:
       type: object
       required:
@@ -5656,10 +5748,13 @@ components:
         - has_method_pubkey
         - has_method_seqno
         - names
+        - account
       properties:
         address:
           type: string
           example: "0:da6b1b6663a0e4d18cc8574ccd9db5296e367dd9324706f3bbd9eb1cd2caf0bf"
+        account:
+          $ref: '#/components/schemas/AccountAddress'
         is_wallet:
           type: boolean
           example: true
@@ -6064,6 +6159,8 @@ components:
         total_supply:
           type: string
           example: 311500000000000
+        admin:
+          $ref: '#/components/schemas/AccountAddress'
         metadata:
           $ref: '#/components/schemas/JettonMetadata'
         verification:
@@ -6076,6 +6173,7 @@ components:
       type: object
       required:
         - addresses
+        - total
       properties:
         addresses:
           type: array
@@ -6094,6 +6192,10 @@ components:
               balance:
                 type: string
                 example: 1000000000
+        total:
+          type: integer
+          format: int64
+          example: 2000
     AccountStaking:
       type: object
       required:
@@ -6442,6 +6544,23 @@ components:
             type: string
           example:
             TON: "-0.56%"
+    MarketTonRates:
+      type: object
+      required:
+        - market
+        - usd_price
+        - last_date_update
+      properties:
+        market:
+          type: string
+          example: "OKX"
+        usd_price:
+          type: number
+          example: 5.20
+        last_date_update:
+          type: integer
+          format: int64
+          example: 1668436763
   
   responses:
     Error:
