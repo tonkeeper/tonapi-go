@@ -257,6 +257,14 @@ paths:
             default: 100
             example: 100
             minimum: 1
+        - name: sort_order
+          in: query
+          schema:
+            type: string
+            default: "desc"
+            enum:
+              - desc
+              - asc
       responses:
         '200':
           description: blockchain account transactions
