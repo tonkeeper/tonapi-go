@@ -246,8 +246,9 @@ type GetBlockchainAccountTransactionsParams struct {
 	// Omit this parameter to get last transactions.
 	AfterLt OptInt64
 	// Omit this parameter to get last transactions.
-	BeforeLt OptInt64
-	Limit    OptInt32
+	BeforeLt  OptInt64
+	Limit     OptInt32
+	SortOrder OptGetBlockchainAccountTransactionsSortOrder
 }
 
 // GetBlockchainBlockParams is parameters of getBlockchainBlock operation.
