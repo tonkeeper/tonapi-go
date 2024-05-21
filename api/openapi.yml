@@ -872,6 +872,14 @@ paths:
             default: 100
             example: 100
             minimum: 1
+        - name: before_lt
+          in: query
+          description: "omit this parameter to get last traces"
+          required: false
+          schema:
+            type: integer
+            format: int64
+            example: 25758317000002
       responses:
         '200':
           description: account's traces

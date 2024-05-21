@@ -225,6 +225,8 @@ type GetAccountTracesParams struct {
 	// Account ID.
 	AccountID string
 	Limit     OptInt
+	// Omit this parameter to get last traces.
+	BeforeLt OptInt64
 }
 
 // GetAllAuctionsParams is parameters of getAllAuctions operation.

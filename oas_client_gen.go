@@ -4138,6 +4138,23 @@ func (c *Client) sendGetAccountTraces(ctx context.Context, params GetAccountTrac
 			return res, errors.Wrap(err, "encode query")
 		}
 	}
+	{
+		// Encode "before_lt" parameter.
+		cfg := uri.QueryParameterEncodingConfig{
+			Name:    "before_lt",
+			Style:   uri.QueryStyleForm,
+			Explode: true,
+		}
+
+		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
+			if val, ok := params.BeforeLt.Get(); ok {
+				return e.EncodeValue(conv.Int64ToString(val))
+			}
+			return nil
+		}); err != nil {
+			return res, errors.Wrap(err, "encode query")
+		}
+	}
 	u.RawQuery = q.Values().Encode()
 
 	stage = "EncodeRequest"
