@@ -224,7 +224,9 @@ type GetAccountSubscriptionsParams struct {
 type GetAccountTracesParams struct {
 	// Account ID.
 	AccountID string
-	Limit     OptInt
+	// Omit this parameter to get last events.
+	BeforeLt OptInt64
+	Limit    OptInt
 }
 
 // GetAllAuctionsParams is parameters of getAllAuctions operation.

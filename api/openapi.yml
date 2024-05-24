@@ -261,6 +261,7 @@ paths:
           in: query
           schema:
             type: string
+            description: "used to sort the result-set in ascending or descending order by lt."
             default: "desc"
             enum:
               - desc
@@ -864,6 +865,14 @@ paths:
         - Accounts
       parameters:
         - $ref: '#/components/parameters/accountIDParameter'
+        - name: before_lt
+          in: query
+          description: "omit this parameter to get last events"
+          required: false
+          schema:
+            type: integer
+            format: int64
+            example: 25758317000002
         - name: limit
           in: query
           schema:
@@ -4881,6 +4890,14 @@ components:
           - getgems
           - tonkeeper
           - ton.diamonds
+    TrustType:
+      type: string
+      example: whitelist
+      enum:
+        - whitelist
+        - graylist
+        - blacklist
+        - none
     Sale:
       type: object
       required:
@@ -4905,6 +4922,7 @@ components:
         - verified
         - metadata
         - approved_by
+        - trust
       properties:
         address:
           type: string
@@ -4952,6 +4970,8 @@ components:
         include_cnft:
           type: boolean
           example: false
+        trust:
+          $ref: '#/components/schemas/TrustType'
     NftItems:
       type: object
       required:
