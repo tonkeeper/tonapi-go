@@ -59,6 +59,12 @@ type ExecGetMethodForBlockchainAccountParams struct {
 	Args       []string
 }
 
+// GaslessEstimateParams is parameters of gaslessEstimate operation.
+type GaslessEstimateParams struct {
+	// Jetton to pay commission.
+	MasterID string
+}
+
 // GetAccountParams is parameters of getAccount operation.
 type GetAccountParams struct {
 	// Account ID.
@@ -135,6 +141,16 @@ type GetAccountInscriptionsHistoryByTickerParams struct {
 	// Omit this parameter to get last events.
 	BeforeLt OptInt64
 	Limit    OptInt
+}
+
+// GetAccountJettonBalanceParams is parameters of getAccountJettonBalance operation.
+type GetAccountJettonBalanceParams struct {
+	// Account ID.
+	AccountID string
+	// Jetton ID.
+	JettonID string
+	// Accept ton and all possible fiat currencies, separated by commas.
+	Currencies []string
 }
 
 // GetAccountJettonHistoryByIDParams is parameters of getAccountJettonHistoryByID operation.
