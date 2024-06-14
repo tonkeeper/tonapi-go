@@ -83,6 +83,22 @@ type Invoker interface {
 	//
 	// GET /v2/blockchain/accounts/{account_id}/methods/{method_name}
 	ExecGetMethodForBlockchainAccount(ctx context.Context, params ExecGetMethodForBlockchainAccountParams) (*MethodExecutionResult, error)
+	// GaslessConfig invokes gaslessConfig operation.
+	//
+	// Returns configuration of gasless transfers.
+	//
+	// GET /v2/gasless/config
+	GaslessConfig(ctx context.Context) (*GaslessConfig, error)
+	// GaslessEstimate invokes gaslessEstimate operation.
+	//
+	// Estimates the cost of the given messages and returns a payload to sign.
+	//
+	// POST /v2/gasless/estimate/{master_id}
+	GaslessEstimate(ctx context.Context, request *GaslessEstimateReq, params GaslessEstimateParams) (*SignRawParams, error)
+	// GaslessSend invokes gaslessSend operation.
+	//
+	// POST /v2/gasless/send
+	GaslessSend(ctx context.Context, request *GaslessSendReq) error
 	// GetAccount invokes getAccount operation.
 	//
 	// Get human-friendly information about an account without low-level details.
@@ -143,6 +159,12 @@ type Invoker interface {
 	//
 	// GET /v2/experimental/accounts/{account_id}/inscriptions/{ticker}/history
 	GetAccountInscriptionsHistoryByTicker(ctx context.Context, params GetAccountInscriptionsHistoryByTickerParams) (*AccountEvents, error)
+	// GetAccountJettonBalance invokes getAccountJettonBalance operation.
+	//
+	// Get Jetton balance by owner address.
+	//
+	// GET /v2/accounts/{account_id}/jettons/{jetton_id}
+	GetAccountJettonBalance(ctx context.Context, params GetAccountJettonBalanceParams) (*JettonBalance, error)
 	// GetAccountJettonHistoryByID invokes getAccountJettonHistoryByID operation.
 	//
 	// Get the transfer jetton history for account and jetton.
@@ -1651,6 +1673,253 @@ func (c *Client) sendExecGetMethodForBlockchainAccount(ctx context.Context, para
 	return result, nil
 }
 
+// GaslessConfig invokes gaslessConfig operation.
+//
+// Returns configuration of gasless transfers.
+//
+// GET /v2/gasless/config
+func (c *Client) GaslessConfig(ctx context.Context) (*GaslessConfig, error) {
+	res, err := c.sendGaslessConfig(ctx)
+	return res, err
+}
+
+func (c *Client) sendGaslessConfig(ctx context.Context) (res *GaslessConfig, err error) {
+	otelAttrs := []attribute.KeyValue{
+		otelogen.OperationID("gaslessConfig"),
+		semconv.HTTPMethodKey.String("GET"),
+		semconv.HTTPRouteKey.String("/v2/gasless/config"),
+	}
+
+	// Run stopwatch.
+	startTime := time.Now()
+	defer func() {
+		// Use floating point division here for higher precision (instead of Millisecond method).
+		elapsedDuration := time.Since(startTime)
+		c.duration.Record(ctx, float64(float64(elapsedDuration)/float64(time.Millisecond)), metric.WithAttributes(otelAttrs...))
+	}()
+
+	// Increment request counter.
+	c.requests.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
+
+	// Start a span for this request.
+	ctx, span := c.cfg.Tracer.Start(ctx, "GaslessConfig",
+		trace.WithAttributes(otelAttrs...),
+		clientSpanKind,
+	)
+	// Track stage for error reporting.
+	var stage string
+	defer func() {
+		if err != nil {
+			span.RecordError(err)
+			span.SetStatus(codes.Error, stage)
+			c.errors.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
+		}
+		span.End()
+	}()
+
+	stage = "BuildURL"
+	u := uri.Clone(c.requestURL(ctx))
+	var pathParts [1]string
+	pathParts[0] = "/v2/gasless/config"
+	uri.AddPathParts(u, pathParts[:]...)
+
+	stage = "EncodeRequest"
+	r, err := ht.NewRequest(ctx, "GET", u)
+	if err != nil {
+		return res, errors.Wrap(err, "create request")
+	}
+
+	stage = "SendRequest"
+	resp, err := c.cfg.Client.Do(r)
+	if err != nil {
+		return res, errors.Wrap(err, "do request")
+	}
+	defer resp.Body.Close()
+
+	stage = "DecodeResponse"
+	result, err := decodeGaslessConfigResponse(resp)
+	if err != nil {
+		return res, errors.Wrap(err, "decode response")
+	}
+
+	return result, nil
+}
+
+// GaslessEstimate invokes gaslessEstimate operation.
+//
+// Estimates the cost of the given messages and returns a payload to sign.
+//
+// POST /v2/gasless/estimate/{master_id}
+func (c *Client) GaslessEstimate(ctx context.Context, request *GaslessEstimateReq, params GaslessEstimateParams) (*SignRawParams, error) {
+	res, err := c.sendGaslessEstimate(ctx, request, params)
+	return res, err
+}
+
+func (c *Client) sendGaslessEstimate(ctx context.Context, request *GaslessEstimateReq, params GaslessEstimateParams) (res *SignRawParams, err error) {
+	otelAttrs := []attribute.KeyValue{
+		otelogen.OperationID("gaslessEstimate"),
+		semconv.HTTPMethodKey.String("POST"),
+		semconv.HTTPRouteKey.String("/v2/gasless/estimate/{master_id}"),
+	}
+	// Validate request before sending.
+	if err := func() error {
+		if err := request.Validate(); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		return res, errors.Wrap(err, "validate")
+	}
+
+	// Run stopwatch.
+	startTime := time.Now()
+	defer func() {
+		// Use floating point division here for higher precision (instead of Millisecond method).
+		elapsedDuration := time.Since(startTime)
+		c.duration.Record(ctx, float64(float64(elapsedDuration)/float64(time.Millisecond)), metric.WithAttributes(otelAttrs...))
+	}()
+
+	// Increment request counter.
+	c.requests.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
+
+	// Start a span for this request.
+	ctx, span := c.cfg.Tracer.Start(ctx, "GaslessEstimate",
+		trace.WithAttributes(otelAttrs...),
+		clientSpanKind,
+	)
+	// Track stage for error reporting.
+	var stage string
+	defer func() {
+		if err != nil {
+			span.RecordError(err)
+			span.SetStatus(codes.Error, stage)
+			c.errors.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
+		}
+		span.End()
+	}()
+
+	stage = "BuildURL"
+	u := uri.Clone(c.requestURL(ctx))
+	var pathParts [2]string
+	pathParts[0] = "/v2/gasless/estimate/"
+	{
+		// Encode "master_id" parameter.
+		e := uri.NewPathEncoder(uri.PathEncoderConfig{
+			Param:   "master_id",
+			Style:   uri.PathStyleSimple,
+			Explode: false,
+		})
+		if err := func() error {
+			return e.EncodeValue(conv.StringToString(params.MasterID))
+		}(); err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		encoded, err := e.Result()
+		if err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		pathParts[1] = encoded
+	}
+	uri.AddPathParts(u, pathParts[:]...)
+
+	stage = "EncodeRequest"
+	r, err := ht.NewRequest(ctx, "POST", u)
+	if err != nil {
+		return res, errors.Wrap(err, "create request")
+	}
+	if err := encodeGaslessEstimateRequest(request, r); err != nil {
+		return res, errors.Wrap(err, "encode request")
+	}
+
+	stage = "SendRequest"
+	resp, err := c.cfg.Client.Do(r)
+	if err != nil {
+		return res, errors.Wrap(err, "do request")
+	}
+	defer resp.Body.Close()
+
+	stage = "DecodeResponse"
+	result, err := decodeGaslessEstimateResponse(resp)
+	if err != nil {
+		return res, errors.Wrap(err, "decode response")
+	}
+
+	return result, nil
+}
+
+// GaslessSend invokes gaslessSend operation.
+//
+// POST /v2/gasless/send
+func (c *Client) GaslessSend(ctx context.Context, request *GaslessSendReq) error {
+	_, err := c.sendGaslessSend(ctx, request)
+	return err
+}
+
+func (c *Client) sendGaslessSend(ctx context.Context, request *GaslessSendReq) (res *GaslessSendOK, err error) {
+	otelAttrs := []attribute.KeyValue{
+		otelogen.OperationID("gaslessSend"),
+		semconv.HTTPMethodKey.String("POST"),
+		semconv.HTTPRouteKey.String("/v2/gasless/send"),
+	}
+
+	// Run stopwatch.
+	startTime := time.Now()
+	defer func() {
+		// Use floating point division here for higher precision (instead of Millisecond method).
+		elapsedDuration := time.Since(startTime)
+		c.duration.Record(ctx, float64(float64(elapsedDuration)/float64(time.Millisecond)), metric.WithAttributes(otelAttrs...))
+	}()
+
+	// Increment request counter.
+	c.requests.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
+
+	// Start a span for this request.
+	ctx, span := c.cfg.Tracer.Start(ctx, "GaslessSend",
+		trace.WithAttributes(otelAttrs...),
+		clientSpanKind,
+	)
+	// Track stage for error reporting.
+	var stage string
+	defer func() {
+		if err != nil {
+			span.RecordError(err)
+			span.SetStatus(codes.Error, stage)
+			c.errors.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
+		}
+		span.End()
+	}()
+
+	stage = "BuildURL"
+	u := uri.Clone(c.requestURL(ctx))
+	var pathParts [1]string
+	pathParts[0] = "/v2/gasless/send"
+	uri.AddPathParts(u, pathParts[:]...)
+
+	stage = "EncodeRequest"
+	r, err := ht.NewRequest(ctx, "POST", u)
+	if err != nil {
+		return res, errors.Wrap(err, "create request")
+	}
+	if err := encodeGaslessSendRequest(request, r); err != nil {
+		return res, errors.Wrap(err, "encode request")
+	}
+
+	stage = "SendRequest"
+	resp, err := c.cfg.Client.Do(r)
+	if err != nil {
+		return res, errors.Wrap(err, "do request")
+	}
+	defer resp.Body.Close()
+
+	stage = "DecodeResponse"
+	result, err := decodeGaslessSendResponse(resp)
+	if err != nil {
+		return res, errors.Wrap(err, "decode response")
+	}
+
+	return result, nil
+}
+
 // GetAccount invokes getAccount operation.
 //
 // Get human-friendly information about an account without low-level details.
@@ -2848,6 +3117,142 @@ func (c *Client) sendGetAccountInscriptionsHistoryByTicker(ctx context.Context, 
 
 	stage = "DecodeResponse"
 	result, err := decodeGetAccountInscriptionsHistoryByTickerResponse(resp)
+	if err != nil {
+		return res, errors.Wrap(err, "decode response")
+	}
+
+	return result, nil
+}
+
+// GetAccountJettonBalance invokes getAccountJettonBalance operation.
+//
+// Get Jetton balance by owner address.
+//
+// GET /v2/accounts/{account_id}/jettons/{jetton_id}
+func (c *Client) GetAccountJettonBalance(ctx context.Context, params GetAccountJettonBalanceParams) (*JettonBalance, error) {
+	res, err := c.sendGetAccountJettonBalance(ctx, params)
+	return res, err
+}
+
+func (c *Client) sendGetAccountJettonBalance(ctx context.Context, params GetAccountJettonBalanceParams) (res *JettonBalance, err error) {
+	otelAttrs := []attribute.KeyValue{
+		otelogen.OperationID("getAccountJettonBalance"),
+		semconv.HTTPMethodKey.String("GET"),
+		semconv.HTTPRouteKey.String("/v2/accounts/{account_id}/jettons/{jetton_id}"),
+	}
+
+	// Run stopwatch.
+	startTime := time.Now()
+	defer func() {
+		// Use floating point division here for higher precision (instead of Millisecond method).
+		elapsedDuration := time.Since(startTime)
+		c.duration.Record(ctx, float64(float64(elapsedDuration)/float64(time.Millisecond)), metric.WithAttributes(otelAttrs...))
+	}()
+
+	// Increment request counter.
+	c.requests.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
+
+	// Start a span for this request.
+	ctx, span := c.cfg.Tracer.Start(ctx, "GetAccountJettonBalance",
+		trace.WithAttributes(otelAttrs...),
+		clientSpanKind,
+	)
+	// Track stage for error reporting.
+	var stage string
+	defer func() {
+		if err != nil {
+			span.RecordError(err)
+			span.SetStatus(codes.Error, stage)
+			c.errors.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
+		}
+		span.End()
+	}()
+
+	stage = "BuildURL"
+	u := uri.Clone(c.requestURL(ctx))
+	var pathParts [4]string
+	pathParts[0] = "/v2/accounts/"
+	{
+		// Encode "account_id" parameter.
+		e := uri.NewPathEncoder(uri.PathEncoderConfig{
+			Param:   "account_id",
+			Style:   uri.PathStyleSimple,
+			Explode: false,
+		})
+		if err := func() error {
+			return e.EncodeValue(conv.StringToString(params.AccountID))
+		}(); err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		encoded, err := e.Result()
+		if err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		pathParts[1] = encoded
+	}
+	pathParts[2] = "/jettons/"
+	{
+		// Encode "jetton_id" parameter.
+		e := uri.NewPathEncoder(uri.PathEncoderConfig{
+			Param:   "jetton_id",
+			Style:   uri.PathStyleSimple,
+			Explode: false,
+		})
+		if err := func() error {
+			return e.EncodeValue(conv.StringToString(params.JettonID))
+		}(); err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		encoded, err := e.Result()
+		if err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		pathParts[3] = encoded
+	}
+	uri.AddPathParts(u, pathParts[:]...)
+
+	stage = "EncodeQueryParams"
+	q := uri.NewQueryEncoder()
+	{
+		// Encode "currencies" parameter.
+		cfg := uri.QueryParameterEncodingConfig{
+			Name:    "currencies",
+			Style:   uri.QueryStyleForm,
+			Explode: false,
+		}
+
+		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
+			return e.EncodeArray(func(e uri.Encoder) error {
+				for i, item := range params.Currencies {
+					if err := func() error {
+						return e.EncodeValue(conv.StringToString(item))
+					}(); err != nil {
+						return errors.Wrapf(err, "[%d]", i)
+					}
+				}
+				return nil
+			})
+		}); err != nil {
+			return res, errors.Wrap(err, "encode query")
+		}
+	}
+	u.RawQuery = q.Values().Encode()
+
+	stage = "EncodeRequest"
+	r, err := ht.NewRequest(ctx, "GET", u)
+	if err != nil {
+		return res, errors.Wrap(err, "create request")
+	}
+
+	stage = "SendRequest"
+	resp, err := c.cfg.Client.Do(r)
+	if err != nil {
+		return res, errors.Wrap(err, "do request")
+	}
+	defer resp.Body.Close()
+
+	stage = "DecodeResponse"
+	result, err := decodeGetAccountJettonBalanceResponse(resp)
 	if err != nil {
 		return res, errors.Wrap(err, "decode response")
 	}
