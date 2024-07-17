@@ -183,6 +183,12 @@ type Invoker interface {
 	//
 	// GET /v2/accounts/{account_id}/jettons/history
 	GetAccountJettonsHistory(ctx context.Context, params GetAccountJettonsHistoryParams) (*AccountEvents, error)
+	// GetAccountMultisigs invokes getAccountMultisigs operation.
+	//
+	// Get account's multisigs.
+	//
+	// GET /v2/accounts/{account_id}/multisigs
+	GetAccountMultisigs(ctx context.Context, params GetAccountMultisigsParams) (*Multisigs, error)
 	// GetAccountNftHistory invokes getAccountNftHistory operation.
 	//
 	// Get the transfer nft history.
@@ -230,7 +236,7 @@ type Invoker interface {
 	// Get human-friendly information about several accounts without low-level details.
 	//
 	// POST /v2/accounts/_bulk
-	GetAccounts(ctx context.Context, request OptGetAccountsReq) (*Accounts, error)
+	GetAccounts(ctx context.Context, request OptGetAccountsReq, params GetAccountsParams) (*Accounts, error)
 	// GetAllAuctions invokes getAllAuctions operation.
 	//
 	// Get all auctions.
@@ -397,6 +403,12 @@ type Invoker interface {
 	//
 	// GET /v2/rates/markets
 	GetMarketsRates(ctx context.Context) (*GetMarketsRatesOK, error)
+	// GetMultisigAccount invokes getMultisigAccount operation.
+	//
+	// Get multisig account info.
+	//
+	// GET /v2/multisig/{account_id}
+	GetMultisigAccount(ctx context.Context, params GetMultisigAccountParams) (*Multisig, error)
 	// GetNftCollection invokes getNftCollection operation.
 	//
 	// Get NFT collection by collection address.
@@ -529,6 +541,12 @@ type Invoker interface {
 	//
 	// GET /v2/liteserver/get_transactions/{account_id}
 	GetRawTransactions(ctx context.Context, params GetRawTransactionsParams) (*GetRawTransactionsOK, error)
+	// GetReducedBlockchainBlocks invokes getReducedBlockchainBlocks operation.
+	//
+	// Get reduced blockchain blocks data.
+	//
+	// GET /v2/blockchain/reduced/blocks
+	GetReducedBlockchainBlocks(ctx context.Context, params GetReducedBlockchainBlocksParams) (*ReducedBlocks, error)
 	// GetStakingPoolHistory invokes getStakingPoolHistory operation.
 	//
 	// Pool history.
@@ -3751,6 +3769,97 @@ func (c *Client) sendGetAccountJettonsHistory(ctx context.Context, params GetAcc
 	return result, nil
 }
 
+// GetAccountMultisigs invokes getAccountMultisigs operation.
+//
+// Get account's multisigs.
+//
+// GET /v2/accounts/{account_id}/multisigs
+func (c *Client) GetAccountMultisigs(ctx context.Context, params GetAccountMultisigsParams) (*Multisigs, error) {
+	res, err := c.sendGetAccountMultisigs(ctx, params)
+	return res, err
+}
+
+func (c *Client) sendGetAccountMultisigs(ctx context.Context, params GetAccountMultisigsParams) (res *Multisigs, err error) {
+	otelAttrs := []attribute.KeyValue{
+		otelogen.OperationID("getAccountMultisigs"),
+		semconv.HTTPMethodKey.String("GET"),
+		semconv.HTTPRouteKey.String("/v2/accounts/{account_id}/multisigs"),
+	}
+
+	// Run stopwatch.
+	startTime := time.Now()
+	defer func() {
+		// Use floating point division here for higher precision (instead of Millisecond method).
+		elapsedDuration := time.Since(startTime)
+		c.duration.Record(ctx, float64(float64(elapsedDuration)/float64(time.Millisecond)), metric.WithAttributes(otelAttrs...))
+	}()
+
+	// Increment request counter.
+	c.requests.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
+
+	// Start a span for this request.
+	ctx, span := c.cfg.Tracer.Start(ctx, "GetAccountMultisigs",
+		trace.WithAttributes(otelAttrs...),
+		clientSpanKind,
+	)
+	// Track stage for error reporting.
+	var stage string
+	defer func() {
+		if err != nil {
+			span.RecordError(err)
+			span.SetStatus(codes.Error, stage)
+			c.errors.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
+		}
+		span.End()
+	}()
+
+	stage = "BuildURL"
+	u := uri.Clone(c.requestURL(ctx))
+	var pathParts [3]string
+	pathParts[0] = "/v2/accounts/"
+	{
+		// Encode "account_id" parameter.
+		e := uri.NewPathEncoder(uri.PathEncoderConfig{
+			Param:   "account_id",
+			Style:   uri.PathStyleSimple,
+			Explode: false,
+		})
+		if err := func() error {
+			return e.EncodeValue(conv.StringToString(params.AccountID))
+		}(); err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		encoded, err := e.Result()
+		if err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		pathParts[1] = encoded
+	}
+	pathParts[2] = "/multisigs"
+	uri.AddPathParts(u, pathParts[:]...)
+
+	stage = "EncodeRequest"
+	r, err := ht.NewRequest(ctx, "GET", u)
+	if err != nil {
+		return res, errors.Wrap(err, "create request")
+	}
+
+	stage = "SendRequest"
+	resp, err := c.cfg.Client.Do(r)
+	if err != nil {
+		return res, errors.Wrap(err, "do request")
+	}
+	defer resp.Body.Close()
+
+	stage = "DecodeResponse"
+	result, err := decodeGetAccountMultisigsResponse(resp)
+	if err != nil {
+		return res, errors.Wrap(err, "decode response")
+	}
+
+	return result, nil
+}
+
 // GetAccountNftHistory invokes getAccountNftHistory operation.
 //
 // Get the transfer nft history.
@@ -4589,12 +4698,12 @@ func (c *Client) sendGetAccountTraces(ctx context.Context, params GetAccountTrac
 // Get human-friendly information about several accounts without low-level details.
 //
 // POST /v2/accounts/_bulk
-func (c *Client) GetAccounts(ctx context.Context, request OptGetAccountsReq) (*Accounts, error) {
-	res, err := c.sendGetAccounts(ctx, request)
+func (c *Client) GetAccounts(ctx context.Context, request OptGetAccountsReq, params GetAccountsParams) (*Accounts, error) {
+	res, err := c.sendGetAccounts(ctx, request, params)
 	return res, err
 }
 
-func (c *Client) sendGetAccounts(ctx context.Context, request OptGetAccountsReq) (res *Accounts, err error) {
+func (c *Client) sendGetAccounts(ctx context.Context, request OptGetAccountsReq, params GetAccountsParams) (res *Accounts, err error) {
 	otelAttrs := []attribute.KeyValue{
 		otelogen.OperationID("getAccounts"),
 		semconv.HTTPMethodKey.String("POST"),
@@ -4649,6 +4758,27 @@ func (c *Client) sendGetAccounts(ctx context.Context, request OptGetAccountsReq)
 	var pathParts [1]string
 	pathParts[0] = "/v2/accounts/_bulk"
 	uri.AddPathParts(u, pathParts[:]...)
+
+	stage = "EncodeQueryParams"
+	q := uri.NewQueryEncoder()
+	{
+		// Encode "currency" parameter.
+		cfg := uri.QueryParameterEncodingConfig{
+			Name:    "currency",
+			Style:   uri.QueryStyleForm,
+			Explode: true,
+		}
+
+		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
+			if val, ok := params.Currency.Get(); ok {
+				return e.EncodeValue(conv.StringToString(val))
+			}
+			return nil
+		}); err != nil {
+			return res, errors.Wrap(err, "encode query")
+		}
+	}
+	u.RawQuery = q.Values().Encode()
 
 	stage = "EncodeRequest"
 	r, err := ht.NewRequest(ctx, "POST", u)
@@ -7327,6 +7457,96 @@ func (c *Client) sendGetMarketsRates(ctx context.Context) (res *GetMarketsRatesO
 	return result, nil
 }
 
+// GetMultisigAccount invokes getMultisigAccount operation.
+//
+// Get multisig account info.
+//
+// GET /v2/multisig/{account_id}
+func (c *Client) GetMultisigAccount(ctx context.Context, params GetMultisigAccountParams) (*Multisig, error) {
+	res, err := c.sendGetMultisigAccount(ctx, params)
+	return res, err
+}
+
+func (c *Client) sendGetMultisigAccount(ctx context.Context, params GetMultisigAccountParams) (res *Multisig, err error) {
+	otelAttrs := []attribute.KeyValue{
+		otelogen.OperationID("getMultisigAccount"),
+		semconv.HTTPMethodKey.String("GET"),
+		semconv.HTTPRouteKey.String("/v2/multisig/{account_id}"),
+	}
+
+	// Run stopwatch.
+	startTime := time.Now()
+	defer func() {
+		// Use floating point division here for higher precision (instead of Millisecond method).
+		elapsedDuration := time.Since(startTime)
+		c.duration.Record(ctx, float64(float64(elapsedDuration)/float64(time.Millisecond)), metric.WithAttributes(otelAttrs...))
+	}()
+
+	// Increment request counter.
+	c.requests.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
+
+	// Start a span for this request.
+	ctx, span := c.cfg.Tracer.Start(ctx, "GetMultisigAccount",
+		trace.WithAttributes(otelAttrs...),
+		clientSpanKind,
+	)
+	// Track stage for error reporting.
+	var stage string
+	defer func() {
+		if err != nil {
+			span.RecordError(err)
+			span.SetStatus(codes.Error, stage)
+			c.errors.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
+		}
+		span.End()
+	}()
+
+	stage = "BuildURL"
+	u := uri.Clone(c.requestURL(ctx))
+	var pathParts [2]string
+	pathParts[0] = "/v2/multisig/"
+	{
+		// Encode "account_id" parameter.
+		e := uri.NewPathEncoder(uri.PathEncoderConfig{
+			Param:   "account_id",
+			Style:   uri.PathStyleSimple,
+			Explode: false,
+		})
+		if err := func() error {
+			return e.EncodeValue(conv.StringToString(params.AccountID))
+		}(); err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		encoded, err := e.Result()
+		if err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		pathParts[1] = encoded
+	}
+	uri.AddPathParts(u, pathParts[:]...)
+
+	stage = "EncodeRequest"
+	r, err := ht.NewRequest(ctx, "GET", u)
+	if err != nil {
+		return res, errors.Wrap(err, "create request")
+	}
+
+	stage = "SendRequest"
+	resp, err := c.cfg.Client.Do(r)
+	if err != nil {
+		return res, errors.Wrap(err, "do request")
+	}
+	defer resp.Body.Close()
+
+	stage = "DecodeResponse"
+	result, err := decodeGetMultisigAccountResponse(resp)
+	if err != nil {
+		return res, errors.Wrap(err, "decode response")
+	}
+
+	return result, nil
+}
+
 // GetNftCollection invokes getNftCollection operation.
 //
 // Get NFT collection by collection address.
@@ -9615,6 +9835,110 @@ func (c *Client) sendGetRawTransactions(ctx context.Context, params GetRawTransa
 
 	stage = "DecodeResponse"
 	result, err := decodeGetRawTransactionsResponse(resp)
+	if err != nil {
+		return res, errors.Wrap(err, "decode response")
+	}
+
+	return result, nil
+}
+
+// GetReducedBlockchainBlocks invokes getReducedBlockchainBlocks operation.
+//
+// Get reduced blockchain blocks data.
+//
+// GET /v2/blockchain/reduced/blocks
+func (c *Client) GetReducedBlockchainBlocks(ctx context.Context, params GetReducedBlockchainBlocksParams) (*ReducedBlocks, error) {
+	res, err := c.sendGetReducedBlockchainBlocks(ctx, params)
+	return res, err
+}
+
+func (c *Client) sendGetReducedBlockchainBlocks(ctx context.Context, params GetReducedBlockchainBlocksParams) (res *ReducedBlocks, err error) {
+	otelAttrs := []attribute.KeyValue{
+		otelogen.OperationID("getReducedBlockchainBlocks"),
+		semconv.HTTPMethodKey.String("GET"),
+		semconv.HTTPRouteKey.String("/v2/blockchain/reduced/blocks"),
+	}
+
+	// Run stopwatch.
+	startTime := time.Now()
+	defer func() {
+		// Use floating point division here for higher precision (instead of Millisecond method).
+		elapsedDuration := time.Since(startTime)
+		c.duration.Record(ctx, float64(float64(elapsedDuration)/float64(time.Millisecond)), metric.WithAttributes(otelAttrs...))
+	}()
+
+	// Increment request counter.
+	c.requests.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
+
+	// Start a span for this request.
+	ctx, span := c.cfg.Tracer.Start(ctx, "GetReducedBlockchainBlocks",
+		trace.WithAttributes(otelAttrs...),
+		clientSpanKind,
+	)
+	// Track stage for error reporting.
+	var stage string
+	defer func() {
+		if err != nil {
+			span.RecordError(err)
+			span.SetStatus(codes.Error, stage)
+			c.errors.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
+		}
+		span.End()
+	}()
+
+	stage = "BuildURL"
+	u := uri.Clone(c.requestURL(ctx))
+	var pathParts [1]string
+	pathParts[0] = "/v2/blockchain/reduced/blocks"
+	uri.AddPathParts(u, pathParts[:]...)
+
+	stage = "EncodeQueryParams"
+	q := uri.NewQueryEncoder()
+	{
+		// Encode "from" parameter.
+		cfg := uri.QueryParameterEncodingConfig{
+			Name:    "from",
+			Style:   uri.QueryStyleForm,
+			Explode: true,
+		}
+
+		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
+			return e.EncodeValue(conv.Int64ToString(params.From))
+		}); err != nil {
+			return res, errors.Wrap(err, "encode query")
+		}
+	}
+	{
+		// Encode "to" parameter.
+		cfg := uri.QueryParameterEncodingConfig{
+			Name:    "to",
+			Style:   uri.QueryStyleForm,
+			Explode: true,
+		}
+
+		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
+			return e.EncodeValue(conv.Int64ToString(params.To))
+		}); err != nil {
+			return res, errors.Wrap(err, "encode query")
+		}
+	}
+	u.RawQuery = q.Values().Encode()
+
+	stage = "EncodeRequest"
+	r, err := ht.NewRequest(ctx, "GET", u)
+	if err != nil {
+		return res, errors.Wrap(err, "create request")
+	}
+
+	stage = "SendRequest"
+	resp, err := c.cfg.Client.Do(r)
+	if err != nil {
+		return res, errors.Wrap(err, "do request")
+	}
+	defer resp.Body.Close()
+
+	stage = "DecodeResponse"
+	result, err := decodeGetReducedBlockchainBlocksResponse(resp)
 	if err != nil {
 		return res, errors.Wrap(err, "decode response")
 	}

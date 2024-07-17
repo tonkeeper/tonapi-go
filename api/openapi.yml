@@ -26,6 +26,24 @@ paths:
                 $ref: '#/components/schemas/ServiceStatus'
         'default':
           $ref: '#/components/responses/Error'
+  /v2/blockchain/reduced/blocks:
+    get:
+      description: Get reduced blockchain blocks data
+      operationId: getReducedBlockchainBlocks
+      tags:
+        - Blockchain
+      parameters:
+        - $ref: '#/components/parameters/fromQuery'
+        - $ref: '#/components/parameters/toQuery'
+      responses:
+        '200':
+          description: blockchain reduced blocks
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReducedBlocks'
+        'default':
+          $ref: '#/components/responses/Error'
   /v2/blockchain/blocks/{block_id}:
     get:
       description: Get blockchain block data
@@ -241,6 +259,7 @@ paths:
             type: integer
             format: int64
             example: 39787624000003
+            x-js-format: bigint
         - name: before_lt
           in: query
           description: "omit this parameter to get last transactions"
@@ -248,6 +267,7 @@ paths:
             type: integer
             format: int64
             example: 39787624000003
+            x-js-format: bigint
         - name: limit
           in: query
           schema:
@@ -411,6 +431,7 @@ paths:
                 properties:
                   raw_form:
                     type: string
+                    format: address
                     example: "0:6e731f2e28b73539a7f85ac47ca104d5840b229351189977bb6151d36b5e3f5e"
                   bounceable:
                     required:
@@ -436,11 +457,8 @@ paths:
                     type: string
                   test_only:
                     type: boolean
-
         default:
           $ref: '#/components/responses/Error'
-
-
 
   /v2/events/emulate:
     post:
@@ -540,6 +558,8 @@ paths:
       operationId: getAccounts
       tags:
         - Accounts
+      parameters:
+        - $ref: "#/components/parameters/currencyQuery"
       requestBody:
         $ref: "#/components/requestBodies/AccountIDs"
       responses:
@@ -639,6 +659,7 @@ paths:
             type: integer
             format: int64
             example: 25758317000002
+            x-js-format: bigint
         - name: limit
           in: query
           required: true
@@ -688,6 +709,7 @@ paths:
             type: integer
             format: int64
             example: 25758317000002
+            x-js-format: bigint
         - name: limit
           in: query
           required: true
@@ -763,6 +785,7 @@ paths:
             type: integer
             format: int64
             example: 25758317000002
+            x-js-format: bigint
         - name: limit
           in: query
           required: true
@@ -819,6 +842,7 @@ paths:
             type: integer
             format: int64
             example: 25758317000002
+            x-js-format: bigint
         - name: limit
           in: query
           required: true
@@ -892,6 +916,7 @@ paths:
             type: integer
             format: int64
             example: 25758317000002
+            x-js-format: bigint
         - name: limit
           in: query
           schema:
@@ -1003,6 +1028,24 @@ paths:
                     example: "NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE2ODQ3..."
         'default':
           $ref: '#/components/responses/Error'
+  /v2/accounts/{account_id}/multisigs:
+    get:
+      description: Get account's multisigs
+      operationId: getAccountMultisigs
+      tags:
+        - Accounts
+      parameters:
+        - $ref: '#/components/parameters/accountIDParameter'
+      responses:
+        '200':
+          description: account's multisigs
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Multisigs'
+        'default':
+          $ref: '#/components/responses/Error'
+  
   /v2/accounts/{account_id}/diff:
     get:
       description: Get account's balance change
@@ -1231,6 +1274,7 @@ paths:
             type: integer
             format: int64
             example: 25758317000002
+            x-js-format: bigint
         - name: limit
           in: query
           required: true
@@ -1335,6 +1379,7 @@ paths:
             type: integer
             format: int64
             example: 25758317000002
+            x-js-format: bigint
         - name: limit
           in: query
           required: false
@@ -1376,6 +1421,7 @@ paths:
             type: integer
             format: int64
             example: 25758317000002
+            x-js-format: bigint
         - name: limit
           in: query
           required: false
@@ -1630,6 +1676,7 @@ paths:
           description: account ID
           schema:
             type: string
+            format: address
             example: 0:97264395BD65A255A429B11326C84128B7D70FFED7949ABAE3036D506BA38621
         - in: query
           name: include_unverified
@@ -1935,13 +1982,14 @@ paths:
       description: "Estimates the cost of the given messages and returns a payload to sign."
       operationId: gaslessEstimate
       parameters:
-      - name: master_id
-        in: path
-        required: true
-        description: jetton to pay commission
-        schema:
-          type: string
-          example: 0:97264395BD65A255A429B11326C84128B7D70FFED7949ABAE3036D506BA38621
+        - name: master_id
+          in: path
+          required: true
+          description: jetton to pay commission
+          schema:
+            type: string
+            format: address
+            example: 0:97264395BD65A255A429B11326C84128B7D70FFED7949ABAE3036D506BA38621
       tags:
         - Gasless
       requestBody:
@@ -2408,6 +2456,7 @@ paths:
                         lt:
                           type: integer
                           format: int64
+                          x-js-format: bigint
                         hash:
                           type: string
                           example: 131D0C65055F04E9C19D687B51BC70F952FD9CA6F02C2801D3B89964A779DF85
@@ -2639,6 +2688,24 @@ paths:
                           format: uint32
         'default':
           $ref: '#/components/responses/Error'
+  
+  /v2/multisig/{account_id}:
+    get:
+      description: Get multisig account info
+      operationId: getMultisigAccount
+      tags:
+        - Multisig
+      parameters:
+        - $ref: '#/components/parameters/accountIDParameter'
+      responses:
+        '200':
+          description: multisig account
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Multisig'
+        'default':
+          $ref: '#/components/responses/Error'
 
 components:
   parameters:
@@ -2690,6 +2757,7 @@ components:
       description: account ID
       schema:
         type: string
+        format: address
         example: 0:97264395BD65A255A429B11326C84128B7D70FFED7949ABAE3036D506BA38621
     accountIDParameters:
       in: path
@@ -2701,6 +2769,7 @@ components:
         type: array
         items:
           type: string
+          format: address
           example: 0:97264395BD65A255A429B11326C84128B7D70FFED7949ABAE3036D506BA38621
     jettonIDParameter:
       in: path
@@ -2709,6 +2778,7 @@ components:
       description: jetton ID
       schema:
         type: string
+        format: address
         example: 0:97264395BD65A255A429B11326C84128B7D70FFED7949ABAE3036D506BA38621
     methodNameParameter:
       in: path
@@ -2798,6 +2868,7 @@ components:
       description: "nft collection"
       schema:
         type: string
+        format: address
         example: "0:06d811f426598591b32b2c49f29f66c821368e4acb1de16762b04e0174532465"
     modeQuery:
       in: query
@@ -2892,6 +2963,7 @@ components:
       explode: false
       schema:
         type: string
+        format: address
         example: 0:97264395BD65A255A429B11326C84128B7D70FFED7949ABAE3036D506BA38621
     initiatorQuery:
       in: query
@@ -2912,6 +2984,27 @@ components:
         items:
           type: string
         example: [ "ton", "usd", "rub" ]
+    currencyQuery:
+      in: query
+      name: currency
+      required: false
+      schema:
+        type: string
+        example: "usd"
+    fromQuery:
+      in: query
+      name: from
+      required: true
+      schema:
+        type: integer
+        format: int64
+    toQuery:
+      in: query
+      name: to
+      required: true
+      schema:
+        type: integer
+        format: int64
 
   requestBodies:
     MethodParameters:
@@ -2921,7 +3014,7 @@ components:
           schema:
             type: object
     BatchBoc:
-      description: both a single boc and a batch of boc serialized in base64 are accepted
+      description: both a single boc and a batch of boc serialized in base64/hex are accepted
       required: true
       content:
         application/json:
@@ -2930,15 +3023,15 @@ components:
             properties:
               boc:
                 type: string
-                example: te6ccgECBQEAARUAAkWIAWTtae+KgtbrX26Bep8JSq8lFLfGOoyGR/xwdjfvpvEaHg
+                format: cell
               batch:
                 type: array
                 maxItems: 10
                 items:
                   type: string
-                  example: te6ccgECBQEAARUAAkWIAWTtae+KgtbrX26Bep8JSq8lFLfGOoyGR/xwdjfvpvEaHg
+                  format: cell
     EmulationBoc:
-      description: bag-of-cells serialized to base64 and additional parameters to configure emulation
+      description: bag-of-cells serialized to base64/hex and additional parameters to configure emulation
       required: true
       content:
         application/json:
@@ -2949,7 +3042,7 @@ components:
             properties:
               boc:
                 type: string
-                example: te6ccgECBQEAARUAAkWIAWTtae+KgtbrX26Bep8JSq8lFLfGOoyGR/xwdjfvpvEaHg
+                format: cell
               params:
                 type: array
                 description: additional per account configuration
@@ -2960,13 +3053,15 @@ components:
                   properties:
                     address:
                       type: string
+                      format: address
                       example: "0:97146a46acc2654y27947f14c4a4b14273e954f78bc017790b41208b0043200b"
                     balance:
                       type: integer
                       format: int64
                       example: 10000000000
+                      x-js-format: bigint
     InternalMessages:
-      description: bag-of-cells serialized to base64
+      description: bag-of-cells serialized to hex
       required: true
       content:
         application/json:
@@ -2979,6 +3074,7 @@ components:
             properties:
               wallet_address:
                 type: string
+                format: address
               wallet_public_key:
                 type: string
               messages:
@@ -2990,9 +3086,9 @@ components:
                   properties:
                     boc:
                       type: string
-                      example: "B5EE9C7201010101001100001D00048656C6C6F2C20776F726C64218"
+                      format: cell
     GaslessSend:
-      description: bag-of-cells serialized to base64
+      description: bag-of-cells serialized to hex
       required: true
       content:
         application/json:
@@ -3003,13 +3099,13 @@ components:
               - wallet_public_key
             properties:
               wallet_public_key:
-                description: hex encoded public key
                 type: string
+                description: hex encoded public key
               boc:
                 type: string
-                example: te6ccgECBQEAARUAAkWIAWTtae+KgtbrX26Bep8JSq8lFLfGOoyGR/xwdjfvpvEaHg
+                format: cell
     Boc:
-      description: bag-of-cells serialized to base64
+      description: bag-of-cells serialized to hex
       required: true
       content:
         application/json:
@@ -3020,7 +3116,7 @@ components:
             properties:
               boc:
                 type: string
-                example: te6ccgECBQEAARUAAkWIAWTtae+KgtbrX26Bep8JSq8lFLfGOoyGR/xwdjfvpvEaHg
+                format: cell
     AccountIDs:
       description: a list of account ids
       content:
@@ -3034,6 +3130,7 @@ components:
                 type: array
                 items:
                   type: string
+                  format: address
                   example: 0:97264395BD65A255A429B11326C84128B7D70FFED7949ABAE3036D506BA38621
     TonConnectProof:
       description: "Data that is expected from TON Connect"
@@ -3048,6 +3145,7 @@ components:
             properties:
               address:
                 type: string
+                format: address
                 example: "0:97146a46acc2654y27947f14c4a4b14273e954f78bc017790b41208b0043200b"
               proof:
                 type: object
@@ -3078,6 +3176,7 @@ components:
                     example: "84jHVNLQmZsAAAAAZB0Zryi2wqVJI-KaKNXOvCijEi46YyYzkaSHyJrMPBMOkVZa"
                   state_init:
                     type: string
+                    format: cell-base64
     Backup:
       description: "Information for saving backup"
       required: true
@@ -3098,6 +3197,7 @@ components:
             properties:
               state_init:
                 type: string
+                format: cell-base64
     LiteServerSendMessageRequest:
       description: "Data that is expected"
       required: true
@@ -3110,6 +3210,7 @@ components:
             properties:
               body:
                 type: string
+                format: cell-base64
 
   schemas:
     Error:
@@ -3129,6 +3230,7 @@ components:
       properties:
         address:
           type: string
+          format: address
           example: 0:10C1073837B93FDAAD594284CE8B8EFF7B9CF25427440EB2FC682762E1471365
         name:
           type: string
@@ -3154,6 +3256,7 @@ components:
           type: integer
           format: int64
           example: 10000000000
+          x-js-format: bigint
         other:
           type: array
           items:
@@ -3214,6 +3317,48 @@ components:
         indexing_latency:
           type: integer
           example: 100
+    ReducedBlock:
+      type: object
+      required:
+        - workchain_id
+        - shard
+        - seqno
+        - tx_quantity
+        - utime
+        - shards_blocks
+        - parent
+      properties:
+        workchain_id:
+          type: integer
+          example: 0
+          format: int32
+        shard:
+          type: string
+          example: 8000000000000000
+        seqno:
+          type: integer
+          example: 21734019
+          format: int32
+        master_ref:
+          type: string
+          example: (-1,4234234,8000000000000000)
+        tx_quantity:
+          type: integer
+          example: 130
+        utime:
+          type: integer
+          format: int64
+          example: 23814011000000
+        shards_blocks:
+          type: array
+          items:
+            type: string
+            example: [ (0,4234235,8000000000000000) ]
+        parent:
+          type: array
+          items:
+            type: string
+            example: [ (0,21734018,8000000000000000) ]
     BlockchainBlock:
       type: object
       required:
@@ -3301,10 +3446,12 @@ components:
           type: integer
           format: int64
           example: 23814011000000
+          x-js-format: bigint
         end_lt:
           type: integer
           format: int64
           example: 23814011000001
+          x-js-format: bigint
         vert_seqno:
           type: integer
           example: 0
@@ -3360,6 +3507,15 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/BlockchainBlock'
+    ReducedBlocks:
+      type: object
+      required:
+        - blocks
+      properties:
+        blocks:
+          type: array
+          items:
+            $ref: '#/components/schemas/ReducedBlock'
     BlockchainBlockShards:
       type: object
       required:
@@ -3390,10 +3546,16 @@ components:
       type: object
       required:
         - boc
+        - interfaces
       properties:
         boc:
           type: string
-          example: te6ccgEBBgEARAABFP8A9KQT9LzyyAsBAgEgAgMCAUgEBQAE8jAAONBsIdMfMO1E0NM/MAHAAZekyMs/ye1UkzDyBuIAEaE0MdqJoaZ+YQ==
+          format: cell
+          example: b5ee9c72010106010044000114ff00f4a413f4bcf2c80b01020120020302014804050004f2300038d06c21d31f30ed44d0d33f3001c00197a4c8cb3fc9ed549330f206e20011a13431da89a1a67e61
+        interfaces:
+            type: array
+            items:
+                type: string
     Message:
       type: object
       required:
@@ -3407,6 +3569,7 @@ components:
         - ihr_fee
         - import_fee
         - created_at
+        - hash
       properties:
         msg_type:
           type: string
@@ -3419,6 +3582,7 @@ components:
           type: integer
           format: int64
           example: 25713146000001
+          x-js-format: bigint
         ihr_disabled:
           type: boolean
           example: true
@@ -3431,14 +3595,17 @@ components:
         value:
           type: integer
           format: int64
+          x-js-format: bigint
           example: 60000000
         fwd_fee:
           type: integer
           format: int64
+          x-js-format: bigint
           example: 5681002
         ihr_fee:
           type: integer
           format: int64
+          x-js-format: bigint
           example: 5681002
         destination:
           $ref: '#/components/schemas/AccountAddress'
@@ -3447,6 +3614,7 @@ components:
         import_fee:
           type: integer
           format: int64
+          x-js-format: bigint
           example: 5681002
         created_at:
           type: integer
@@ -3457,8 +3625,12 @@ components:
           example: "0xdeadbeaf"
         init:
           $ref: '#/components/schemas/StateInit'
+        hash:
+          type: string
+          example: "1219de582369ac80ee1afe12147930f458a54ff1eea612611a8bc6bd31581a6c"
         raw_body:
           type: string
+          format: cell
           description: hex-encoded BoC with raw message body
           example: "B5EE9C7201010101001100001D00048656C6C6F2C20776F726C64218"
         decoded_op_name:
@@ -3513,10 +3685,12 @@ components:
         gas_fees:
           type: integer
           format: int64
+          x-js-format: bigint
           example: 1000
         gas_used:
           type: integer
           format: int64
+          x-js-format: bigint
           example: 10000
         vm_steps:
           type: integer
@@ -3537,10 +3711,12 @@ components:
         fees_collected:
           type: integer
           format: int64
+          x-js-format: bigint
           example: 25713146000001
         fees_due:
           type: integer
           format: int64
+          x-js-format: bigint
           example: 25713146000001
         status_change:
           $ref: '#/components/schemas/AccStatusChange'
@@ -3553,10 +3729,12 @@ components:
         fees_collected:
           type: integer
           format: int64
+          x-js-format: bigint
           example: 100
         credit:
           type: integer
           format: int64
+          x-js-format: bigint
           example: 1000
     ActionPhase:
       type: object
@@ -3586,10 +3764,12 @@ components:
         fwd_fees:
           type: integer
           format: int64
+          x-js-format: bigint
           example: 1000
         total_fees:
           type: integer
           format: int64
+          x-js-format: bigint
           example: 1000
         result_code_description:
           type: string
@@ -3612,6 +3792,7 @@ components:
         - block
         - aborted
         - destroyed
+        - raw
       properties:
         hash:
           type: string
@@ -3620,6 +3801,7 @@ components:
           type: integer
           format: int64
           example: 25713146000001
+          x-js-format: bigint
         account:
           $ref: '#/components/schemas/AccountAddress'
         success:
@@ -3636,10 +3818,12 @@ components:
         total_fees:
           type: integer
           format: int64
+          x-js-format: bigint
           example: 25713146000001
         end_balance:
           type: integer
           format: int64
+          x-js-format: bigint
           example: 25713146000001
         transaction_type:
           $ref: '#/components/schemas/TransactionType'
@@ -3664,6 +3848,7 @@ components:
         prev_trans_lt:
           type: integer
           format: int64
+          x-js-format: bigint
           example: 25713146000001
         compute_phase:
           $ref: '#/components/schemas/ComputePhase'
@@ -3681,6 +3866,11 @@ components:
         destroyed:
           type: boolean
           example: true
+        raw:
+          type: string
+          format: cell
+          description: "hex encoded boc with raw transaction"
+          example: "b5ee9c72410206010001380003b372cf3b5b8c891e517c9addbda1c0386a09ccacbb0e3faf630b51cfc8152325acb00002ac5795c0e41fdf79135cb7da03cc623b165d614b562a51eeccd8a5e097f405abf6b37f4e73000002ac5629732c1666887ed000144030480102030101a004008272abc8f2971aa4404ac6da1597720f348b2e1247b1ad9f55cbd3b6812f0a5f08b269bb65039fb1f6074d00f794e857f6dfd01131d299df456af10a8a4943d4d165000d0c80608840492001ab48015581f575c3b8c6ab3d6"
     Transactions:
       type: object
       required:
@@ -4024,6 +4214,7 @@ components:
               weight:
                 type: integer
                 format: int64
+                x-js-format: bigint
               adnl_addr:
                 type: string
     Oracle:
@@ -4034,6 +4225,7 @@ components:
       properties:
         address:
           type: string
+          format: address
           example: 0:55e8809519cd3c49098c9ee45afdafcea7a894a74d0f628d94a115a50e045122
         secp_pubkey:
           type: string
@@ -4048,8 +4240,10 @@ components:
       properties:
         bridge_addr:
           type: string
+          format: address
         oracle_multisig_address:
           type: string
+          format: address
         external_chain_address:
           type: string
         oracles:
@@ -4094,8 +4288,10 @@ components:
       properties:
         bridge_address:
           type: string
+          format: address
         oracles_address:
           type: string
+          format: address
         state_flags:
           type: integer
         burn_bridge_fee:
@@ -4119,6 +4315,7 @@ components:
       properties:
         address:
           type: string
+          format: address
           example: 0:55e8809519cd3c49098c9ee45afdafcea7a894a74d0f628d94a115a50e045122
         adnl_address:
           type: string
@@ -4127,6 +4324,7 @@ components:
           type: integer
           format: int64
           example: 123456789
+          x-js-format: bigint
         max_factor:
           type: integer
           format: int64
@@ -4151,10 +4349,12 @@ components:
         min_stake:
           type: integer
           format: int64
+          x-js-format: bigint
           example: 123456789
         total_stake:
           type: integer
           format: int64
+          x-js-format: bigint
           example: 123456789
         validators:
           type: array
@@ -4184,10 +4384,12 @@ components:
         last_paid:
           type: integer
           format: int64
-          example: 567
+          description: time of the last payment
+          example: 1720860269
         due_payment:
           type: integer
           format: int64
+          x-js-format: bigint
           example: 567
     BlockchainRawAccount:
       type: object
@@ -4200,10 +4402,12 @@ components:
       properties:
         address:
           type: string
+          format: address
           example: 0:da6b1b6663a0e4d18cc8574ccd9db5296e367dd9324706f3bbd9eb1cd2caf0bf
         balance:
           type: integer
           format: int64
+          x-js-format: bigint
           example: 123456789
         extra_balance:
           type: object
@@ -4211,13 +4415,16 @@ components:
             type: string
         code:
           type: string
+          format: cell
           example: b5ee9c72410104010087000114ff00f4a413f4a0f2c80b0102012002030002d200dfa5ffff76a268698fe9ffe8e42c5267858f90e785ffe4f6aa6467c444ffb365ffc10802faf0807d014035e7a064b87d804077e7857fc10803dfd2407d014035e7a064b86467cd8903a32b9ba4410803ade68afd014035e7a045ea432b6363796103bb7b9363210c678b64b87d807d8040c249b3e4
         data:
           type: string
+          format: cell
           example: b5ee9c7241010101002600004811fd096c0000000000000000000000000000000000000000000000000000000000000000cb78264d
         last_transaction_lt:
           type: integer
           format: int64
+          x-js-format: bigint
           example: 123456789
         last_transaction_hash:
           type: string
@@ -4242,6 +4449,7 @@ components:
                 example: true
               root:
                 type: string
+                format: cell
     Account:
       type: object
       required:
@@ -4254,16 +4462,23 @@ components:
       properties:
         address:
           type: string
+          format: address
           example: 0:da6b1b6663a0e4d18cc8574ccd9db5296e367dd9324706f3bbd9eb1cd2caf0bf
         balance:
           type: integer
           format: int64
           example: 123456789
+          x-js-format: bigint
+        currencies_balance:
+          description: "{'USD': 1, 'IDR': 1000}"
+          type: object
+          additionalProperties: true
+          example: { }
         last_activity:
           type: integer
           description: unix timestamp
           format: int64
-          example: 123456789
+          example: 1720860269
         status:
           '$ref': '#/components/schemas/AccountStatus'
         interfaces:
@@ -4309,9 +4524,12 @@ components:
       properties:
         relay_address:
           type: string
+          format: address
+          description: "sending excess to this address decreases the commission of a gasless transfer"
           example: 0:dfbd5be8497fdc0c9fcbdfc676864840ddf8ad6423d6d5657d9b0e8270d6c8ac
         gas_jettons:
           type: array
+          description: "list of jettons, any of them can be used to pay for gas"
           items:
             type: object
             required:
@@ -4319,6 +4537,7 @@ components:
             properties:
               master_id:
                 type: string
+                format: address
     SignRawMessage:
       type: object
       required:
@@ -4327,25 +4546,31 @@ components:
       properties:
         address:
           type: string
+          format: address
           example: 0:da6b1b6663a0e4d18cc8574ccd9db5296e367dd9324706f3bbd9eb1cd2caf0bf
         amount:
           type: string
           description: "Number of nanocoins to send. Decimal string."
         payload:
           type: string
-          description: "Raw one-cell BoC encoded in Base64."
+          format: cell
+          description: "Raw one-cell BoC encoded in hex."
         stateInit:
           type: string
-          description: "Raw once-cell BoC encoded in Base64."
+          format: cell
+          description: "Raw once-cell BoC encoded in hex."
     SignRawParams:
       type: object
       required:
         - messages
         - relay_address
         - commission
+        - from
+        - valid_until
       properties:
         relay_address:
           type: string
+          format: address
           example: 0:da6b1b6663a0e4d18cc8574ccd9db5296e367dd9324706f3bbd9eb1cd2caf0bf
         commission:
           type: string
@@ -4353,6 +4578,7 @@ components:
           example: "1000000"
         from:
           type: string
+          format: address
           example: 0:da6b1b6663a0e4d18cc8574ccd9db5296e367dd9324706f3bbd9eb1cd2caf0bf
         valid_until:
           type: integer
@@ -4383,6 +4609,7 @@ components:
         decoded: { } # Free-form JSON value
     TvmStackRecord:
       type: object
+      format: tuple-item
       required:
         - type
       properties:
@@ -4397,10 +4624,10 @@ components:
             - tuple
         cell:
           type: string
-          example: "te6cckEBAQEAJAAAQ4ARPeUceMlv4l12d6jdLpIzzbAV6amYXNZeZK2aicQdC/Apj8aJ"
+          format: cell
         slice:
           type: string
-          example: ""
+          format: cell
         num:
           type: string
           example: ""
@@ -4431,22 +4658,27 @@ components:
       properties:
         raw:
           type: string
-          description: config boc in base64 format
-          example: te6ccgEBBgEARAABFP8A9KQT9LzyyAsBAgEgAgMCAUgEBQAE8jAAONBsIdMfMO1E0NM/MAHAAZekyMs/ye1UkzDyBuIAEaE0MdqJoaZ+YQ==
+          format: cell
+          description: config boc in hex format
         "0":
           type: string
+          format: address
           description: "config address"
         "1":
           type: string
+          format: address
           description: "elector address"
         "2":
           type: string
+          format: address
           description: "minter address"
         "3":
           type: string
+          format: address
           description: "The address of the transaction fee collector."
         "4":
           type: string
+          format: address
           description: "dns root address"
         "5":
           type: object
@@ -4456,6 +4688,7 @@ components:
           properties:
             blackhole_addr:
               type: string
+              format: address
             fee_burn_nom:
               type: integer
               format: int64
@@ -4826,6 +5059,7 @@ components:
               type: array
               items:
                 type: string
+                format: address
                 example: -1:dd24c4a1f2b88f8b7053513b5cc6c5a31bc44b2a72dcb4d8c0338af0f0d37ec5
         "32":
           $ref: '#/components/schemas/ValidatorsSet'
@@ -4866,6 +5100,8 @@ components:
               type: array
               items:
                 type: string
+                format: address
+                example: 0:0000000000000000000000000000000000000000000000000000000000000000
             suspended_until:
               type: integer
         "71":
@@ -4979,6 +5215,7 @@ components:
       properties:
         address:
           type: string
+          format: address
           example: 0:0BB5A9F69043EEBDDA5AD2E946EB953242BD8F603FE795D90698CEEC6BFC60A0
         name:
           type: string
@@ -5040,7 +5277,7 @@ components:
       properties:
         value:
           type: string
-          example: 123000000000
+          example: "123000000000"
         token_name:
           type: string
           example: TON
@@ -5082,6 +5319,7 @@ components:
       properties:
         address:
           type: string
+          format: address
           example: 0:10C1073837B93FDAAD594284CE8B8EFF7B9CF25427440EB2FC682762E1471365
         market:
           $ref: '#/components/schemas/AccountAddress'
@@ -5101,6 +5339,7 @@ components:
       properties:
         address:
           type: string
+          format: address
           example: 0:E93E7D444180608B8520C00DC664383A387356FB6E16FDDF99DBE5E1415A574B
         index:
           type: integer
@@ -5117,6 +5356,7 @@ components:
           properties:
             address:
               type: string
+              format: address
               example: 0:E93E7D444180608B8520C00DC664383A387356FB6E16FDDF99DBE5E1415A574B
             name:
               type: string
@@ -5156,6 +5396,89 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/NftItem'
+    Multisigs:
+      type: object
+      required:
+        - multisigs
+      properties:
+        multisigs:
+          type: array
+          items:
+            $ref: '#/components/schemas/Multisig'
+    Multisig:
+      type: object
+      required:
+        - address
+        - seqno
+        - threshold
+        - signers
+        - proposers
+        - orders
+      properties:
+        address:
+          type: string
+          format: address
+          example: "0:da6b1b6663a0e4d18cc8574ccd9db5296e367dd9324706f3bbd9eb1cd2caf0bf"
+        seqno:
+          type: integer
+          format: int64
+          example: 1
+        threshold:
+          type: integer
+          format: int32
+        signers:
+          type: array
+          items:
+            type: string
+            format: address
+            example: "0:da6b1b6663a0e4d18cc8574ccd9db5296e367dd9324706f3bbd9eb1cd2caf0bf"
+        proposers:
+          type: array
+          items:
+            type: string
+            format: address
+            example: "0:da6b1b6663a0e4d18cc8574ccd9db5296e367dd9324706f3bbd9eb1cd2caf0bf"
+        orders:
+          type: array
+          items:
+            $ref: '#/components/schemas/MultisigOrder'
+    MultisigOrder:
+      type: object
+      required:
+        - address
+        - order_seqno
+        - threshold
+        - sent_for_execution
+        - signers
+        - approvals_num
+        - expiration_date
+      properties:
+        address:
+          type: string
+          format: address
+          example: "0:da6b1b6663a0e4d18cc8574ccd9db5296e367dd9324706f3bbd9eb1cd2caf0bf"
+        order_seqno:
+          type: integer
+          format: int64
+          example: 1
+        threshold:
+          type: integer
+          format: int32
+        sent_for_execution:
+          type: boolean
+          example: false
+        signers:
+          type: array
+          items:
+            type: string
+            format: address
+            example: "0:da6b1b6663a0e4d18cc8574ccd9db5296e367dd9324706f3bbd9eb1cd2caf0bf"
+        approvals_num:
+          type: integer
+          format: int32
+        expiration_date:
+          type: integer
+          format: int64
     Refund:
       type: object
       required:
@@ -5184,10 +5507,12 @@ components:
         ton:
           type: integer
           format: int64
+          x-js-format: bigint
           example: 80
         fees:
           type: integer
           format: int64
+          x-js-format: bigint
           example: 10
         jettons:
           type: array
@@ -5205,6 +5530,7 @@ components:
               quantity:
                 type: integer
                 format: int64
+                x-js-format: bigint
                 example: 10
     Action:
       type: object
@@ -5291,6 +5617,7 @@ components:
           type: array
           items:
             type: string
+            description: "transaction hash"
             example: e8b0e3fee4a26bd2317ac1f9952fcdc87dc08fdb617656b5202416323337372e
     TonTransferAction:
       type: object
@@ -5308,6 +5635,7 @@ components:
           description: amount in nanotons
           format: int64
           example: 123456789
+          x-js-format: bigint
         comment:
           type: string
           example: "Hi! This is your salary. \nFrom accounting with love."
@@ -5332,6 +5660,7 @@ components:
           description: amount in nanotons
           format: int64
           example: 123456789
+          x-js-format: bigint
         operation:
           type: string
           example: "NftTransfer or 0x35d95a12"
@@ -5351,6 +5680,7 @@ components:
           example: "vasya.ton"
         contract_address:
           type: string
+          format: address
           example: "0:da6b1b6663a0e4d18cc8574ccd9db5296e367dd9324706f3bbd9eb1cd2caf0bf"
         renewer:
           $ref: '#/components/schemas/AccountAddress'
@@ -5451,9 +5781,11 @@ components:
           $ref: '#/components/schemas/AccountAddress'
         senders_wallet:
           type: string
+          format: address
           example: 0:E93E7D444180608B8520C00DC664383A387356FB6E16FDDF99DBE5E1415A574B
         recipients_wallet:
           type: string
+          format: address
           example: 0:E93E7D444180608B8520C00DC664383A387356FB6E16FDDF99DBE5E1415A574B
         amount:
           type: string
@@ -5480,6 +5812,7 @@ components:
           $ref: '#/components/schemas/AccountAddress'
         senders_wallet:
           type: string
+          format: address
           example: 0:E93E7D444180608B8520C00DC664383A387356FB6E16FDDF99DBE5E1415A574B
         amount:
           type: string
@@ -5499,6 +5832,7 @@ components:
           $ref: '#/components/schemas/AccountAddress'
         recipients_wallet:
           type: string
+          format: address
           example: 0:E93E7D444180608B8520C00DC664383A387356FB6E16FDDF99DBE5E1415A574B
         amount:
           type: string
@@ -5514,6 +5848,7 @@ components:
       properties:
         address:
           type: string
+          format: address
           example: "0:da6b1b6663a0e4d18cc8574ccd9db5296e367dd9324706f3bbd9eb1cd2caf0bf"
         interfaces:
           type: array
@@ -5533,6 +5868,7 @@ components:
           $ref: '#/components/schemas/AccountAddress'
         subscription:
           type: string
+          format: address
           example: "0:da6b1b6663a0e4d18cc8574ccd9db5296e367dd9324706f3bbd9eb1cd2caf0bf"
         beneficiary:
           $ref: '#/components/schemas/AccountAddress'
@@ -5540,6 +5876,7 @@ components:
           type: integer
           format: int64
           example: 1000000000
+          x-js-format: bigint
         initial:
           type: boolean
           example: false
@@ -5554,6 +5891,7 @@ components:
           $ref: '#/components/schemas/AccountAddress'
         subscription:
           type: string
+          format: address
           example: "0:da6b1b6663a0e4d18cc8574ccd9db5296e367dd9324706f3bbd9eb1cd2caf0bf"
         beneficiary:
           $ref: '#/components/schemas/AccountAddress'
@@ -5592,6 +5930,7 @@ components:
         amount:
           type: integer
           format: int64
+          x-js-format: bigint
           example: 1660050553
         staker:
           $ref: '#/components/schemas/AccountAddress'
@@ -5612,6 +5951,7 @@ components:
           type: integer
           format: int64
           example: 1660050553
+          x-js-format: bigint
         staker:
           $ref: '#/components/schemas/AccountAddress'
         pool:
@@ -5630,6 +5970,7 @@ components:
           type: integer
           format: int64
           example: 1660050553
+          x-js-format: bigint
         staker:
           $ref: '#/components/schemas/AccountAddress'
         pool:
@@ -5646,6 +5987,7 @@ components:
           type: integer
           format: int64
           example: 1660050553
+          x-js-format: bigint
         staker:
           $ref: '#/components/schemas/AccountAddress'
     ElectionsDepositStakeAction:
@@ -5658,6 +6000,7 @@ components:
           type: integer
           format: int64
           example: 1660050553
+          x-js-format: bigint
         staker:
           $ref: '#/components/schemas/AccountAddress'
     JettonSwapAction:
@@ -5685,10 +6028,12 @@ components:
           type: integer
           example: 1000000000
           format: int64
+          x-js-format: bigint
         ton_out:
           type: integer
           example: 2000000000
           format: int64
+          x-js-format: bigint
         user_wallet:
           $ref: '#/components/schemas/AccountAddress'
         router:
@@ -5782,6 +6127,7 @@ components:
           type: integer
           format: int64
           example: 25713146000001
+          x-js-format: bigint
         in_progress:
           type: boolean
           example: false
@@ -5854,12 +6200,15 @@ components:
       properties:
         address:
           type: string
+          format: address
           example: 0:dea8f638b789172ce36d10a20318125e52c649aa84893cd77858224fe2b9b0ee
         wallet_address:
           type: string
+          format: address
           example: 0:567DE86AF2B6A557D7085807CF7C26338124987A5179344F0D0FA2657EB710F1
         beneficiary_address:
           type: string
+          format: address
           example: 0:c704dadfabac88eab58e340de03080df81ff76636431f48624ad6e26fb2da0a4
         amount:
           type: integer
@@ -5916,15 +6265,18 @@ components:
           example: wallet.ton
         owner:
           type: string
-          example: owner
+          format: address
+          example: 0:c704dadfabac88eab58e340de03080df81ff76636431f48624ad6e26fb2da0a4
         price:
           type: integer
           format: int64
           example: 1660050553
+          x-js-format: bigint
         bids:
           type: integer
           format: int64
           example: 1660050553
+          x-js-format: bigint
         date:
           type: integer
           format: int64
@@ -5955,6 +6307,7 @@ components:
       properties:
         address:
           type: string
+          format: address
           example: "0:da6b1b6663a0e4d18cc8574ccd9db5296e367dd9324706f3bbd9eb1cd2caf0bf"
         account:
           $ref: '#/components/schemas/AccountAddress'
@@ -5994,6 +6347,7 @@ components:
           $ref: '#/components/schemas/WalletDNS'
         next_resolver:
           type: string
+          format: address
           example: "0:da6b1b6663a0e4d18cc8574ccd9db5296e367dd9324706f3bbd9eb1cd2caf0bf"
         sites:
           type: array
@@ -6014,6 +6368,7 @@ components:
       properties:
         address:
           type: string
+          format: address
           example: 0:FD595F36B4C1535BEC8461490D38EBB9AE3C38DD6ACE17CA63ABE2C6608BE159
         next_item_index:
           type: integer
@@ -6023,7 +6378,7 @@ components:
           $ref: '#/components/schemas/AccountAddress'
         raw_collection_content:
           type: string
-          example: 697066733a2f2f516d596e437861746f5178433571584b79773971656768415853626f3544644e6a32387631487669437a47355359
+          format: cell
         metadata:
           type: object
           additionalProperties: true
@@ -6093,6 +6448,7 @@ components:
           type: integer
           format: int64
           example: 500
+          x-js-format: bigint
         jettons:
           type: array
           items:
@@ -6110,7 +6466,7 @@ components:
       properties:
         quantity:
           type: string
-          example: 597968399
+          example: "597968399"
         wallet_address:
           $ref: '#/components/schemas/AccountAddress'
         jetton:
@@ -6214,7 +6570,7 @@ components:
           properties:
             boc:
               type: string
-              example: "te6ccgEBAQEABgAACCiAmCMBAgEABwA="
+              format: cell
             decoded_op_name:
               type: string
               example: "nft_transfer"
@@ -6231,7 +6587,6 @@ components:
         - event_id
         - timestamp
         - actions
-        - fees
         - value_flow
         - is_scam
         - lt
@@ -6260,6 +6615,7 @@ components:
           type: integer
           format: int64
           example: 25713146000001
+          x-js-format: bigint
         in_progress:
           type: boolean
           example: false
@@ -6274,6 +6630,7 @@ components:
       properties:
         address:
           type: string
+          format: address
           example: 0:0BB5A9F69043EEBDDA5AD2E946EB953242BD8F603FE795D90698CEEC6BFC60A0
         name:
           type: string
@@ -6361,7 +6718,7 @@ components:
           example: true
         total_supply:
           type: string
-          example: 311500000000000
+          example: "5887105890579978"
         admin:
           $ref: '#/components/schemas/AccountAddress'
         metadata:
@@ -6389,15 +6746,18 @@ components:
             properties:
               address:
                 type: string
+                format: address
                 example: 0:10C1073837B93FDAAD594284CE8B8EFF7B9CF25427440EB2FC682762E1471365
               owner:
                 $ref: '#/components/schemas/AccountAddress'
               balance:
                 type: string
-                example: 1000000000
+                example: "168856200518084"
+                description: balance in the smallest jetton's units
         total:
           type: integer
           format: int64
+          description: total number of holders
           example: 2000
     AccountStaking:
       type: object
@@ -6424,18 +6784,22 @@ components:
           type: integer
           format: int64
           example: 10050000000000
+          x-js-format: bigint
         pending_deposit:
           type: integer
           format: int64
           example: 500000000000
+          x-js-format: bigint
         pending_withdraw:
           type: integer
           format: int64
           example: 500000000000
+          x-js-format: bigint
         ready_withdraw:
           type: integer
           format: int64
           example: 500000000000
+          x-js-format: bigint
     PoolInfo:
       type: object
       required:
@@ -6455,6 +6819,7 @@ components:
       properties:
         address:
           type: string
+          format: address
           example: "0:48fb0195a7fc7454512377b9bd704503ded27f6e7c4c4a9d136fdab3ef9ec04c"
         name:
           type: string
@@ -6462,6 +6827,7 @@ components:
         total_amount:
           type: integer
           format: int64
+          x-js-format: bigint
         implementation:
           $ref: '#/components/schemas/PoolImplementationType'
         apy:
@@ -6471,6 +6837,7 @@ components:
         min_stake:
           type: integer
           format: int64
+          x-js-format: bigint
           example: 5000000000
         cycle_start:
           type: integer
@@ -6496,16 +6863,19 @@ components:
           description: maximum number of nominators
         liquid_jetton_master:
           type: string
+          format: address
           example: "0:4a91d32d0289bda9813ae00ff7640e6c38fdce76e4583dd6afc463b70c7d767c"
           description: "for liquid staking master account of jetton"
         nominators_stake:
           type: integer
           format: int64
+          x-js-format: bigint
           example: 5000000000
           description: "total stake of all nominators"
         validator_stake:
           type: integer
           format: int64
+          x-js-format: bigint
           example: 5000000000
           description: "stake of validator"
         cycle_length:
@@ -6545,6 +6915,7 @@ components:
       properties:
         address:
           type: string
+          format: address
           example: 0:FD595F36B4C1535BEC8461490D38EBB9AE3C38DD6ACE17CA63ABE2C6608BE159
         accept_new_contracts:
           type: boolean
@@ -6552,6 +6923,7 @@ components:
         rate_per_mb_day:
           type: integer
           format: int64
+          x-js-format: bigint
           example: 50000000
         max_span:
           type: integer
@@ -6581,7 +6953,7 @@ components:
             properties:
               address:
                 type: string
-                example: "0:010cеeac44fad23417a5c55e4071796868771082с9a61e8c195a8d57508b8471"
+                format: address
               name:
                 type: string
                 example: "blah_blah.ton"
@@ -6604,7 +6976,7 @@ components:
               expiring_at:
                 type: integer
                 format: int64
-                example: "1678275313"
+                example: 1678275313
               name:
                 type: string
                 example: "blah_blah.ton"
@@ -6621,6 +6993,7 @@ components:
           example: "NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE2ODQ3..."
         address:
           type: string
+          format: address
           example: "0:97146a46acc2654y27947f14c4a4b14273e954f78bc017790b41208b0043200b"
     Seqno:
       type: object
@@ -6694,6 +7067,7 @@ components:
       properties:
         code:
           type: string
+          format: cell
         code_hash:
           type: string
         methods:
