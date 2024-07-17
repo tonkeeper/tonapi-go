@@ -187,6 +187,12 @@ type GetAccountJettonsHistoryParams struct {
 	EndDate   OptInt64
 }
 
+// GetAccountMultisigsParams is parameters of getAccountMultisigs operation.
+type GetAccountMultisigsParams struct {
+	// Account ID.
+	AccountID string
+}
+
 // GetAccountNftHistoryParams is parameters of getAccountNftHistory operation.
 type GetAccountNftHistoryParams struct {
 	// Account ID.
@@ -243,6 +249,11 @@ type GetAccountTracesParams struct {
 	// Omit this parameter to get last events.
 	BeforeLt OptInt64
 	Limit    OptInt
+}
+
+// GetAccountsParams is parameters of getAccounts operation.
+type GetAccountsParams struct {
+	Currency OptString
 }
 
 // GetAllAuctionsParams is parameters of getAllAuctions operation.
@@ -398,6 +409,12 @@ type GetJettonsEventsParams struct {
 	AcceptLanguage OptString
 }
 
+// GetMultisigAccountParams is parameters of getMultisigAccount operation.
+type GetMultisigAccountParams struct {
+	// Account ID.
+	AccountID string
+}
+
 // GetNftCollectionParams is parameters of getNftCollection operation.
 type GetNftCollectionParams struct {
 	// Account ID.
@@ -536,6 +553,12 @@ type GetRawTransactionsParams struct {
 	Lt int64
 	// Hash.
 	Hash string
+}
+
+// GetReducedBlockchainBlocksParams is parameters of getReducedBlockchainBlocks operation.
+type GetReducedBlockchainBlocksParams struct {
+	From int64
+	To   int64
 }
 
 // GetStakingPoolHistoryParams is parameters of getStakingPoolHistory operation.

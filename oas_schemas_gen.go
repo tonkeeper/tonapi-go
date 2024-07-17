@@ -67,6 +67,8 @@ func (s *AccStatusChange) UnmarshalText(data []byte) error {
 type Account struct {
 	Address string `json:"address"`
 	Balance int64  `json:"balance"`
+	// {'USD': 1, 'IDR': 1000}.
+	CurrenciesBalance OptAccountCurrenciesBalance `json:"currencies_balance"`
 	// Unix timestamp.
 	LastActivity int64         `json:"last_activity"`
 	Status       AccountStatus `json:"status"`
@@ -88,6 +90,11 @@ func (s *Account) GetAddress() string {
 // GetBalance returns the value of Balance.
 func (s *Account) GetBalance() int64 {
 	return s.Balance
+}
+
+// GetCurrenciesBalance returns the value of CurrenciesBalance.
+func (s *Account) GetCurrenciesBalance() OptAccountCurrenciesBalance {
+	return s.CurrenciesBalance
 }
 
 // GetLastActivity returns the value of LastActivity.
@@ -148,6 +155,11 @@ func (s *Account) SetAddress(val string) {
 // SetBalance sets the value of Balance.
 func (s *Account) SetBalance(val int64) {
 	s.Balance = val
+}
+
+// SetCurrenciesBalance sets the value of CurrenciesBalance.
+func (s *Account) SetCurrenciesBalance(val OptAccountCurrenciesBalance) {
+	s.CurrenciesBalance = val
 }
 
 // SetLastActivity sets the value of LastActivity.
@@ -260,6 +272,18 @@ func (s *AccountAddress) SetIcon(val OptString) {
 // SetIsWallet sets the value of IsWallet.
 func (s *AccountAddress) SetIsWallet(val bool) {
 	s.IsWallet = val
+}
+
+// {'USD': 1, 'IDR': 1000}.
+type AccountCurrenciesBalance map[string]jx.Raw
+
+func (s *AccountCurrenciesBalance) init() AccountCurrenciesBalance {
+	m := *s
+	if m == nil {
+		m = map[string]jx.Raw{}
+		*s = m
+	}
+	return m
 }
 
 // An event is built on top of a trace which is a series of transactions caused by one inbound
@@ -549,8 +573,9 @@ type AccountStorageInfo struct {
 	UsedCells       int64 `json:"used_cells"`
 	UsedBits        int64 `json:"used_bits"`
 	UsedPublicCells int64 `json:"used_public_cells"`
-	LastPaid        int64 `json:"last_paid"`
-	DuePayment      int64 `json:"due_payment"`
+	// Time of the last payment.
+	LastPaid   int64 `json:"last_paid"`
+	DuePayment int64 `json:"due_payment"`
 }
 
 // GetUsedCells returns the value of UsedCells.
@@ -2384,7 +2409,7 @@ func (s *BlockchainBlocks) SetBlocks(val []BlockchainBlock) {
 
 // Ref: #/components/schemas/BlockchainConfig
 type BlockchainConfig struct {
-	// Config boc in base64 format.
+	// Config boc in hex format.
 	Raw string `json:"raw"`
 	// Config address.
 	R0 string `json:"0"`
@@ -5405,8 +5430,10 @@ func (s *GasLimitPrices) SetDeleteDueLimit(val int64) {
 
 // Ref: #/components/schemas/GaslessConfig
 type GaslessConfig struct {
-	RelayAddress string                        `json:"relay_address"`
-	GasJettons   []GaslessConfigGasJettonsItem `json:"gas_jettons"`
+	// Sending excess to this address decreases the commission of a gasless transfer.
+	RelayAddress string `json:"relay_address"`
+	// List of jettons, any of them can be used to pay for gas.
+	GasJettons []GaslessConfigGasJettonsItem `json:"gas_jettons"`
 }
 
 // GetRelayAddress returns the value of RelayAddress.
@@ -7520,7 +7547,8 @@ func (s *JettonBurnAction) SetJetton(val JettonPreview) {
 // Ref: #/components/schemas/JettonHolders
 type JettonHolders struct {
 	Addresses []JettonHoldersAddressesItem `json:"addresses"`
-	Total     int64                        `json:"total"`
+	// Total number of holders.
+	Total int64 `json:"total"`
 }
 
 // GetAddresses returns the value of Addresses.
@@ -7546,7 +7574,8 @@ func (s *JettonHolders) SetTotal(val int64) {
 type JettonHoldersAddressesItem struct {
 	Address string         `json:"address"`
 	Owner   AccountAddress `json:"owner"`
-	Balance string         `json:"balance"`
+	// Balance in the smallest jetton's units.
+	Balance string `json:"balance"`
 }
 
 // GetAddress returns the value of Address.
@@ -8295,6 +8324,7 @@ type Message struct {
 	CreatedAt   int64             `json:"created_at"`
 	OpCode      OptString         `json:"op_code"`
 	Init        OptStateInit      `json:"init"`
+	Hash        string            `json:"hash"`
 	// Hex-encoded BoC with raw message body.
 	RawBody       OptString `json:"raw_body"`
 	DecodedOpName OptString `json:"decoded_op_name"`
@@ -8369,6 +8399,11 @@ func (s *Message) GetOpCode() OptString {
 // GetInit returns the value of Init.
 func (s *Message) GetInit() OptStateInit {
 	return s.Init
+}
+
+// GetHash returns the value of Hash.
+func (s *Message) GetHash() string {
+	return s.Hash
 }
 
 // GetRawBody returns the value of RawBody.
@@ -8454,6 +8489,11 @@ func (s *Message) SetOpCode(val OptString) {
 // SetInit sets the value of Init.
 func (s *Message) SetInit(val OptStateInit) {
 	s.Init = val
+}
+
+// SetHash sets the value of Hash.
+func (s *Message) SetHash(val string) {
+	s.Hash = val
 }
 
 // SetRawBody sets the value of RawBody.
@@ -8798,6 +8838,172 @@ func (s *MsgForwardPrices) SetFirstFrac(val int64) {
 // SetNextFrac sets the value of NextFrac.
 func (s *MsgForwardPrices) SetNextFrac(val int64) {
 	s.NextFrac = val
+}
+
+// Ref: #/components/schemas/Multisig
+type Multisig struct {
+	Address   string          `json:"address"`
+	Seqno     int64           `json:"seqno"`
+	Threshold int32           `json:"threshold"`
+	Signers   []string        `json:"signers"`
+	Proposers []string        `json:"proposers"`
+	Orders    []MultisigOrder `json:"orders"`
+}
+
+// GetAddress returns the value of Address.
+func (s *Multisig) GetAddress() string {
+	return s.Address
+}
+
+// GetSeqno returns the value of Seqno.
+func (s *Multisig) GetSeqno() int64 {
+	return s.Seqno
+}
+
+// GetThreshold returns the value of Threshold.
+func (s *Multisig) GetThreshold() int32 {
+	return s.Threshold
+}
+
+// GetSigners returns the value of Signers.
+func (s *Multisig) GetSigners() []string {
+	return s.Signers
+}
+
+// GetProposers returns the value of Proposers.
+func (s *Multisig) GetProposers() []string {
+	return s.Proposers
+}
+
+// GetOrders returns the value of Orders.
+func (s *Multisig) GetOrders() []MultisigOrder {
+	return s.Orders
+}
+
+// SetAddress sets the value of Address.
+func (s *Multisig) SetAddress(val string) {
+	s.Address = val
+}
+
+// SetSeqno sets the value of Seqno.
+func (s *Multisig) SetSeqno(val int64) {
+	s.Seqno = val
+}
+
+// SetThreshold sets the value of Threshold.
+func (s *Multisig) SetThreshold(val int32) {
+	s.Threshold = val
+}
+
+// SetSigners sets the value of Signers.
+func (s *Multisig) SetSigners(val []string) {
+	s.Signers = val
+}
+
+// SetProposers sets the value of Proposers.
+func (s *Multisig) SetProposers(val []string) {
+	s.Proposers = val
+}
+
+// SetOrders sets the value of Orders.
+func (s *Multisig) SetOrders(val []MultisigOrder) {
+	s.Orders = val
+}
+
+// Ref: #/components/schemas/MultisigOrder
+type MultisigOrder struct {
+	Address          string   `json:"address"`
+	OrderSeqno       int64    `json:"order_seqno"`
+	Threshold        int32    `json:"threshold"`
+	SentForExecution bool     `json:"sent_for_execution"`
+	Signers          []string `json:"signers"`
+	ApprovalsNum     int32    `json:"approvals_num"`
+	ExpirationDate   int64    `json:"expiration_date"`
+}
+
+// GetAddress returns the value of Address.
+func (s *MultisigOrder) GetAddress() string {
+	return s.Address
+}
+
+// GetOrderSeqno returns the value of OrderSeqno.
+func (s *MultisigOrder) GetOrderSeqno() int64 {
+	return s.OrderSeqno
+}
+
+// GetThreshold returns the value of Threshold.
+func (s *MultisigOrder) GetThreshold() int32 {
+	return s.Threshold
+}
+
+// GetSentForExecution returns the value of SentForExecution.
+func (s *MultisigOrder) GetSentForExecution() bool {
+	return s.SentForExecution
+}
+
+// GetSigners returns the value of Signers.
+func (s *MultisigOrder) GetSigners() []string {
+	return s.Signers
+}
+
+// GetApprovalsNum returns the value of ApprovalsNum.
+func (s *MultisigOrder) GetApprovalsNum() int32 {
+	return s.ApprovalsNum
+}
+
+// GetExpirationDate returns the value of ExpirationDate.
+func (s *MultisigOrder) GetExpirationDate() int64 {
+	return s.ExpirationDate
+}
+
+// SetAddress sets the value of Address.
+func (s *MultisigOrder) SetAddress(val string) {
+	s.Address = val
+}
+
+// SetOrderSeqno sets the value of OrderSeqno.
+func (s *MultisigOrder) SetOrderSeqno(val int64) {
+	s.OrderSeqno = val
+}
+
+// SetThreshold sets the value of Threshold.
+func (s *MultisigOrder) SetThreshold(val int32) {
+	s.Threshold = val
+}
+
+// SetSentForExecution sets the value of SentForExecution.
+func (s *MultisigOrder) SetSentForExecution(val bool) {
+	s.SentForExecution = val
+}
+
+// SetSigners sets the value of Signers.
+func (s *MultisigOrder) SetSigners(val []string) {
+	s.Signers = val
+}
+
+// SetApprovalsNum sets the value of ApprovalsNum.
+func (s *MultisigOrder) SetApprovalsNum(val int32) {
+	s.ApprovalsNum = val
+}
+
+// SetExpirationDate sets the value of ExpirationDate.
+func (s *MultisigOrder) SetExpirationDate(val int64) {
+	s.ExpirationDate = val
+}
+
+// Ref: #/components/schemas/Multisigs
+type Multisigs struct {
+	Multisigs []Multisig `json:"multisigs"`
+}
+
+// GetMultisigs returns the value of Multisigs.
+func (s *Multisigs) GetMultisigs() []Multisig {
+	return s.Multisigs
+}
+
+// SetMultisigs sets the value of Multisigs.
+func (s *Multisigs) SetMultisigs(val []Multisig) {
+	s.Multisigs = val
 }
 
 type NftApprovedBy []NftApprovedByItem
@@ -9391,6 +9597,52 @@ func (o OptAccountAddress) Get() (v AccountAddress, ok bool) {
 
 // Or returns value if set, or given parameter if does not.
 func (o OptAccountAddress) Or(d AccountAddress) AccountAddress {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptAccountCurrenciesBalance returns new OptAccountCurrenciesBalance with value set to v.
+func NewOptAccountCurrenciesBalance(v AccountCurrenciesBalance) OptAccountCurrenciesBalance {
+	return OptAccountCurrenciesBalance{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptAccountCurrenciesBalance is optional AccountCurrenciesBalance.
+type OptAccountCurrenciesBalance struct {
+	Value AccountCurrenciesBalance
+	Set   bool
+}
+
+// IsSet returns true if OptAccountCurrenciesBalance was set.
+func (o OptAccountCurrenciesBalance) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptAccountCurrenciesBalance) Reset() {
+	var v AccountCurrenciesBalance
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptAccountCurrenciesBalance) SetTo(v AccountCurrenciesBalance) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptAccountCurrenciesBalance) Get() (v AccountCurrenciesBalance, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptAccountCurrenciesBalance) Or(d AccountCurrenciesBalance) AccountCurrenciesBalance {
 	if v, ok := o.Get(); ok {
 		return v
 	}
@@ -13938,6 +14190,113 @@ func (s *RawBlockchainConfigConfig) init() RawBlockchainConfigConfig {
 	return m
 }
 
+// Ref: #/components/schemas/ReducedBlock
+type ReducedBlock struct {
+	WorkchainID  int32     `json:"workchain_id"`
+	Shard        string    `json:"shard"`
+	Seqno        int32     `json:"seqno"`
+	MasterRef    OptString `json:"master_ref"`
+	TxQuantity   int       `json:"tx_quantity"`
+	Utime        int64     `json:"utime"`
+	ShardsBlocks []string  `json:"shards_blocks"`
+	Parent       []string  `json:"parent"`
+}
+
+// GetWorkchainID returns the value of WorkchainID.
+func (s *ReducedBlock) GetWorkchainID() int32 {
+	return s.WorkchainID
+}
+
+// GetShard returns the value of Shard.
+func (s *ReducedBlock) GetShard() string {
+	return s.Shard
+}
+
+// GetSeqno returns the value of Seqno.
+func (s *ReducedBlock) GetSeqno() int32 {
+	return s.Seqno
+}
+
+// GetMasterRef returns the value of MasterRef.
+func (s *ReducedBlock) GetMasterRef() OptString {
+	return s.MasterRef
+}
+
+// GetTxQuantity returns the value of TxQuantity.
+func (s *ReducedBlock) GetTxQuantity() int {
+	return s.TxQuantity
+}
+
+// GetUtime returns the value of Utime.
+func (s *ReducedBlock) GetUtime() int64 {
+	return s.Utime
+}
+
+// GetShardsBlocks returns the value of ShardsBlocks.
+func (s *ReducedBlock) GetShardsBlocks() []string {
+	return s.ShardsBlocks
+}
+
+// GetParent returns the value of Parent.
+func (s *ReducedBlock) GetParent() []string {
+	return s.Parent
+}
+
+// SetWorkchainID sets the value of WorkchainID.
+func (s *ReducedBlock) SetWorkchainID(val int32) {
+	s.WorkchainID = val
+}
+
+// SetShard sets the value of Shard.
+func (s *ReducedBlock) SetShard(val string) {
+	s.Shard = val
+}
+
+// SetSeqno sets the value of Seqno.
+func (s *ReducedBlock) SetSeqno(val int32) {
+	s.Seqno = val
+}
+
+// SetMasterRef sets the value of MasterRef.
+func (s *ReducedBlock) SetMasterRef(val OptString) {
+	s.MasterRef = val
+}
+
+// SetTxQuantity sets the value of TxQuantity.
+func (s *ReducedBlock) SetTxQuantity(val int) {
+	s.TxQuantity = val
+}
+
+// SetUtime sets the value of Utime.
+func (s *ReducedBlock) SetUtime(val int64) {
+	s.Utime = val
+}
+
+// SetShardsBlocks sets the value of ShardsBlocks.
+func (s *ReducedBlock) SetShardsBlocks(val []string) {
+	s.ShardsBlocks = val
+}
+
+// SetParent sets the value of Parent.
+func (s *ReducedBlock) SetParent(val []string) {
+	s.Parent = val
+}
+
+// Ref: #/components/schemas/ReducedBlocks
+type ReducedBlocks struct {
+	Blocks []ReducedBlock `json:"blocks"`
+}
+
+// GetBlocks returns the value of Blocks.
+func (s *ReducedBlocks) GetBlocks() []ReducedBlock {
+	return s.Blocks
+}
+
+// SetBlocks sets the value of Blocks.
+func (s *ReducedBlocks) SetBlocks(val []ReducedBlock) {
+	s.Blocks = val
+}
+
 // Ref: #/components/schemas/Refund
 type Refund struct {
 	Type   RefundType `json:"type"`
@@ -14233,9 +14592,9 @@ type SignRawMessage struct {
 	Address string `json:"address"`
 	// Number of nanocoins to send. Decimal string.
 	Amount string `json:"amount"`
-	// Raw one-cell BoC encoded in Base64.
+	// Raw one-cell BoC encoded in hex.
 	Payload OptString `json:"payload"`
-	// Raw once-cell BoC encoded in Base64.
+	// Raw once-cell BoC encoded in hex.
 	StateInit OptString `json:"stateInit"`
 }
 
@@ -14284,8 +14643,8 @@ type SignRawParams struct {
 	RelayAddress string `json:"relay_address"`
 	// Commission for the transaction. In nanocoins.
 	Commission string           `json:"commission"`
-	From       OptString        `json:"from"`
-	ValidUntil OptInt64         `json:"valid_until"`
+	From       string           `json:"from"`
+	ValidUntil int64            `json:"valid_until"`
 	Messages   []SignRawMessage `json:"messages"`
 }
 
@@ -14300,12 +14659,12 @@ func (s *SignRawParams) GetCommission() string {
 }
 
 // GetFrom returns the value of From.
-func (s *SignRawParams) GetFrom() OptString {
+func (s *SignRawParams) GetFrom() string {
 	return s.From
 }
 
 // GetValidUntil returns the value of ValidUntil.
-func (s *SignRawParams) GetValidUntil() OptInt64 {
+func (s *SignRawParams) GetValidUntil() int64 {
 	return s.ValidUntil
 }
 
@@ -14325,12 +14684,12 @@ func (s *SignRawParams) SetCommission(val string) {
 }
 
 // SetFrom sets the value of From.
-func (s *SignRawParams) SetFrom(val OptString) {
+func (s *SignRawParams) SetFrom(val string) {
 	s.From = val
 }
 
 // SetValidUntil sets the value of ValidUntil.
-func (s *SignRawParams) SetValidUntil(val OptInt64) {
+func (s *SignRawParams) SetValidUntil(val int64) {
 	s.ValidUntil = val
 }
 
@@ -14504,7 +14863,8 @@ func (s *SmartContractAction) SetRefund(val OptRefund) {
 
 // Ref: #/components/schemas/StateInit
 type StateInit struct {
-	Boc string `json:"boc"`
+	Boc        string   `json:"boc"`
+	Interfaces []string `json:"interfaces"`
 }
 
 // GetBoc returns the value of Boc.
@@ -14512,9 +14872,19 @@ func (s *StateInit) GetBoc() string {
 	return s.Boc
 }
 
+// GetInterfaces returns the value of Interfaces.
+func (s *StateInit) GetInterfaces() []string {
+	return s.Interfaces
+}
+
 // SetBoc sets the value of Boc.
 func (s *StateInit) SetBoc(val string) {
 	s.Boc = val
+}
+
+// SetInterfaces sets the value of Interfaces.
+func (s *StateInit) SetInterfaces(val []string) {
+	s.Interfaces = val
 }
 
 // Ref: #/components/schemas/StoragePhase
@@ -15223,6 +15593,8 @@ type Transaction struct {
 	BouncePhase     OptBouncePhaseType `json:"bounce_phase"`
 	Aborted         bool               `json:"aborted"`
 	Destroyed       bool               `json:"destroyed"`
+	// Hex encoded boc with raw transaction.
+	Raw string `json:"raw"`
 }
 
 // GetHash returns the value of Hash.
@@ -15345,6 +15717,11 @@ func (s *Transaction) GetDestroyed() bool {
 	return s.Destroyed
 }
 
+// GetRaw returns the value of Raw.
+func (s *Transaction) GetRaw() string {
+	return s.Raw
+}
+
 // SetHash sets the value of Hash.
 func (s *Transaction) SetHash(val string) {
 	s.Hash = val
@@ -15463,6 +15840,11 @@ func (s *Transaction) SetAborted(val bool) {
 // SetDestroyed sets the value of Destroyed.
 func (s *Transaction) SetDestroyed(val bool) {
 	s.Destroyed = val
+}
+
+// SetRaw sets the value of Raw.
+func (s *Transaction) SetRaw(val string) {
+	s.Raw = val
 }
 
 // Ref: #/components/schemas/TransactionType
