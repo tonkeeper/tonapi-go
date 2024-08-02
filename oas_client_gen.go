@@ -385,6 +385,12 @@ type Invoker interface {
 	//
 	// GET /v2/jettons/{account_id}
 	GetJettonInfo(ctx context.Context, params GetJettonInfoParams) (*JettonInfo, error)
+	// GetJettonTransferPayload invokes getJettonTransferPayload operation.
+	//
+	// Get jetton's custom payload and state init required for transfer.
+	//
+	// GET /v2/jettons/{jetton_id}/transfer/{account_id}/payload
+	GetJettonTransferPayload(ctx context.Context, params GetJettonTransferPayloadParams) (*JettonTransferPayload, error)
 	// GetJettons invokes getJettons operation.
 	//
 	// Get a list of all indexed jetton masters in the blockchain.
@@ -7160,6 +7166,116 @@ func (c *Client) sendGetJettonInfo(ctx context.Context, params GetJettonInfoPara
 
 	stage = "DecodeResponse"
 	result, err := decodeGetJettonInfoResponse(resp)
+	if err != nil {
+		return res, errors.Wrap(err, "decode response")
+	}
+
+	return result, nil
+}
+
+// GetJettonTransferPayload invokes getJettonTransferPayload operation.
+//
+// Get jetton's custom payload and state init required for transfer.
+//
+// GET /v2/jettons/{jetton_id}/transfer/{account_id}/payload
+func (c *Client) GetJettonTransferPayload(ctx context.Context, params GetJettonTransferPayloadParams) (*JettonTransferPayload, error) {
+	res, err := c.sendGetJettonTransferPayload(ctx, params)
+	return res, err
+}
+
+func (c *Client) sendGetJettonTransferPayload(ctx context.Context, params GetJettonTransferPayloadParams) (res *JettonTransferPayload, err error) {
+	otelAttrs := []attribute.KeyValue{
+		otelogen.OperationID("getJettonTransferPayload"),
+		semconv.HTTPMethodKey.String("GET"),
+		semconv.HTTPRouteKey.String("/v2/jettons/{jetton_id}/transfer/{account_id}/payload"),
+	}
+
+	// Run stopwatch.
+	startTime := time.Now()
+	defer func() {
+		// Use floating point division here for higher precision (instead of Millisecond method).
+		elapsedDuration := time.Since(startTime)
+		c.duration.Record(ctx, float64(float64(elapsedDuration)/float64(time.Millisecond)), metric.WithAttributes(otelAttrs...))
+	}()
+
+	// Increment request counter.
+	c.requests.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
+
+	// Start a span for this request.
+	ctx, span := c.cfg.Tracer.Start(ctx, "GetJettonTransferPayload",
+		trace.WithAttributes(otelAttrs...),
+		clientSpanKind,
+	)
+	// Track stage for error reporting.
+	var stage string
+	defer func() {
+		if err != nil {
+			span.RecordError(err)
+			span.SetStatus(codes.Error, stage)
+			c.errors.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
+		}
+		span.End()
+	}()
+
+	stage = "BuildURL"
+	u := uri.Clone(c.requestURL(ctx))
+	var pathParts [5]string
+	pathParts[0] = "/v2/jettons/"
+	{
+		// Encode "jetton_id" parameter.
+		e := uri.NewPathEncoder(uri.PathEncoderConfig{
+			Param:   "jetton_id",
+			Style:   uri.PathStyleSimple,
+			Explode: false,
+		})
+		if err := func() error {
+			return e.EncodeValue(conv.StringToString(params.JettonID))
+		}(); err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		encoded, err := e.Result()
+		if err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		pathParts[1] = encoded
+	}
+	pathParts[2] = "/transfer/"
+	{
+		// Encode "account_id" parameter.
+		e := uri.NewPathEncoder(uri.PathEncoderConfig{
+			Param:   "account_id",
+			Style:   uri.PathStyleSimple,
+			Explode: false,
+		})
+		if err := func() error {
+			return e.EncodeValue(conv.StringToString(params.AccountID))
+		}(); err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		encoded, err := e.Result()
+		if err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		pathParts[3] = encoded
+	}
+	pathParts[4] = "/payload"
+	uri.AddPathParts(u, pathParts[:]...)
+
+	stage = "EncodeRequest"
+	r, err := ht.NewRequest(ctx, "GET", u)
+	if err != nil {
+		return res, errors.Wrap(err, "create request")
+	}
+
+	stage = "SendRequest"
+	resp, err := c.cfg.Client.Do(r)
+	if err != nil {
+		return res, errors.Wrap(err, "do request")
+	}
+	defer resp.Body.Close()
+
+	stage = "DecodeResponse"
+	result, err := decodeGetJettonTransferPayloadResponse(resp)
 	if err != nil {
 		return res, errors.Wrap(err, "decode response")
 	}
