@@ -396,6 +396,14 @@ type GetJettonInfoParams struct {
 	AccountID string
 }
 
+// GetJettonTransferPayloadParams is parameters of getJettonTransferPayload operation.
+type GetJettonTransferPayloadParams struct {
+	// Account ID.
+	AccountID string
+	// Jetton ID.
+	JettonID string
+}
+
 // GetJettonsParams is parameters of getJettons operation.
 type GetJettonsParams struct {
 	Limit  OptInt32

@@ -7266,6 +7266,7 @@ type JettonBalance struct {
 	Price         OptTokenRates        `json:"price"`
 	WalletAddress AccountAddress       `json:"wallet_address"`
 	Jetton        JettonPreview        `json:"jetton"`
+	Extensions    []string             `json:"extensions"`
 	Lock          OptJettonBalanceLock `json:"lock"`
 }
 
@@ -7287,6 +7288,11 @@ func (s *JettonBalance) GetWalletAddress() AccountAddress {
 // GetJetton returns the value of Jetton.
 func (s *JettonBalance) GetJetton() JettonPreview {
 	return s.Jetton
+}
+
+// GetExtensions returns the value of Extensions.
+func (s *JettonBalance) GetExtensions() []string {
+	return s.Extensions
 }
 
 // GetLock returns the value of Lock.
@@ -7312,6 +7318,11 @@ func (s *JettonBalance) SetWalletAddress(val AccountAddress) {
 // SetJetton sets the value of Jetton.
 func (s *JettonBalance) SetJetton(val JettonPreview) {
 	s.Jetton = val
+}
+
+// SetExtensions sets the value of Extensions.
+func (s *JettonBalance) SetExtensions(val []string) {
+	s.Extensions = val
 }
 
 // SetLock sets the value of Lock.
@@ -8190,6 +8201,34 @@ func (s *JettonTransferAction) SetRefund(val OptRefund) {
 // SetJetton sets the value of Jetton.
 func (s *JettonTransferAction) SetJetton(val JettonPreview) {
 	s.Jetton = val
+}
+
+// Ref: #/components/schemas/JettonTransferPayload
+type JettonTransferPayload struct {
+	// Hex-encoded BoC.
+	CustomPayload OptString `json:"custom_payload"`
+	// Hex-encoded BoC.
+	StateInit OptString `json:"state_init"`
+}
+
+// GetCustomPayload returns the value of CustomPayload.
+func (s *JettonTransferPayload) GetCustomPayload() OptString {
+	return s.CustomPayload
+}
+
+// GetStateInit returns the value of StateInit.
+func (s *JettonTransferPayload) GetStateInit() OptString {
+	return s.StateInit
+}
+
+// SetCustomPayload sets the value of CustomPayload.
+func (s *JettonTransferPayload) SetCustomPayload(val OptString) {
+	s.CustomPayload = val
+}
+
+// SetStateInit sets the value of StateInit.
+func (s *JettonTransferPayload) SetStateInit(val OptString) {
+	s.StateInit = val
 }
 
 // Ref: #/components/schemas/JettonVerificationType
@@ -14546,8 +14585,9 @@ func (s *Seqno) SetSeqno(val int32) {
 
 // Ref: #/components/schemas/ServiceStatus
 type ServiceStatus struct {
-	RestOnline      bool `json:"rest_online"`
-	IndexingLatency int  `json:"indexing_latency"`
+	RestOnline                bool  `json:"rest_online"`
+	IndexingLatency           int   `json:"indexing_latency"`
+	LastKnownMasterchainSeqno int32 `json:"last_known_masterchain_seqno"`
 }
 
 // GetRestOnline returns the value of RestOnline.
@@ -14560,6 +14600,11 @@ func (s *ServiceStatus) GetIndexingLatency() int {
 	return s.IndexingLatency
 }
 
+// GetLastKnownMasterchainSeqno returns the value of LastKnownMasterchainSeqno.
+func (s *ServiceStatus) GetLastKnownMasterchainSeqno() int32 {
+	return s.LastKnownMasterchainSeqno
+}
+
 // SetRestOnline sets the value of RestOnline.
 func (s *ServiceStatus) SetRestOnline(val bool) {
 	s.RestOnline = val
@@ -14568,6 +14613,11 @@ func (s *ServiceStatus) SetRestOnline(val bool) {
 // SetIndexingLatency sets the value of IndexingLatency.
 func (s *ServiceStatus) SetIndexingLatency(val int) {
 	s.IndexingLatency = val
+}
+
+// SetLastKnownMasterchainSeqno sets the value of LastKnownMasterchainSeqno.
+func (s *ServiceStatus) SetLastKnownMasterchainSeqno(val int32) {
+	s.LastKnownMasterchainSeqno = val
 }
 
 // SetWalletBackupOK is response for SetWalletBackup operation.
