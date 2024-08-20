@@ -453,7 +453,8 @@ type Invoker interface {
 	GetOutMsgQueueSizes(ctx context.Context) (*GetOutMsgQueueSizesOK, error)
 	// GetRates invokes getRates operation.
 	//
-	// Get the token price to the currency.
+	// Get the token price in the chosen currency for display only. Don’t use this for financial
+	// transactions.
 	//
 	// GET /v2/rates
 	GetRates(ctx context.Context, params GetRatesParams) (*GetRatesOK, error)
@@ -3562,6 +3563,29 @@ func (c *Client) sendGetAccountJettonsBalances(ctx context.Context, params GetAc
 		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
 			return e.EncodeArray(func(e uri.Encoder) error {
 				for i, item := range params.Currencies {
+					if err := func() error {
+						return e.EncodeValue(conv.StringToString(item))
+					}(); err != nil {
+						return errors.Wrapf(err, "[%d]", i)
+					}
+				}
+				return nil
+			})
+		}); err != nil {
+			return res, errors.Wrap(err, "encode query")
+		}
+	}
+	{
+		// Encode "supported_extensions" parameter.
+		cfg := uri.QueryParameterEncodingConfig{
+			Name:    "supported_extensions",
+			Style:   uri.QueryStyleForm,
+			Explode: false,
+		}
+
+		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
+			return e.EncodeArray(func(e uri.Encoder) error {
+				for i, item := range params.SupportedExtensions {
 					if err := func() error {
 						return e.EncodeValue(conv.StringToString(item))
 					}(); err != nil {
@@ -8295,7 +8319,8 @@ func (c *Client) sendGetOutMsgQueueSizes(ctx context.Context) (res *GetOutMsgQue
 
 // GetRates invokes getRates operation.
 //
-// Get the token price to the currency.
+// Get the token price in the chosen currency for display only. Don’t use this for financial
+// transactions.
 //
 // GET /v2/rates
 func (c *Client) GetRates(ctx context.Context, params GetRatesParams) (*GetRatesOK, error) {

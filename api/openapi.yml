@@ -614,6 +614,7 @@ paths:
       parameters:
         - $ref: '#/components/parameters/accountIDParameter'
         - $ref: '#/components/parameters/currenciesQuery'
+        - $ref: '#/components/parameters/supportedExtensions'
       responses:
         '200':
           description: account jettons balances
@@ -1751,7 +1752,7 @@ paths:
   
   /v2/rates:
     get:
-      description: Get the token price to the currency
+      description: Get the token price in the chosen currency for display only. Don’t use this for financial transactions.
       operationId: getRates
       tags:
         - Rates
@@ -3002,6 +3003,17 @@ components:
         items:
           type: string
         example: [ "ton", "usd", "rub" ]
+    supportedExtensions:
+      in: query
+      name: supported_extensions
+      description: "comma separated list supported extensions"
+      explode: false
+      required: false
+      schema:
+        type: array
+        items:
+          type: string
+        example: ["custom_payload"]
     currencyQuery:
       in: query
       name: currency
@@ -5482,6 +5494,7 @@ components:
         - signers
         - approvals_num
         - expiration_date
+        - risk
       properties:
         address:
           type: string
@@ -5509,6 +5522,8 @@ components:
         expiration_date:
           type: integer
           format: int64
+        risk:
+          $ref: '#/components/schemas/Risk'
     Refund:
       type: object
       required:
