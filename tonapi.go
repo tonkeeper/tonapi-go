@@ -141,3 +141,18 @@ func (c *Client) Request(ctx context.Context, method, endpoint string, query map
 
 	return jsonResponse, nil
 }
+
+// TraceInProgress returns true if the trace is not finished yet.
+func TraceInProgress(t *Trace) bool {
+	for _, outMsg := range t.Transaction.OutMsgs {
+		if outMsg.MsgType == MessageMsgTypeIntMsg {
+			return true
+		}
+	}
+	for _, child := range t.Children {
+		if TraceInProgress(&child) {
+			return true
+		}
+	}
+	return false
+}
