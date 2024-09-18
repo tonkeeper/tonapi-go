@@ -151,6 +151,8 @@ type GetAccountJettonBalanceParams struct {
 	JettonID string
 	// Accept ton and all possible fiat currencies, separated by commas.
 	Currencies []string
+	// Comma separated list supported extensions.
+	SupportedExtensions []string
 }
 
 // GetAccountJettonHistoryByIDParams is parameters of getAccountJettonHistoryByID operation.
