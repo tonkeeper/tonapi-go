@@ -97,6 +97,8 @@ type Invoker interface {
 	GaslessEstimate(ctx context.Context, request *GaslessEstimateReq, params GaslessEstimateParams) (*SignRawParams, error)
 	// GaslessSend invokes gaslessSend operation.
 	//
+	// Submits the signed gasless transaction message to the network.
+	//
 	// POST /v2/gasless/send
 	GaslessSend(ctx context.Context, request *GaslessSendReq) error
 	// GetAccount invokes getAccount operation.
@@ -1874,6 +1876,8 @@ func (c *Client) sendGaslessEstimate(ctx context.Context, request *GaslessEstima
 
 // GaslessSend invokes gaslessSend operation.
 //
+// Submits the signed gasless transaction message to the network.
+//
 // POST /v2/gasless/send
 func (c *Client) GaslessSend(ctx context.Context, request *GaslessSendReq) error {
 	_, err := c.sendGaslessSend(ctx, request)
@@ -3249,6 +3253,29 @@ func (c *Client) sendGetAccountJettonBalance(ctx context.Context, params GetAcco
 		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
 			return e.EncodeArray(func(e uri.Encoder) error {
 				for i, item := range params.Currencies {
+					if err := func() error {
+						return e.EncodeValue(conv.StringToString(item))
+					}(); err != nil {
+						return errors.Wrapf(err, "[%d]", i)
+					}
+				}
+				return nil
+			})
+		}); err != nil {
+			return res, errors.Wrap(err, "encode query")
+		}
+	}
+	{
+		// Encode "supported_extensions" parameter.
+		cfg := uri.QueryParameterEncodingConfig{
+			Name:    "supported_extensions",
+			Style:   uri.QueryStyleForm,
+			Explode: false,
+		}
+
+		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
+			return e.EncodeArray(func(e uri.Encoder) error {
+				for i, item := range params.SupportedExtensions {
 					if err := func() error {
 						return e.EncodeValue(conv.StringToString(item))
 					}(); err != nil {
