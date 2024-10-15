@@ -387,6 +387,12 @@ type Invoker interface {
 	//
 	// GET /v2/jettons/{account_id}
 	GetJettonInfo(ctx context.Context, params GetJettonInfoParams) (*JettonInfo, error)
+	// GetJettonInfosByAddresses invokes getJettonInfosByAddresses operation.
+	//
+	// Get jetton metadata items by jetton master addresses.
+	//
+	// POST /v2/jettons/_bulk
+	GetJettonInfosByAddresses(ctx context.Context, request OptGetJettonInfosByAddressesReq) (*Jettons, error)
 	// GetJettonTransferPayload invokes getJettonTransferPayload operation.
 	//
 	// Get jetton's custom payload and state init required for transfer.
@@ -423,6 +429,12 @@ type Invoker interface {
 	//
 	// GET /v2/nfts/collections/{account_id}
 	GetNftCollection(ctx context.Context, params GetNftCollectionParams) (*NftCollection, error)
+	// GetNftCollectionItemsByAddresses invokes getNftCollectionItemsByAddresses operation.
+	//
+	// Get NFT collection items by their addresses.
+	//
+	// POST /v2/nfts/collections/_bulk
+	GetNftCollectionItemsByAddresses(ctx context.Context, request OptGetNftCollectionItemsByAddressesReq) (*NftCollections, error)
 	// GetNftCollections invokes getNftCollections operation.
 	//
 	// Get NFT collections.
@@ -7224,6 +7236,97 @@ func (c *Client) sendGetJettonInfo(ctx context.Context, params GetJettonInfoPara
 	return result, nil
 }
 
+// GetJettonInfosByAddresses invokes getJettonInfosByAddresses operation.
+//
+// Get jetton metadata items by jetton master addresses.
+//
+// POST /v2/jettons/_bulk
+func (c *Client) GetJettonInfosByAddresses(ctx context.Context, request OptGetJettonInfosByAddressesReq) (*Jettons, error) {
+	res, err := c.sendGetJettonInfosByAddresses(ctx, request)
+	return res, err
+}
+
+func (c *Client) sendGetJettonInfosByAddresses(ctx context.Context, request OptGetJettonInfosByAddressesReq) (res *Jettons, err error) {
+	otelAttrs := []attribute.KeyValue{
+		otelogen.OperationID("getJettonInfosByAddresses"),
+		semconv.HTTPMethodKey.String("POST"),
+		semconv.HTTPRouteKey.String("/v2/jettons/_bulk"),
+	}
+	// Validate request before sending.
+	if err := func() error {
+		if value, ok := request.Get(); ok {
+			if err := func() error {
+				if err := value.Validate(); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		return res, errors.Wrap(err, "validate")
+	}
+
+	// Run stopwatch.
+	startTime := time.Now()
+	defer func() {
+		// Use floating point division here for higher precision (instead of Millisecond method).
+		elapsedDuration := time.Since(startTime)
+		c.duration.Record(ctx, float64(float64(elapsedDuration)/float64(time.Millisecond)), metric.WithAttributes(otelAttrs...))
+	}()
+
+	// Increment request counter.
+	c.requests.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
+
+	// Start a span for this request.
+	ctx, span := c.cfg.Tracer.Start(ctx, "GetJettonInfosByAddresses",
+		trace.WithAttributes(otelAttrs...),
+		clientSpanKind,
+	)
+	// Track stage for error reporting.
+	var stage string
+	defer func() {
+		if err != nil {
+			span.RecordError(err)
+			span.SetStatus(codes.Error, stage)
+			c.errors.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
+		}
+		span.End()
+	}()
+
+	stage = "BuildURL"
+	u := uri.Clone(c.requestURL(ctx))
+	var pathParts [1]string
+	pathParts[0] = "/v2/jettons/_bulk"
+	uri.AddPathParts(u, pathParts[:]...)
+
+	stage = "EncodeRequest"
+	r, err := ht.NewRequest(ctx, "POST", u)
+	if err != nil {
+		return res, errors.Wrap(err, "create request")
+	}
+	if err := encodeGetJettonInfosByAddressesRequest(request, r); err != nil {
+		return res, errors.Wrap(err, "encode request")
+	}
+
+	stage = "SendRequest"
+	resp, err := c.cfg.Client.Do(r)
+	if err != nil {
+		return res, errors.Wrap(err, "do request")
+	}
+	defer resp.Body.Close()
+
+	stage = "DecodeResponse"
+	result, err := decodeGetJettonInfosByAddressesResponse(resp)
+	if err != nil {
+		return res, errors.Wrap(err, "decode response")
+	}
+
+	return result, nil
+}
+
 // GetJettonTransferPayload invokes getJettonTransferPayload operation.
 //
 // Get jetton's custom payload and state init required for transfer.
@@ -7797,6 +7900,97 @@ func (c *Client) sendGetNftCollection(ctx context.Context, params GetNftCollecti
 
 	stage = "DecodeResponse"
 	result, err := decodeGetNftCollectionResponse(resp)
+	if err != nil {
+		return res, errors.Wrap(err, "decode response")
+	}
+
+	return result, nil
+}
+
+// GetNftCollectionItemsByAddresses invokes getNftCollectionItemsByAddresses operation.
+//
+// Get NFT collection items by their addresses.
+//
+// POST /v2/nfts/collections/_bulk
+func (c *Client) GetNftCollectionItemsByAddresses(ctx context.Context, request OptGetNftCollectionItemsByAddressesReq) (*NftCollections, error) {
+	res, err := c.sendGetNftCollectionItemsByAddresses(ctx, request)
+	return res, err
+}
+
+func (c *Client) sendGetNftCollectionItemsByAddresses(ctx context.Context, request OptGetNftCollectionItemsByAddressesReq) (res *NftCollections, err error) {
+	otelAttrs := []attribute.KeyValue{
+		otelogen.OperationID("getNftCollectionItemsByAddresses"),
+		semconv.HTTPMethodKey.String("POST"),
+		semconv.HTTPRouteKey.String("/v2/nfts/collections/_bulk"),
+	}
+	// Validate request before sending.
+	if err := func() error {
+		if value, ok := request.Get(); ok {
+			if err := func() error {
+				if err := value.Validate(); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		return res, errors.Wrap(err, "validate")
+	}
+
+	// Run stopwatch.
+	startTime := time.Now()
+	defer func() {
+		// Use floating point division here for higher precision (instead of Millisecond method).
+		elapsedDuration := time.Since(startTime)
+		c.duration.Record(ctx, float64(float64(elapsedDuration)/float64(time.Millisecond)), metric.WithAttributes(otelAttrs...))
+	}()
+
+	// Increment request counter.
+	c.requests.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
+
+	// Start a span for this request.
+	ctx, span := c.cfg.Tracer.Start(ctx, "GetNftCollectionItemsByAddresses",
+		trace.WithAttributes(otelAttrs...),
+		clientSpanKind,
+	)
+	// Track stage for error reporting.
+	var stage string
+	defer func() {
+		if err != nil {
+			span.RecordError(err)
+			span.SetStatus(codes.Error, stage)
+			c.errors.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
+		}
+		span.End()
+	}()
+
+	stage = "BuildURL"
+	u := uri.Clone(c.requestURL(ctx))
+	var pathParts [1]string
+	pathParts[0] = "/v2/nfts/collections/_bulk"
+	uri.AddPathParts(u, pathParts[:]...)
+
+	stage = "EncodeRequest"
+	r, err := ht.NewRequest(ctx, "POST", u)
+	if err != nil {
+		return res, errors.Wrap(err, "create request")
+	}
+	if err := encodeGetNftCollectionItemsByAddressesRequest(request, r); err != nil {
+		return res, errors.Wrap(err, "encode request")
+	}
+
+	stage = "SendRequest"
+	resp, err := c.cfg.Client.Do(r)
+	if err != nil {
+		return res, errors.Wrap(err, "do request")
+	}
+	defer resp.Body.Close()
+
+	stage = "DecodeResponse"
+	result, err := decodeGetNftCollectionItemsByAddressesResponse(resp)
 	if err != nil {
 		return res, errors.Wrap(err, "decode response")
 	}

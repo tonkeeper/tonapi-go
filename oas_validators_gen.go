@@ -2175,6 +2175,25 @@ func (s GetInscriptionOpTemplateType) Validate() error {
 	}
 }
 
+func (s *GetJettonInfosByAddressesReq) Validate() error {
+	var failures []validate.FieldError
+	if err := func() error {
+		if s.AccountIds == nil {
+			return errors.New("nil is invalid value")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "account_ids",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
+}
+
 func (s *GetMarketsRatesOK) Validate() error {
 	var failures []validate.FieldError
 	if err := func() error {
@@ -2202,6 +2221,25 @@ func (s *GetMarketsRatesOK) Validate() error {
 	}(); err != nil {
 		failures = append(failures, validate.FieldError{
 			Name:  "markets",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
+}
+
+func (s *GetNftCollectionItemsByAddressesReq) Validate() error {
+	var failures []validate.FieldError
+	if err := func() error {
+		if s.AccountIds == nil {
+			return errors.New("nil is invalid value")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "account_ids",
 			Error: err,
 		})
 	}
