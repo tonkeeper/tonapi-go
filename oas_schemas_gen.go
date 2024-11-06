@@ -4081,6 +4081,32 @@ func (s *BouncePhaseType) UnmarshalText(data []byte) error {
 	}
 }
 
+// Ref: #/components/schemas/ChartPoints
+type ChartPoints struct {
+	V0 int64
+	V1 float64
+}
+
+// GetV0 returns the value of V0.
+func (s *ChartPoints) GetV0() int64 {
+	return s.V0
+}
+
+// GetV1 returns the value of V1.
+func (s *ChartPoints) GetV1() float64 {
+	return s.V1
+}
+
+// SetV0 sets the value of V0.
+func (s *ChartPoints) SetV0(val int64) {
+	s.V0 = val
+}
+
+// SetV1 sets the value of V1.
+func (s *ChartPoints) SetV1(val float64) {
+	s.V1 = val
+}
+
 // Ref: #/components/schemas/ComputePhase
 type ComputePhase struct {
 	Skipped             bool                 `json:"skipped"`
@@ -4420,6 +4446,7 @@ func (s *DecodedMessage) SetExtInMsgDecoded(val OptDecodedMessageExtInMsgDecoded
 type DecodedMessageExtInMsgDecoded struct {
 	WalletV3         OptDecodedMessageExtInMsgDecodedWalletV3         `json:"wallet_v3"`
 	WalletV4         OptDecodedMessageExtInMsgDecodedWalletV4         `json:"wallet_v4"`
+	WalletV5         OptDecodedMessageExtInMsgDecodedWalletV5         `json:"wallet_v5"`
 	WalletHighloadV2 OptDecodedMessageExtInMsgDecodedWalletHighloadV2 `json:"wallet_highload_v2"`
 }
 
@@ -4431,6 +4458,11 @@ func (s *DecodedMessageExtInMsgDecoded) GetWalletV3() OptDecodedMessageExtInMsgD
 // GetWalletV4 returns the value of WalletV4.
 func (s *DecodedMessageExtInMsgDecoded) GetWalletV4() OptDecodedMessageExtInMsgDecodedWalletV4 {
 	return s.WalletV4
+}
+
+// GetWalletV5 returns the value of WalletV5.
+func (s *DecodedMessageExtInMsgDecoded) GetWalletV5() OptDecodedMessageExtInMsgDecodedWalletV5 {
+	return s.WalletV5
 }
 
 // GetWalletHighloadV2 returns the value of WalletHighloadV2.
@@ -4446,6 +4478,11 @@ func (s *DecodedMessageExtInMsgDecoded) SetWalletV3(val OptDecodedMessageExtInMs
 // SetWalletV4 sets the value of WalletV4.
 func (s *DecodedMessageExtInMsgDecoded) SetWalletV4(val OptDecodedMessageExtInMsgDecodedWalletV4) {
 	s.WalletV4 = val
+}
+
+// SetWalletV5 sets the value of WalletV5.
+func (s *DecodedMessageExtInMsgDecoded) SetWalletV5(val OptDecodedMessageExtInMsgDecodedWalletV5) {
+	s.WalletV5 = val
 }
 
 // SetWalletHighloadV2 sets the value of WalletHighloadV2.
@@ -4591,6 +4628,20 @@ func (s *DecodedMessageExtInMsgDecodedWalletV4) SetOp(val int32) {
 
 // SetRawMessages sets the value of RawMessages.
 func (s *DecodedMessageExtInMsgDecodedWalletV4) SetRawMessages(val []DecodedRawMessage) {
+	s.RawMessages = val
+}
+
+type DecodedMessageExtInMsgDecodedWalletV5 struct {
+	RawMessages []DecodedRawMessage `json:"raw_messages"`
+}
+
+// GetRawMessages returns the value of RawMessages.
+func (s *DecodedMessageExtInMsgDecodedWalletV5) GetRawMessages() []DecodedRawMessage {
+	return s.RawMessages
+}
+
+// SetRawMessages sets the value of RawMessages.
+func (s *DecodedMessageExtInMsgDecodedWalletV5) SetRawMessages(val []DecodedRawMessage) {
 	s.RawMessages = val
 }
 
@@ -5684,16 +5735,16 @@ func (s *GetBlockchainAccountTransactionsSortOrder) UnmarshalText(data []byte) e
 }
 
 type GetChartRatesOK struct {
-	Points jx.Raw `json:"points"`
+	Points []ChartPoints `json:"points"`
 }
 
 // GetPoints returns the value of Points.
-func (s *GetChartRatesOK) GetPoints() jx.Raw {
+func (s *GetChartRatesOK) GetPoints() []ChartPoints {
 	return s.Points
 }
 
 // SetPoints sets the value of Points.
-func (s *GetChartRatesOK) SetPoints(val jx.Raw) {
+func (s *GetChartRatesOK) SetPoints(val []ChartPoints) {
 	s.Points = val
 }
 
@@ -9133,9 +9184,8 @@ type NftApprovedBy []NftApprovedByItem
 type NftApprovedByItem string
 
 const (
-	NftApprovedByItemGetgems     NftApprovedByItem = "getgems"
-	NftApprovedByItemTonkeeper   NftApprovedByItem = "tonkeeper"
-	NftApprovedByItemTonDiamonds NftApprovedByItem = "ton.diamonds"
+	NftApprovedByItemGetgems   NftApprovedByItem = "getgems"
+	NftApprovedByItemTonkeeper NftApprovedByItem = "tonkeeper"
 )
 
 // AllValues returns all NftApprovedByItem values.
@@ -9143,7 +9193,6 @@ func (NftApprovedByItem) AllValues() []NftApprovedByItem {
 	return []NftApprovedByItem{
 		NftApprovedByItemGetgems,
 		NftApprovedByItemTonkeeper,
-		NftApprovedByItemTonDiamonds,
 	}
 }
 
@@ -9153,8 +9202,6 @@ func (s NftApprovedByItem) MarshalText() ([]byte, error) {
 	case NftApprovedByItemGetgems:
 		return []byte(s), nil
 	case NftApprovedByItemTonkeeper:
-		return []byte(s), nil
-	case NftApprovedByItemTonDiamonds:
 		return []byte(s), nil
 	default:
 		return nil, errors.Errorf("invalid value: %q", s)
@@ -9169,9 +9216,6 @@ func (s *NftApprovedByItem) UnmarshalText(data []byte) error {
 		return nil
 	case NftApprovedByItemTonkeeper:
 		*s = NftApprovedByItemTonkeeper
-		return nil
-	case NftApprovedByItemTonDiamonds:
-		*s = NftApprovedByItemTonDiamonds
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -11883,6 +11927,52 @@ func (o OptDecodedMessageExtInMsgDecodedWalletV4) Get() (v DecodedMessageExtInMs
 
 // Or returns value if set, or given parameter if does not.
 func (o OptDecodedMessageExtInMsgDecodedWalletV4) Or(d DecodedMessageExtInMsgDecodedWalletV4) DecodedMessageExtInMsgDecodedWalletV4 {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptDecodedMessageExtInMsgDecodedWalletV5 returns new OptDecodedMessageExtInMsgDecodedWalletV5 with value set to v.
+func NewOptDecodedMessageExtInMsgDecodedWalletV5(v DecodedMessageExtInMsgDecodedWalletV5) OptDecodedMessageExtInMsgDecodedWalletV5 {
+	return OptDecodedMessageExtInMsgDecodedWalletV5{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptDecodedMessageExtInMsgDecodedWalletV5 is optional DecodedMessageExtInMsgDecodedWalletV5.
+type OptDecodedMessageExtInMsgDecodedWalletV5 struct {
+	Value DecodedMessageExtInMsgDecodedWalletV5
+	Set   bool
+}
+
+// IsSet returns true if OptDecodedMessageExtInMsgDecodedWalletV5 was set.
+func (o OptDecodedMessageExtInMsgDecodedWalletV5) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptDecodedMessageExtInMsgDecodedWalletV5) Reset() {
+	var v DecodedMessageExtInMsgDecodedWalletV5
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptDecodedMessageExtInMsgDecodedWalletV5) SetTo(v DecodedMessageExtInMsgDecodedWalletV5) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptDecodedMessageExtInMsgDecodedWalletV5) Get() (v DecodedMessageExtInMsgDecodedWalletV5, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptDecodedMessageExtInMsgDecodedWalletV5) Or(d DecodedMessageExtInMsgDecodedWalletV5) DecodedMessageExtInMsgDecodedWalletV5 {
 	if v, ok := o.Get(); ok {
 		return v
 	}
