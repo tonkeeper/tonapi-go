@@ -21,18 +21,19 @@ type MempoolEvent struct {
 }
 
 var (
-	mu     sync.Mutex
-	hashes = make(map[string]int)
+	mu              sync.Mutex
+	hashes          = make(map[string]int)
+	messagesCounter = 0
 )
 
 func webhook(w http.ResponseWriter, req *http.Request) {
 	defer req.Body.Close()
 
-	fmt.Printf("req: %v\n", req.Method)
-	for name, header := range req.Header {
-		fmt.Printf("header: %v -> %#v\n", name, header)
-
-	}
+	//fmt.Printf("req: %v\n", req.Method)
+	//for name, header := range req.Header {
+	//	fmt.Printf("header: %v -> %#v\n", name, header)
+	//
+	//}
 	var payload MempoolEvent
 	if err := json.NewDecoder(req.Body).Decode(&payload); err != nil {
 		w.WriteHeader(http.StatusBadRequest)
@@ -50,10 +51,21 @@ func webhook(w http.ResponseWriter, req *http.Request) {
 	defer mu.Unlock()
 
 	hashes[payloadHex] += 1
+	messagesCounter += 1
 
-	value := hashes[payloadHex]
-	if value > 2 {
-		fmt.Printf("payload hex %v -> %v\n", payloadHex, value)
+	//value := hashes[payloadHex]
+	//if value > 2 {
+	//	//fmt.Printf("payload hex %v -> %v\n", payloadHex, value)
+	//}
+	if messagesCounter%1000 == 0 {
+		x := 0
+		for _, value := range hashes {
+			if value > 2 {
+				x += 1
+			}
+		}
+		percent := float64(x) / float64(len(hashes)) * 100.0
+		fmt.Printf("%0.2f\n", percent)
 	}
 
 	if len(hashes) > 100_000 {
