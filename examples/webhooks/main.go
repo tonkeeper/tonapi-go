@@ -57,7 +57,7 @@ func webhook(w http.ResponseWriter, req *http.Request) {
 	//if value > 2 {
 	//	//fmt.Printf("payload hex %v -> %v\n", payloadHex, value)
 	//}
-	if messagesCounter%1000 == 0 {
+	if messagesCounter%100 == 0 {
 		x := 0
 		for _, value := range hashes {
 			if value > 2 {
