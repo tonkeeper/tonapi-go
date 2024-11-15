@@ -26,10 +26,10 @@ var (
 	messagesCounter = 0
 )
 
-func webhook(w http.ResponseWriter, req *http.Request) {
+func webhookMempool(w http.ResponseWriter, req *http.Request) {
 	defer req.Body.Close()
 
-	//fmt.Printf("req: %v\n", req.Method)
+	fmt.Printf("req: %v\n", req.Method)
 	//for name, header := range req.Header {
 	//	fmt.Printf("header: %v -> %#v\n", name, header)
 	//
@@ -73,7 +73,25 @@ func webhook(w http.ResponseWriter, req *http.Request) {
 	}
 }
 
+func webhook(w http.ResponseWriter, req *http.Request) {
+	defer req.Body.Close()
+
+	fmt.Printf("req: %v\n", req.Method)
+	//for name, header := range req.Header {
+	//	fmt.Printf("header: %v -> %#v\n", name, header)
+	//
+	//}
+	var payload AccountTxPayload
+	if err := json.NewDecoder(req.Body).Decode(&payload); err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+	fmt.Printf("%v %v %v\n", payload.AccountID, payload.Lt, payload.TxHash)
+
+}
+
 func main() {
 	http.HandleFunc("/webhook", webhook)
-	http.ListenAndServe(":8030", nil)
+	http.HandleFunc("/webhook-mempool", webhookMempool)
+	http.ListenAndServe(":8090", nil)
 }
