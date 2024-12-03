@@ -604,12 +604,6 @@ type Invoker interface {
 	//
 	// GET /v2/traces/{trace_id}
 	GetTrace(ctx context.Context, params GetTraceParams) (*Trace, error)
-	// GetWalletBackup invokes getWalletBackup operation.
-	//
-	// Get backup info.
-	//
-	// GET /v2/wallet/backup
-	GetWalletBackup(ctx context.Context, params GetWalletBackupParams) (*GetWalletBackupOK, error)
 	// GetWalletsByPublicKey invokes getWalletsByPublicKey operation.
 	//
 	// Get wallets by public key.
@@ -640,12 +634,6 @@ type Invoker interface {
 	//
 	// POST /v2/liteserver/send_message
 	SendRawMessage(ctx context.Context, request *SendRawMessageReq) (*SendRawMessageOK, error)
-	// SetWalletBackup invokes setWalletBackup operation.
-	//
-	// Set backup info.
-	//
-	// PUT /v2/wallet/backup
-	SetWalletBackup(ctx context.Context, request SetWalletBackupReq, params SetWalletBackupParams) error
 	// Status invokes status operation.
 	//
 	// Status.
@@ -10867,92 +10855,6 @@ func (c *Client) sendGetTrace(ctx context.Context, params GetTraceParams) (res *
 	return result, nil
 }
 
-// GetWalletBackup invokes getWalletBackup operation.
-//
-// Get backup info.
-//
-// GET /v2/wallet/backup
-func (c *Client) GetWalletBackup(ctx context.Context, params GetWalletBackupParams) (*GetWalletBackupOK, error) {
-	res, err := c.sendGetWalletBackup(ctx, params)
-	return res, err
-}
-
-func (c *Client) sendGetWalletBackup(ctx context.Context, params GetWalletBackupParams) (res *GetWalletBackupOK, err error) {
-	otelAttrs := []attribute.KeyValue{
-		otelogen.OperationID("getWalletBackup"),
-		semconv.HTTPMethodKey.String("GET"),
-		semconv.HTTPRouteKey.String("/v2/wallet/backup"),
-	}
-
-	// Run stopwatch.
-	startTime := time.Now()
-	defer func() {
-		// Use floating point division here for higher precision (instead of Millisecond method).
-		elapsedDuration := time.Since(startTime)
-		c.duration.Record(ctx, float64(float64(elapsedDuration)/float64(time.Millisecond)), metric.WithAttributes(otelAttrs...))
-	}()
-
-	// Increment request counter.
-	c.requests.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
-
-	// Start a span for this request.
-	ctx, span := c.cfg.Tracer.Start(ctx, "GetWalletBackup",
-		trace.WithAttributes(otelAttrs...),
-		clientSpanKind,
-	)
-	// Track stage for error reporting.
-	var stage string
-	defer func() {
-		if err != nil {
-			span.RecordError(err)
-			span.SetStatus(codes.Error, stage)
-			c.errors.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
-		}
-		span.End()
-	}()
-
-	stage = "BuildURL"
-	u := uri.Clone(c.requestURL(ctx))
-	var pathParts [1]string
-	pathParts[0] = "/v2/wallet/backup"
-	uri.AddPathParts(u, pathParts[:]...)
-
-	stage = "EncodeRequest"
-	r, err := ht.NewRequest(ctx, "GET", u)
-	if err != nil {
-		return res, errors.Wrap(err, "create request")
-	}
-
-	stage = "EncodeHeaderParams"
-	h := uri.NewHeaderEncoder(r.Header)
-	{
-		cfg := uri.HeaderParameterEncodingConfig{
-			Name:    "X-TonConnect-Auth",
-			Explode: false,
-		}
-		if err := h.EncodeParam(cfg, func(e uri.Encoder) error {
-			return e.EncodeValue(conv.StringToString(params.XTonConnectAuth))
-		}); err != nil {
-			return res, errors.Wrap(err, "encode header")
-		}
-	}
-
-	stage = "SendRequest"
-	resp, err := c.cfg.Client.Do(r)
-	if err != nil {
-		return res, errors.Wrap(err, "do request")
-	}
-	defer resp.Body.Close()
-
-	stage = "DecodeResponse"
-	result, err := decodeGetWalletBackupResponse(resp)
-	if err != nil {
-		return res, errors.Wrap(err, "decode response")
-	}
-
-	return result, nil
-}
-
 // GetWalletsByPublicKey invokes getWalletsByPublicKey operation.
 //
 // Get wallets by public key.
@@ -11377,95 +11279,6 @@ func (c *Client) sendSendRawMessage(ctx context.Context, request *SendRawMessage
 
 	stage = "DecodeResponse"
 	result, err := decodeSendRawMessageResponse(resp)
-	if err != nil {
-		return res, errors.Wrap(err, "decode response")
-	}
-
-	return result, nil
-}
-
-// SetWalletBackup invokes setWalletBackup operation.
-//
-// Set backup info.
-//
-// PUT /v2/wallet/backup
-func (c *Client) SetWalletBackup(ctx context.Context, request SetWalletBackupReq, params SetWalletBackupParams) error {
-	_, err := c.sendSetWalletBackup(ctx, request, params)
-	return err
-}
-
-func (c *Client) sendSetWalletBackup(ctx context.Context, request SetWalletBackupReq, params SetWalletBackupParams) (res *SetWalletBackupOK, err error) {
-	otelAttrs := []attribute.KeyValue{
-		otelogen.OperationID("setWalletBackup"),
-		semconv.HTTPMethodKey.String("PUT"),
-		semconv.HTTPRouteKey.String("/v2/wallet/backup"),
-	}
-
-	// Run stopwatch.
-	startTime := time.Now()
-	defer func() {
-		// Use floating point division here for higher precision (instead of Millisecond method).
-		elapsedDuration := time.Since(startTime)
-		c.duration.Record(ctx, float64(float64(elapsedDuration)/float64(time.Millisecond)), metric.WithAttributes(otelAttrs...))
-	}()
-
-	// Increment request counter.
-	c.requests.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
-
-	// Start a span for this request.
-	ctx, span := c.cfg.Tracer.Start(ctx, "SetWalletBackup",
-		trace.WithAttributes(otelAttrs...),
-		clientSpanKind,
-	)
-	// Track stage for error reporting.
-	var stage string
-	defer func() {
-		if err != nil {
-			span.RecordError(err)
-			span.SetStatus(codes.Error, stage)
-			c.errors.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
-		}
-		span.End()
-	}()
-
-	stage = "BuildURL"
-	u := uri.Clone(c.requestURL(ctx))
-	var pathParts [1]string
-	pathParts[0] = "/v2/wallet/backup"
-	uri.AddPathParts(u, pathParts[:]...)
-
-	stage = "EncodeRequest"
-	r, err := ht.NewRequest(ctx, "PUT", u)
-	if err != nil {
-		return res, errors.Wrap(err, "create request")
-	}
-	if err := encodeSetWalletBackupRequest(request, r); err != nil {
-		return res, errors.Wrap(err, "encode request")
-	}
-
-	stage = "EncodeHeaderParams"
-	h := uri.NewHeaderEncoder(r.Header)
-	{
-		cfg := uri.HeaderParameterEncodingConfig{
-			Name:    "X-TonConnect-Auth",
-			Explode: false,
-		}
-		if err := h.EncodeParam(cfg, func(e uri.Encoder) error {
-			return e.EncodeValue(conv.StringToString(params.XTonConnectAuth))
-		}); err != nil {
-			return res, errors.Wrap(err, "encode header")
-		}
-	}
-
-	stage = "SendRequest"
-	resp, err := c.cfg.Client.Do(r)
-	if err != nil {
-		return res, errors.Wrap(err, "do request")
-	}
-	defer resp.Body.Close()
-
-	stage = "DecodeResponse"
-	result, err := decodeSetWalletBackupResponse(resp)
 	if err != nil {
 		return res, errors.Wrap(err, "decode response")
 	}

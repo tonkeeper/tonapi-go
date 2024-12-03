@@ -4,7 +4,6 @@ package tonapi
 
 import (
 	"fmt"
-	"io"
 
 	"github.com/go-faster/errors"
 	"github.com/go-faster/jx"
@@ -2485,6 +2484,8 @@ type BlockchainConfig struct {
 	R43 OptBlockchainConfig43 `json:"43"`
 	// Suspended accounts.
 	R44 BlockchainConfig44 `json:"44"`
+	// Precompiled contracts.
+	R45 OptBlockchainConfig45 `json:"45"`
 	// Bridge parameters for wrapping TON in other networks.
 	R71 OptBlockchainConfig71 `json:"71"`
 	// Bridge parameters for wrapping TON in other networks.
@@ -2687,6 +2688,11 @@ func (s *BlockchainConfig) GetR43() OptBlockchainConfig43 {
 // GetR44 returns the value of R44.
 func (s *BlockchainConfig) GetR44() BlockchainConfig44 {
 	return s.R44
+}
+
+// GetR45 returns the value of R45.
+func (s *BlockchainConfig) GetR45() OptBlockchainConfig45 {
+	return s.R45
 }
 
 // GetR71 returns the value of R71.
@@ -2907,6 +2913,11 @@ func (s *BlockchainConfig) SetR43(val OptBlockchainConfig43) {
 // SetR44 sets the value of R44.
 func (s *BlockchainConfig) SetR44(val BlockchainConfig44) {
 	s.R44 = val
+}
+
+// SetR45 sets the value of R45.
+func (s *BlockchainConfig) SetR45(val OptBlockchainConfig45) {
+	s.R45 = val
 }
 
 // SetR71 sets the value of R71.
@@ -3636,6 +3647,46 @@ func (s *BlockchainConfig44) SetAccounts(val []string) {
 // SetSuspendedUntil sets the value of SuspendedUntil.
 func (s *BlockchainConfig44) SetSuspendedUntil(val int) {
 	s.SuspendedUntil = val
+}
+
+// Precompiled contracts.
+type BlockchainConfig45 struct {
+	Contracts []BlockchainConfig45ContractsItem `json:"contracts"`
+}
+
+// GetContracts returns the value of Contracts.
+func (s *BlockchainConfig45) GetContracts() []BlockchainConfig45ContractsItem {
+	return s.Contracts
+}
+
+// SetContracts sets the value of Contracts.
+func (s *BlockchainConfig45) SetContracts(val []BlockchainConfig45ContractsItem) {
+	s.Contracts = val
+}
+
+type BlockchainConfig45ContractsItem struct {
+	CodeHash string `json:"code_hash"`
+	GasUsage int64  `json:"gas_usage"`
+}
+
+// GetCodeHash returns the value of CodeHash.
+func (s *BlockchainConfig45ContractsItem) GetCodeHash() string {
+	return s.CodeHash
+}
+
+// GetGasUsage returns the value of GasUsage.
+func (s *BlockchainConfig45ContractsItem) GetGasUsage() int64 {
+	return s.GasUsage
+}
+
+// SetCodeHash sets the value of CodeHash.
+func (s *BlockchainConfig45ContractsItem) SetCodeHash(val string) {
+	s.CodeHash = val
+}
+
+// SetGasUsage sets the value of GasUsage.
+func (s *BlockchainConfig45ContractsItem) SetGasUsage(val int64) {
+	s.GasUsage = val
 }
 
 type BlockchainConfig5 struct {
@@ -4632,12 +4683,23 @@ func (s *DecodedMessageExtInMsgDecodedWalletV4) SetRawMessages(val []DecodedRawM
 }
 
 type DecodedMessageExtInMsgDecodedWalletV5 struct {
+	ValidUntil  int64               `json:"valid_until"`
 	RawMessages []DecodedRawMessage `json:"raw_messages"`
+}
+
+// GetValidUntil returns the value of ValidUntil.
+func (s *DecodedMessageExtInMsgDecodedWalletV5) GetValidUntil() int64 {
+	return s.ValidUntil
 }
 
 // GetRawMessages returns the value of RawMessages.
 func (s *DecodedMessageExtInMsgDecodedWalletV5) GetRawMessages() []DecodedRawMessage {
 	return s.RawMessages
+}
+
+// SetValidUntil sets the value of ValidUntil.
+func (s *DecodedMessageExtInMsgDecodedWalletV5) SetValidUntil(val int64) {
+	s.ValidUntil = val
 }
 
 // SetRawMessages sets the value of RawMessages.
@@ -5203,7 +5265,8 @@ func (s *EncryptedComment) SetCipherText(val string) {
 }
 
 type Error struct {
-	Error string `json:"error"`
+	Error     string   `json:"error"`
+	ErrorCode OptInt64 `json:"error_code"`
 }
 
 // GetError returns the value of Error.
@@ -5211,9 +5274,19 @@ func (s *Error) GetError() string {
 	return s.Error
 }
 
+// GetErrorCode returns the value of ErrorCode.
+func (s *Error) GetErrorCode() OptInt64 {
+	return s.ErrorCode
+}
+
 // SetError sets the value of Error.
 func (s *Error) SetError(val string) {
 	s.Error = val
+}
+
+// SetErrorCode sets the value of ErrorCode.
+func (s *Error) SetErrorCode(val OptInt64) {
+	s.ErrorCode = val
 }
 
 // ErrorStatusCode wraps Error with StatusCode.
@@ -6934,20 +7007,6 @@ func (s *GetTonConnectPayloadOK) SetPayload(val string) {
 	s.Payload = val
 }
 
-type GetWalletBackupOK struct {
-	Dump string `json:"dump"`
-}
-
-// GetDump returns the value of Dump.
-func (s *GetWalletBackupOK) GetDump() string {
-	return s.Dump
-}
-
-// SetDump sets the value of Dump.
-func (s *GetWalletBackupOK) SetDump(val string) {
-	s.Dump = val
-}
-
 // Ref: #/components/schemas/ImagePreview
 type ImagePreview struct {
 	Resolution string `json:"resolution"`
@@ -7704,6 +7763,7 @@ type JettonInfo struct {
 	TotalSupply  string                 `json:"total_supply"`
 	Admin        OptAccountAddress      `json:"admin"`
 	Metadata     JettonMetadata         `json:"metadata"`
+	Preview      string                 `json:"preview"`
 	Verification JettonVerificationType `json:"verification"`
 	HoldersCount int32                  `json:"holders_count"`
 }
@@ -7726,6 +7786,11 @@ func (s *JettonInfo) GetAdmin() OptAccountAddress {
 // GetMetadata returns the value of Metadata.
 func (s *JettonInfo) GetMetadata() JettonMetadata {
 	return s.Metadata
+}
+
+// GetPreview returns the value of Preview.
+func (s *JettonInfo) GetPreview() string {
+	return s.Preview
 }
 
 // GetVerification returns the value of Verification.
@@ -7758,6 +7823,11 @@ func (s *JettonInfo) SetMetadata(val JettonMetadata) {
 	s.Metadata = val
 }
 
+// SetPreview sets the value of Preview.
+func (s *JettonInfo) SetPreview(val string) {
+	s.Preview = val
+}
+
 // SetVerification sets the value of Verification.
 func (s *JettonInfo) SetVerification(val JettonVerificationType) {
 	s.Verification = val
@@ -7770,10 +7840,13 @@ func (s *JettonInfo) SetHoldersCount(val int32) {
 
 // Ref: #/components/schemas/JettonMetadata
 type JettonMetadata struct {
-	Address             string    `json:"address"`
-	Name                string    `json:"name"`
-	Symbol              string    `json:"symbol"`
-	Decimals            string    `json:"decimals"`
+	Address  string `json:"address"`
+	Name     string `json:"name"`
+	Symbol   string `json:"symbol"`
+	Decimals string `json:"decimals"`
+	// This field currently returns a cached image URL (e.g., "https://cache.tonapi.io/images/jetton.
+	// jpg"). In the future, this will be replaced with the original URL from the metadata. The cached
+	// image is already available in the `preview` field of `JettonInfo` and will remain there.
 	Image               OptString `json:"image"`
 	Description         OptString `json:"description"`
 	Social              []string  `json:"social"`
@@ -10915,6 +10988,52 @@ func (o OptBlockchainConfig43) Get() (v BlockchainConfig43, ok bool) {
 
 // Or returns value if set, or given parameter if does not.
 func (o OptBlockchainConfig43) Or(d BlockchainConfig43) BlockchainConfig43 {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptBlockchainConfig45 returns new OptBlockchainConfig45 with value set to v.
+func NewOptBlockchainConfig45(v BlockchainConfig45) OptBlockchainConfig45 {
+	return OptBlockchainConfig45{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptBlockchainConfig45 is optional BlockchainConfig45.
+type OptBlockchainConfig45 struct {
+	Value BlockchainConfig45
+	Set   bool
+}
+
+// IsSet returns true if OptBlockchainConfig45 was set.
+func (o OptBlockchainConfig45) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptBlockchainConfig45) Reset() {
+	var v BlockchainConfig45
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptBlockchainConfig45) SetTo(v BlockchainConfig45) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptBlockchainConfig45) Get() (v BlockchainConfig45, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptBlockchainConfig45) Or(d BlockchainConfig45) BlockchainConfig45 {
 	if v, ok := o.Get(); ok {
 		return v
 	}
@@ -14885,23 +15004,6 @@ func (s *ServiceStatus) SetIndexingLatency(val int) {
 // SetLastKnownMasterchainSeqno sets the value of LastKnownMasterchainSeqno.
 func (s *ServiceStatus) SetLastKnownMasterchainSeqno(val int32) {
 	s.LastKnownMasterchainSeqno = val
-}
-
-// SetWalletBackupOK is response for SetWalletBackup operation.
-type SetWalletBackupOK struct{}
-
-type SetWalletBackupReq struct {
-	Data io.Reader
-}
-
-// Read reads data from the Data reader.
-//
-// Kept to satisfy the io.Reader interface.
-func (s SetWalletBackupReq) Read(p []byte) (n int, err error) {
-	if s.Data == nil {
-		return 0, io.EOF
-	}
-	return s.Data.Read(p)
 }
 
 // Ref: #/components/schemas/SignRawMessage
