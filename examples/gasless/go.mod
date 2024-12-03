@@ -4,7 +4,7 @@ go 1.22.0
 
 require (
 	github.com/shopspring/decimal v1.4.0
-	github.com/tonkeeper/tonapi-go v0.0.5
+	github.com/tonkeeper/tonapi-go v0.0.8-0.20241203101304-ad90d0feb0db
 	github.com/tonkeeper/tongo v1.9.0
 )
 
