@@ -231,16 +231,6 @@ func encodeSendRawMessageRequest(
 	return nil
 }
 
-func encodeSetWalletBackupRequest(
-	req SetWalletBackupReq,
-	r *http.Request,
-) error {
-	const contentType = "application/octet-stream"
-	body := req
-	ht.SetBody(r, body, contentType)
-	return nil
-}
-
 func encodeTonConnectProofRequest(
 	req *TonConnectProofReq,
 	r *http.Request,

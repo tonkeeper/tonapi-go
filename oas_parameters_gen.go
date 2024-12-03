@@ -601,11 +601,6 @@ type GetTraceParams struct {
 	TraceID string
 }
 
-// GetWalletBackupParams is parameters of getWalletBackup operation.
-type GetWalletBackupParams struct {
-	XTonConnectAuth string
-}
-
 // GetWalletsByPublicKeyParams is parameters of getWalletsByPublicKey operation.
 type GetWalletsByPublicKeyParams struct {
 	PublicKey string
@@ -620,9 +615,4 @@ type ReindexAccountParams struct {
 // SearchAccountsParams is parameters of searchAccounts operation.
 type SearchAccountsParams struct {
 	Name string
-}
-
-// SetWalletBackupParams is parameters of setWalletBackup operation.
-type SetWalletBackupParams struct {
-	XTonConnectAuth string
 }
