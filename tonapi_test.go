@@ -24,7 +24,7 @@ func TestCustomRequest(t *testing.T) {
 		name   string
 		method string
 		path   string
-		query  map[string]string
+		query  map[string][]string
 		err    error
 	}{
 		{
@@ -55,7 +55,14 @@ func TestCustomRequest(t *testing.T) {
 			name:   "ok to get collections",
 			method: http.MethodGet,
 			path:   "v2/nfts/collections",
-			query:  map[string]string{"limit": "10"},
+			query:  map[string][]string{"limit": {"10"}},
+			err:    nil,
+		},
+		{
+			name:   "ok to exec get method",
+			method: http.MethodGet,
+			path:   "v2/blockchain/accounts/EQCxE6mUtQJKFnGfaROTKOt1lZbDiiX1kCixRv7Nw2Id_sDs/methods/get_wallet_address",
+			query:  map[string][]string{"args": {"UQDNzlh0XSZdb5_Qrlx5QjyZHVAO74v5oMeVVrtF_5Vt1rIt", "UQBVXzBT4lcTA3S7gxrg4hnl5fnsDKj4oNEzNp09aQxkwmCa"}},
 			err:    nil,
 		},
 	}
