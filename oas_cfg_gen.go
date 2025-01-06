@@ -40,7 +40,9 @@ func (cfg *otelConfig) initOTEL() {
 	cfg.Tracer = cfg.TracerProvider.Tracer(otelogen.Name,
 		trace.WithInstrumentationVersion(otelogen.SemVersion()),
 	)
-	cfg.Meter = cfg.MeterProvider.Meter(otelogen.Name)
+	cfg.Meter = cfg.MeterProvider.Meter(otelogen.Name,
+		metric.WithInstrumentationVersion(otelogen.SemVersion()),
+	)
 }
 
 type clientConfig struct {
@@ -53,14 +55,13 @@ type ClientOption interface {
 	applyClient(*clientConfig)
 }
 
-var _ = []ClientOption{
-	(optionFunc[clientConfig])(nil),
-	(otelOptionFunc)(nil),
-}
+var _ ClientOption = (optionFunc[clientConfig])(nil)
 
 func (o optionFunc[C]) applyClient(c *C) {
 	o(c)
 }
+
+var _ ClientOption = (otelOptionFunc)(nil)
 
 func (o otelOptionFunc) applyClient(c *clientConfig) {
 	o(&c.otelConfig)
@@ -86,13 +87,13 @@ type baseClient struct {
 
 func (cfg clientConfig) baseClient() (c baseClient, err error) {
 	c = baseClient{cfg: cfg}
-	if c.requests, err = c.cfg.Meter.Int64Counter(otelogen.ClientRequestCount); err != nil {
+	if c.requests, err = otelogen.ClientRequestCountCounter(c.cfg.Meter); err != nil {
 		return c, err
 	}
-	if c.errors, err = c.cfg.Meter.Int64Counter(otelogen.ClientErrorsCount); err != nil {
+	if c.errors, err = otelogen.ClientErrorsCountCounter(c.cfg.Meter); err != nil {
 		return c, err
 	}
-	if c.duration, err = c.cfg.Meter.Float64Histogram(otelogen.ClientDuration); err != nil {
+	if c.duration, err = otelogen.ClientDurationHistogram(c.cfg.Meter); err != nil {
 		return c, err
 	}
 	return c, nil

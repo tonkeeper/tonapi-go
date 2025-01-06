@@ -1444,6 +1444,7 @@ paths:
       tags:
         - Inscriptions
       parameters:
+        - $ref: '#/components/parameters/Operation'
         - in: query
           name: type
           required: true
@@ -1461,13 +1462,6 @@ paths:
           required: false
           schema:
             type: string
-        - in: query
-          name: operation
-          required: true
-          schema:
-            type: string
-            enum: [ "transfer" ]
-            example: "transfer"
         - in: query
           name: amount
           required: true
@@ -3120,6 +3114,14 @@ components:
       schema:
         type: integer
         format: int64
+    Operation:
+      in: query
+      name: operation
+      required: true
+      schema:
+        type: string
+        enum: [ "transfer" ]
+        example: "transfer"
 
   requestBodies:
     MethodParameters:

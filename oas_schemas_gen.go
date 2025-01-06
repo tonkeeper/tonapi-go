@@ -5846,40 +5846,6 @@ func (s *GetInscriptionOpTemplateOK) SetDestination(val string) {
 	s.Destination = val
 }
 
-type GetInscriptionOpTemplateOperation string
-
-const (
-	GetInscriptionOpTemplateOperationTransfer GetInscriptionOpTemplateOperation = "transfer"
-)
-
-// AllValues returns all GetInscriptionOpTemplateOperation values.
-func (GetInscriptionOpTemplateOperation) AllValues() []GetInscriptionOpTemplateOperation {
-	return []GetInscriptionOpTemplateOperation{
-		GetInscriptionOpTemplateOperationTransfer,
-	}
-}
-
-// MarshalText implements encoding.TextMarshaler.
-func (s GetInscriptionOpTemplateOperation) MarshalText() ([]byte, error) {
-	switch s {
-	case GetInscriptionOpTemplateOperationTransfer:
-		return []byte(s), nil
-	default:
-		return nil, errors.Errorf("invalid value: %q", s)
-	}
-}
-
-// UnmarshalText implements encoding.TextUnmarshaler.
-func (s *GetInscriptionOpTemplateOperation) UnmarshalText(data []byte) error {
-	switch GetInscriptionOpTemplateOperation(data) {
-	case GetInscriptionOpTemplateOperationTransfer:
-		*s = GetInscriptionOpTemplateOperationTransfer
-		return nil
-	default:
-		return errors.Errorf("invalid value: %q", data)
-	}
-}
-
 type GetInscriptionOpTemplateType string
 
 const (
@@ -9792,6 +9758,40 @@ func (s *NftPurchaseActionAuctionType) UnmarshalText(data []byte) error {
 		return nil
 	case NftPurchaseActionAuctionTypeGetgems:
 		*s = NftPurchaseActionAuctionTypeGetgems
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type Operation string
+
+const (
+	OperationTransfer Operation = "transfer"
+)
+
+// AllValues returns all Operation values.
+func (Operation) AllValues() []Operation {
+	return []Operation{
+		OperationTransfer,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s Operation) MarshalText() ([]byte, error) {
+	switch s {
+	case OperationTransfer:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *Operation) UnmarshalText(data []byte) error {
+	switch Operation(data) {
+	case OperationTransfer:
+		*s = OperationTransfer
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)

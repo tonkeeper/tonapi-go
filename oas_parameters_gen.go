@@ -369,10 +369,10 @@ type GetEventParams struct {
 
 // GetInscriptionOpTemplateParams is parameters of getInscriptionOpTemplate operation.
 type GetInscriptionOpTemplateParams struct {
+	Operation   Operation
 	Type        GetInscriptionOpTemplateType
 	Destination OptString
 	Comment     OptString
-	Operation   GetInscriptionOpTemplateOperation
 	Amount      string
 	Ticker      string
 	Who         string

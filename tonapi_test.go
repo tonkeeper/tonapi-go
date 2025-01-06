@@ -3,6 +3,8 @@ package tonapi
 import (
 	"context"
 	"fmt"
+	"github.com/graze/go-throttled"
+	"golang.org/x/time/rate"
 	"net/http"
 	"testing"
 	"time"
@@ -13,6 +15,22 @@ import (
 )
 
 var systemAccountID = ton.MustParseAccountID("Ef8AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAADAU")
+
+func TestThrottling(t *testing.T) {
+	throttledClient := &http.Client{
+		Transport: throttled.NewTransport(
+			http.DefaultTransport,
+			rate.NewLimiter(rate.Limit(1), 1)),
+	}
+	client, err := New(WithClient(throttledClient))
+	if err != nil {
+		t.Fatalf("failed to init tonapi client: %v", err)
+	}
+	for i := 0; i < 30; i++ {
+		_, err = client.Status(context.Background())
+		require.NoError(t, err)
+	}
+}
 
 func TestCustomRequest(t *testing.T) {
 	client, err := New()
@@ -78,7 +96,7 @@ func TestCustomRequest(t *testing.T) {
 				require.NoError(t, err)
 				require.NotNil(t, resp)
 			}
-			time.Sleep(time.Millisecond * 100) // rps limit
+			time.Sleep(time.Second) // rps limit
 		})
 	}
 }
