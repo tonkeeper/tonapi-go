@@ -2,38 +2,81 @@ package tonapi
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"github.com/graze/go-throttled"
-	"golang.org/x/time/rate"
-	"net/http"
-	"testing"
-	"time"
-
-	"github.com/go-faster/errors"
 	"github.com/stretchr/testify/require"
 	"github.com/tonkeeper/tongo/ton"
+	"golang.org/x/time/rate"
+	"net/http"
+	"os"
+	"testing"
 )
 
 var systemAccountID = ton.MustParseAccountID("Ef8AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAADAU")
 
+// TestThrottling tests the client with throttling.
 func TestThrottling(t *testing.T) {
-	throttledClient := &http.Client{
-		Transport: throttled.NewTransport(
-			http.DefaultTransport,
-			rate.NewLimiter(rate.Limit(1), 1)),
+	const (
+		withTokenName    = "WithToken"
+		withoutTokenName = "WithoutToken"
+	)
+	tests := []struct {
+		name      string
+		token     string
+		rateLimit rate.Limit
+		burst     int
+	}{
+		{
+			name:      withTokenName,
+			token:     os.Getenv("TONAPI_TOKEN"), // use TonApi token with Lite tier
+			rateLimit: 10,
+			burst:     10,
+		},
+		{
+			name:      withoutTokenName,
+			token:     "",
+			rateLimit: 1,
+			burst:     1,
+		},
 	}
-	client, err := New(WithClient(throttledClient))
-	if err != nil {
-		t.Fatalf("failed to init tonapi client: %v", err)
-	}
-	for i := 0; i < 30; i++ {
-		_, err = client.Status(context.Background())
-		require.NoError(t, err)
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			throttledClient := &http.Client{
+				Transport: throttled.NewTransport(
+					http.DefaultTransport,
+					rate.NewLimiter(tt.rateLimit, tt.burst)),
+			}
+			if tt.token == "" && tt.name == withTokenName {
+				t.Skip("skipping test with token")
+			}
+			var client *Client
+			var err error
+			if tt.token == "" {
+				client, err = New(nil, WithClient(throttledClient))
+			} else {
+				client, err = New(WithToken(tt.token), WithClient(throttledClient))
+			}
+			if err != nil {
+				t.Fatalf("failed to init tonapi client: %v", err)
+			}
+			for i := 0; i < 30; i++ {
+				_, err = client.Status(context.Background())
+				require.NoError(t, err)
+			}
+		})
 	}
 }
 
+// TestCustomRequest tests the client with custom requests.
 func TestCustomRequest(t *testing.T) {
-	client, err := New()
+	throttledClient := &http.Client{
+		Transport: throttled.NewTransport(
+			http.DefaultTransport,
+			rate.NewLimiter(1, 1)),
+	}
+	client, err := New(nil, WithClient(throttledClient))
 	if err != nil {
 		t.Fatalf("failed to init tonapi client: %v", err)
 	}
@@ -96,7 +139,6 @@ func TestCustomRequest(t *testing.T) {
 				require.NoError(t, err)
 				require.NotNil(t, resp)
 			}
-			time.Sleep(time.Second) // rps limit
 		})
 	}
 }

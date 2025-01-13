@@ -2805,7 +2805,14 @@ paths:
                 $ref: '#/components/schemas/AccountEvent'
         'default':
           $ref: '#/components/responses/Error'
+security:
+  - bearerAuth: [ ]
+  - { }
 components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
   parameters:
     masterchainSeqno:
       in: path
