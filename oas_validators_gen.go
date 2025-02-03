@@ -1849,6 +1849,8 @@ func (s ComputeSkipReason) Validate() error {
 		return nil
 	case "cskip_no_gas":
 		return nil
+	case "cskip_suspended":
+		return nil
 	default:
 		return errors.Errorf("invalid value: %v", s)
 	}

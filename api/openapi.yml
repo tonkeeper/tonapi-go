@@ -3787,9 +3787,10 @@ components:
         - cskip_no_state
         - cskip_bad_state
         - cskip_no_gas
+        - cskip_suspended
     BouncePhaseType:
       type: string
-      example: cskip_no_state
+      example: TrPhaseBounceNegfunds
       enum:
         - TrPhaseBounceNegfunds
         - TrPhaseBounceNofunds
