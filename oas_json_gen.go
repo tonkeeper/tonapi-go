@@ -11563,6 +11563,8 @@ func (s *ComputeSkipReason) Decode(d *jx.Decoder) error {
 		*s = ComputeSkipReasonCskipBadState
 	case ComputeSkipReasonCskipNoGas:
 		*s = ComputeSkipReasonCskipNoGas
+	case ComputeSkipReasonCskipSuspended:
+		*s = ComputeSkipReasonCskipSuspended
 	default:
 		*s = ComputeSkipReason(v)
 	}

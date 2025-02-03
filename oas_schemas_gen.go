@@ -4268,9 +4268,10 @@ func (s *ComputePhase) SetExitCodeDescription(val OptString) {
 type ComputeSkipReason string
 
 const (
-	ComputeSkipReasonCskipNoState  ComputeSkipReason = "cskip_no_state"
-	ComputeSkipReasonCskipBadState ComputeSkipReason = "cskip_bad_state"
-	ComputeSkipReasonCskipNoGas    ComputeSkipReason = "cskip_no_gas"
+	ComputeSkipReasonCskipNoState   ComputeSkipReason = "cskip_no_state"
+	ComputeSkipReasonCskipBadState  ComputeSkipReason = "cskip_bad_state"
+	ComputeSkipReasonCskipNoGas     ComputeSkipReason = "cskip_no_gas"
+	ComputeSkipReasonCskipSuspended ComputeSkipReason = "cskip_suspended"
 )
 
 // AllValues returns all ComputeSkipReason values.
@@ -4279,6 +4280,7 @@ func (ComputeSkipReason) AllValues() []ComputeSkipReason {
 		ComputeSkipReasonCskipNoState,
 		ComputeSkipReasonCskipBadState,
 		ComputeSkipReasonCskipNoGas,
+		ComputeSkipReasonCskipSuspended,
 	}
 }
 
@@ -4290,6 +4292,8 @@ func (s ComputeSkipReason) MarshalText() ([]byte, error) {
 	case ComputeSkipReasonCskipBadState:
 		return []byte(s), nil
 	case ComputeSkipReasonCskipNoGas:
+		return []byte(s), nil
+	case ComputeSkipReasonCskipSuspended:
 		return []byte(s), nil
 	default:
 		return nil, errors.Errorf("invalid value: %q", s)
@@ -4307,6 +4311,9 @@ func (s *ComputeSkipReason) UnmarshalText(data []byte) error {
 		return nil
 	case ComputeSkipReasonCskipNoGas:
 		*s = ComputeSkipReasonCskipNoGas
+		return nil
+	case ComputeSkipReasonCskipSuspended:
+		*s = ComputeSkipReasonCskipSuspended
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
