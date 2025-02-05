@@ -57,6 +57,7 @@ type ExecGetMethodForBlockchainAccountParams struct {
 	// Contract get method name.
 	MethodName string
 	Args       []string
+	FixOrder   OptBool
 }
 
 // GaslessEstimateParams is parameters of gaslessEstimate operation.
@@ -107,6 +108,20 @@ type GetAccountEventsParams struct {
 	Initiator OptBool
 	// Filter actions where requested account is not real subject (for example sender or receiver jettons).
 	SubjectOnly OptBool
+	// Omit this parameter to get last events.
+	BeforeLt  OptInt64
+	Limit     int
+	StartDate OptInt64
+	EndDate   OptInt64
+}
+
+// GetAccountExtraCurrencyHistoryByIDParams is parameters of getAccountExtraCurrencyHistoryByID operation.
+type GetAccountExtraCurrencyHistoryByIDParams struct {
+	// Account ID.
+	AccountID string
+	// Extra currency id.
+	ID             int32
+	AcceptLanguage OptString
 	// Omit this parameter to get last events.
 	BeforeLt  OptInt64
 	Limit     int
@@ -367,12 +382,18 @@ type GetEventParams struct {
 	AcceptLanguage OptString
 }
 
+// GetExtraCurrencyInfoParams is parameters of getExtraCurrencyInfo operation.
+type GetExtraCurrencyInfoParams struct {
+	// Extra currency id.
+	ID int32
+}
+
 // GetInscriptionOpTemplateParams is parameters of getInscriptionOpTemplate operation.
 type GetInscriptionOpTemplateParams struct {
-	Operation   Operation
 	Type        GetInscriptionOpTemplateType
 	Destination OptString
 	Comment     OptString
+	Operation   GetInscriptionOpTemplateOperation
 	Amount      string
 	Ticker      string
 	Who         string
