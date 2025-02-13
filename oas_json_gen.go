@@ -25179,6 +25179,8 @@ func (s *JettonVerificationType) Decode(d *jx.Decoder) error {
 	switch JettonVerificationType(v) {
 	case JettonVerificationTypeWhitelist:
 		*s = JettonVerificationTypeWhitelist
+	case JettonVerificationTypeGraylist:
+		*s = JettonVerificationTypeGraylist
 	case JettonVerificationTypeBlacklist:
 		*s = JettonVerificationTypeBlacklist
 	case JettonVerificationTypeNone:
