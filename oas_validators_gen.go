@@ -579,6 +579,8 @@ func (s ActionType) Validate() error {
 	switch s {
 	case "TonTransfer":
 		return nil
+	case "ExtraCurrencyTransfer":
+		return nil
 	case "JettonTransfer":
 		return nil
 	case "JettonBurn":
@@ -896,7 +898,18 @@ func (s *BlockchainAccountInspect) Validate() error {
 		})
 	}
 	if err := func() error {
-		if value, ok := s.Compiler.Get(); ok {
+		if err := s.Compiler.Validate(); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "compiler",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if value, ok := s.Source.Get(); ok {
 			if err := func() error {
 				if err := value.Validate(); err != nil {
 					return err
@@ -909,7 +922,7 @@ func (s *BlockchainAccountInspect) Validate() error {
 		return nil
 	}(); err != nil {
 		failures = append(failures, validate.FieldError{
-			Name:  "compiler",
+			Name:  "source",
 			Error: err,
 		})
 	}
@@ -922,6 +935,10 @@ func (s *BlockchainAccountInspect) Validate() error {
 func (s BlockchainAccountInspectCompiler) Validate() error {
 	switch s {
 	case "func":
+		return nil
+	case "fift":
+		return nil
+	case "tact":
 		return nil
 	default:
 		return errors.Errorf("invalid value: %v", s)
@@ -2373,10 +2390,50 @@ func (s *FoundAccounts) Validate() error {
 		if s.Addresses == nil {
 			return errors.New("nil is invalid value")
 		}
+		var failures []validate.FieldError
+		for i, elem := range s.Addresses {
+			if err := func() error {
+				if err := elem.Validate(); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				failures = append(failures, validate.FieldError{
+					Name:  fmt.Sprintf("[%d]", i),
+					Error: err,
+				})
+			}
+		}
+		if len(failures) > 0 {
+			return &validate.Error{Fields: failures}
+		}
 		return nil
 	}(); err != nil {
 		failures = append(failures, validate.FieldError{
 			Name:  "addresses",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
+}
+
+func (s *FoundAccountsAddressesItem) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		if err := s.Trust.Validate(); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "trust",
 			Error: err,
 		})
 	}
@@ -3150,6 +3207,15 @@ func (s InscriptionMintActionType) Validate() error {
 	}
 }
 
+func (s InscriptionOperation) Validate() error {
+	switch s {
+	case "transfer":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
+}
+
 func (s *InscriptionTransferAction) Validate() error {
 	if s == nil {
 		return validate.ErrNilPointer
@@ -3502,8 +3568,6 @@ func (s *JettonTransferAction) Validate() error {
 func (s JettonVerificationType) Validate() error {
 	switch s {
 	case "whitelist":
-		return nil
-	case "graylist":
 		return nil
 	case "blacklist":
 		return nil
@@ -4155,15 +4219,6 @@ func (s NftPurchaseActionAuctionType) Validate() error {
 	}
 }
 
-func (s Operation) Validate() error {
-	switch s {
-	case "transfer":
-		return nil
-	default:
-		return errors.Errorf("invalid value: %v", s)
-	}
-}
-
 func (s *OracleBridgeParams) Validate() error {
 	if s == nil {
 		return validate.ErrNilPointer
@@ -4445,7 +4500,7 @@ func (s *SendBlockchainMessageReq) Validate() error {
 		if err := (validate.Array{
 			MinLength:    0,
 			MinLengthSet: false,
-			MaxLength:    10,
+			MaxLength:    5,
 			MaxLengthSet: true,
 		}).ValidateLength(len(s.Batch)); err != nil {
 			return errors.Wrap(err, "array")
@@ -4480,6 +4535,24 @@ func (s *SignRawParams) Validate() error {
 			Error: err,
 		})
 	}
+	if err := func() error {
+		if value, ok := s.Emulation.Get(); ok {
+			if err := func() error {
+				if err := value.Validate(); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "emulation",
+			Error: err,
+		})
+	}
 	if len(failures) > 0 {
 		return &validate.Error{Fields: failures}
 	}
@@ -4507,6 +4580,29 @@ func (s *SmartContractAction) Validate() error {
 	}(); err != nil {
 		failures = append(failures, validate.FieldError{
 			Name:  "refund",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
+}
+
+func (s *Source) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		if s.Files == nil {
+			return errors.New("nil is invalid value")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "files",
 			Error: err,
 		})
 	}
