@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/go-faster/errors"
+	"github.com/go-faster/jx"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/metric"
@@ -56,25 +57,25 @@ type Invoker interface {
 	DnsResolve(ctx context.Context, params DnsResolveParams) (*DnsRecord, error)
 	// EmulateMessageToAccountEvent invokes emulateMessageToAccountEvent operation.
 	//
-	// Emulate sending message to blockchain.
+	// Emulate sending message to retrieve account-specific events.
 	//
 	// POST /v2/accounts/{account_id}/events/emulate
 	EmulateMessageToAccountEvent(ctx context.Context, request *EmulateMessageToAccountEventReq, params EmulateMessageToAccountEventParams) (*AccountEvent, error)
 	// EmulateMessageToEvent invokes emulateMessageToEvent operation.
 	//
-	// Emulate sending message to blockchain.
+	// Emulate sending message to retrieve general blockchain events.
 	//
 	// POST /v2/events/emulate
 	EmulateMessageToEvent(ctx context.Context, request *EmulateMessageToEventReq, params EmulateMessageToEventParams) (*Event, error)
 	// EmulateMessageToTrace invokes emulateMessageToTrace operation.
 	//
-	// Emulate sending message to blockchain.
+	// Emulate sending message to retrieve with a detailed execution trace.
 	//
 	// POST /v2/traces/emulate
 	EmulateMessageToTrace(ctx context.Context, request *EmulateMessageToTraceReq, params EmulateMessageToTraceParams) (*Trace, error)
 	// EmulateMessageToWallet invokes emulateMessageToWallet operation.
 	//
-	// Emulate sending message to blockchain.
+	// Emulate sending message to retrieve the resulting wallet state.
 	//
 	// POST /v2/wallet/emulate
 	EmulateMessageToWallet(ctx context.Context, request *EmulateMessageToWalletReq, params EmulateMessageToWalletParams) (*MessageConsequences, error)
@@ -101,7 +102,7 @@ type Invoker interface {
 	// Submits the signed gasless transaction message to the network.
 	//
 	// POST /v2/gasless/send
-	GaslessSend(ctx context.Context, request *GaslessSendReq) error
+	GaslessSend(ctx context.Context, request *GaslessSendReq) (*GaslessTx, error)
 	// GetAccount invokes getAccount operation.
 	//
 	// Get human-friendly information about an account without low-level details.
@@ -136,6 +137,12 @@ type Invoker interface {
 	//
 	// GET /v2/accounts/{account_id}/events
 	GetAccountEvents(ctx context.Context, params GetAccountEventsParams) (*AccountEvents, error)
+	// GetAccountExtraCurrencyHistoryByID invokes getAccountExtraCurrencyHistoryByID operation.
+	//
+	// Get the transfer history of extra currencies for an account.
+	//
+	// GET /v2/accounts/{account_id}/extra-currency/{id}/history
+	GetAccountExtraCurrencyHistoryByID(ctx context.Context, params GetAccountExtraCurrencyHistoryByIDParams) (*AccountEvents, error)
 	// GetAccountInfoByStateInit invokes getAccountInfoByStateInit operation.
 	//
 	// Get account info by state init.
@@ -363,6 +370,12 @@ type Invoker interface {
 	//
 	// GET /v2/events/{event_id}
 	GetEvent(ctx context.Context, params GetEventParams) (*Event, error)
+	// GetExtraCurrencyInfo invokes getExtraCurrencyInfo operation.
+	//
+	// Get extra currency info by id.
+	//
+	// GET /v2/extra-currency/{id}
+	GetExtraCurrencyInfo(ctx context.Context, params GetExtraCurrencyInfoParams) (*EcPreview, error)
 	// GetInscriptionOpTemplate invokes getInscriptionOpTemplate operation.
 	//
 	// Return comment for making operation with inscription. please don't use it if you don't know what
@@ -460,6 +473,18 @@ type Invoker interface {
 	//
 	// POST /v2/nfts/_bulk
 	GetNftItemsByAddresses(ctx context.Context, request OptGetNftItemsByAddressesReq) (*NftItems, error)
+	// GetOpenapiJson invokes getOpenapiJson operation.
+	//
+	// Get the openapi.json file.
+	//
+	// GET /v2/openapi.json
+	GetOpenapiJson(ctx context.Context) (jx.Raw, error)
+	// GetOpenapiYml invokes getOpenapiYml operation.
+	//
+	// Get the openapi.yml file.
+	//
+	// GET /v2/openapi.yml
+	GetOpenapiYml(ctx context.Context) (GetOpenapiYmlOK, error)
 	// GetOutMsgQueueSizes invokes getOutMsgQueueSizes operation.
 	//
 	// Get out msg queue sizes.
@@ -1306,7 +1331,7 @@ func (c *Client) sendDnsResolve(ctx context.Context, params DnsResolveParams) (r
 
 // EmulateMessageToAccountEvent invokes emulateMessageToAccountEvent operation.
 //
-// Emulate sending message to blockchain.
+// Emulate sending message to retrieve account-specific events.
 //
 // POST /v2/accounts/{account_id}/events/emulate
 func (c *Client) EmulateMessageToAccountEvent(ctx context.Context, request *EmulateMessageToAccountEventReq, params EmulateMessageToAccountEventParams) (*AccountEvent, error) {
@@ -1472,7 +1497,7 @@ func (c *Client) sendEmulateMessageToAccountEvent(ctx context.Context, request *
 
 // EmulateMessageToEvent invokes emulateMessageToEvent operation.
 //
-// Emulate sending message to blockchain.
+// Emulate sending message to retrieve general blockchain events.
 //
 // POST /v2/events/emulate
 func (c *Client) EmulateMessageToEvent(ctx context.Context, request *EmulateMessageToEventReq, params EmulateMessageToEventParams) (*Event, error) {
@@ -1619,7 +1644,7 @@ func (c *Client) sendEmulateMessageToEvent(ctx context.Context, request *Emulate
 
 // EmulateMessageToTrace invokes emulateMessageToTrace operation.
 //
-// Emulate sending message to blockchain.
+// Emulate sending message to retrieve with a detailed execution trace.
 //
 // POST /v2/traces/emulate
 func (c *Client) EmulateMessageToTrace(ctx context.Context, request *EmulateMessageToTraceReq, params EmulateMessageToTraceParams) (*Trace, error) {
@@ -1749,7 +1774,7 @@ func (c *Client) sendEmulateMessageToTrace(ctx context.Context, request *Emulate
 
 // EmulateMessageToWallet invokes emulateMessageToWallet operation.
 //
-// Emulate sending message to blockchain.
+// Emulate sending message to retrieve the resulting wallet state.
 //
 // POST /v2/wallet/emulate
 func (c *Client) EmulateMessageToWallet(ctx context.Context, request *EmulateMessageToWalletReq, params EmulateMessageToWalletParams) (*MessageConsequences, error) {
@@ -2238,6 +2263,23 @@ func (c *Client) sendGaslessEstimate(ctx context.Context, request *GaslessEstima
 		return res, errors.Wrap(err, "encode request")
 	}
 
+	stage = "EncodeHeaderParams"
+	h := uri.NewHeaderEncoder(r.Header)
+	{
+		cfg := uri.HeaderParameterEncodingConfig{
+			Name:    "Accept-Language",
+			Explode: false,
+		}
+		if err := h.EncodeParam(cfg, func(e uri.Encoder) error {
+			if val, ok := params.AcceptLanguage.Get(); ok {
+				return e.EncodeValue(conv.StringToString(val))
+			}
+			return nil
+		}); err != nil {
+			return res, errors.Wrap(err, "encode header")
+		}
+	}
+
 	{
 		type bitset = [1]uint8
 		var satisfied bitset
@@ -2293,12 +2335,12 @@ func (c *Client) sendGaslessEstimate(ctx context.Context, request *GaslessEstima
 // Submits the signed gasless transaction message to the network.
 //
 // POST /v2/gasless/send
-func (c *Client) GaslessSend(ctx context.Context, request *GaslessSendReq) error {
-	_, err := c.sendGaslessSend(ctx, request)
-	return err
+func (c *Client) GaslessSend(ctx context.Context, request *GaslessSendReq) (*GaslessTx, error) {
+	res, err := c.sendGaslessSend(ctx, request)
+	return res, err
 }
 
-func (c *Client) sendGaslessSend(ctx context.Context, request *GaslessSendReq) (res *GaslessSendOK, err error) {
+func (c *Client) sendGaslessSend(ctx context.Context, request *GaslessSendReq) (res *GaslessTx, err error) {
 	otelAttrs := []attribute.KeyValue{
 		otelogen.OperationID("gaslessSend"),
 		semconv.HTTPRequestMethodKey.String("POST"),
@@ -3247,6 +3289,236 @@ func (c *Client) sendGetAccountEvents(ctx context.Context, params GetAccountEven
 
 	stage = "DecodeResponse"
 	result, err := decodeGetAccountEventsResponse(resp)
+	if err != nil {
+		return res, errors.Wrap(err, "decode response")
+	}
+
+	return result, nil
+}
+
+// GetAccountExtraCurrencyHistoryByID invokes getAccountExtraCurrencyHistoryByID operation.
+//
+// Get the transfer history of extra currencies for an account.
+//
+// GET /v2/accounts/{account_id}/extra-currency/{id}/history
+func (c *Client) GetAccountExtraCurrencyHistoryByID(ctx context.Context, params GetAccountExtraCurrencyHistoryByIDParams) (*AccountEvents, error) {
+	res, err := c.sendGetAccountExtraCurrencyHistoryByID(ctx, params)
+	return res, err
+}
+
+func (c *Client) sendGetAccountExtraCurrencyHistoryByID(ctx context.Context, params GetAccountExtraCurrencyHistoryByIDParams) (res *AccountEvents, err error) {
+	otelAttrs := []attribute.KeyValue{
+		otelogen.OperationID("getAccountExtraCurrencyHistoryByID"),
+		semconv.HTTPRequestMethodKey.String("GET"),
+		semconv.HTTPRouteKey.String("/v2/accounts/{account_id}/extra-currency/{id}/history"),
+	}
+
+	// Run stopwatch.
+	startTime := time.Now()
+	defer func() {
+		// Use floating point division here for higher precision (instead of Millisecond method).
+		elapsedDuration := time.Since(startTime)
+		c.duration.Record(ctx, float64(elapsedDuration)/float64(time.Millisecond), metric.WithAttributes(otelAttrs...))
+	}()
+
+	// Increment request counter.
+	c.requests.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
+
+	// Start a span for this request.
+	ctx, span := c.cfg.Tracer.Start(ctx, GetAccountExtraCurrencyHistoryByIDOperation,
+		trace.WithAttributes(otelAttrs...),
+		clientSpanKind,
+	)
+	// Track stage for error reporting.
+	var stage string
+	defer func() {
+		if err != nil {
+			span.RecordError(err)
+			span.SetStatus(codes.Error, stage)
+			c.errors.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
+		}
+		span.End()
+	}()
+
+	stage = "BuildURL"
+	u := uri.Clone(c.requestURL(ctx))
+	var pathParts [5]string
+	pathParts[0] = "/v2/accounts/"
+	{
+		// Encode "account_id" parameter.
+		e := uri.NewPathEncoder(uri.PathEncoderConfig{
+			Param:   "account_id",
+			Style:   uri.PathStyleSimple,
+			Explode: false,
+		})
+		if err := func() error {
+			return e.EncodeValue(conv.StringToString(params.AccountID))
+		}(); err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		encoded, err := e.Result()
+		if err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		pathParts[1] = encoded
+	}
+	pathParts[2] = "/extra-currency/"
+	{
+		// Encode "id" parameter.
+		e := uri.NewPathEncoder(uri.PathEncoderConfig{
+			Param:   "id",
+			Style:   uri.PathStyleSimple,
+			Explode: false,
+		})
+		if err := func() error {
+			return e.EncodeValue(conv.Int32ToString(params.ID))
+		}(); err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		encoded, err := e.Result()
+		if err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		pathParts[3] = encoded
+	}
+	pathParts[4] = "/history"
+	uri.AddPathParts(u, pathParts[:]...)
+
+	stage = "EncodeQueryParams"
+	q := uri.NewQueryEncoder()
+	{
+		// Encode "before_lt" parameter.
+		cfg := uri.QueryParameterEncodingConfig{
+			Name:    "before_lt",
+			Style:   uri.QueryStyleForm,
+			Explode: true,
+		}
+
+		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
+			if val, ok := params.BeforeLt.Get(); ok {
+				return e.EncodeValue(conv.Int64ToString(val))
+			}
+			return nil
+		}); err != nil {
+			return res, errors.Wrap(err, "encode query")
+		}
+	}
+	{
+		// Encode "limit" parameter.
+		cfg := uri.QueryParameterEncodingConfig{
+			Name:    "limit",
+			Style:   uri.QueryStyleForm,
+			Explode: true,
+		}
+
+		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
+			return e.EncodeValue(conv.IntToString(params.Limit))
+		}); err != nil {
+			return res, errors.Wrap(err, "encode query")
+		}
+	}
+	{
+		// Encode "start_date" parameter.
+		cfg := uri.QueryParameterEncodingConfig{
+			Name:    "start_date",
+			Style:   uri.QueryStyleForm,
+			Explode: true,
+		}
+
+		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
+			if val, ok := params.StartDate.Get(); ok {
+				return e.EncodeValue(conv.Int64ToString(val))
+			}
+			return nil
+		}); err != nil {
+			return res, errors.Wrap(err, "encode query")
+		}
+	}
+	{
+		// Encode "end_date" parameter.
+		cfg := uri.QueryParameterEncodingConfig{
+			Name:    "end_date",
+			Style:   uri.QueryStyleForm,
+			Explode: true,
+		}
+
+		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
+			if val, ok := params.EndDate.Get(); ok {
+				return e.EncodeValue(conv.Int64ToString(val))
+			}
+			return nil
+		}); err != nil {
+			return res, errors.Wrap(err, "encode query")
+		}
+	}
+	u.RawQuery = q.Values().Encode()
+
+	stage = "EncodeRequest"
+	r, err := ht.NewRequest(ctx, "GET", u)
+	if err != nil {
+		return res, errors.Wrap(err, "create request")
+	}
+
+	stage = "EncodeHeaderParams"
+	h := uri.NewHeaderEncoder(r.Header)
+	{
+		cfg := uri.HeaderParameterEncodingConfig{
+			Name:    "Accept-Language",
+			Explode: false,
+		}
+		if err := h.EncodeParam(cfg, func(e uri.Encoder) error {
+			if val, ok := params.AcceptLanguage.Get(); ok {
+				return e.EncodeValue(conv.StringToString(val))
+			}
+			return nil
+		}); err != nil {
+			return res, errors.Wrap(err, "encode header")
+		}
+	}
+
+	{
+		type bitset = [1]uint8
+		var satisfied bitset
+		{
+			stage = "Security:BearerAuth"
+			switch err := c.securityBearerAuth(ctx, GetAccountExtraCurrencyHistoryByIDOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 0
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"BearerAuth\"")
+			}
+		}
+
+		if ok := func() bool {
+		nextRequirement:
+			for _, requirement := range []bitset{
+				{0b00000001},
+				{},
+			} {
+				for i, mask := range requirement {
+					if satisfied[i]&mask != mask {
+						continue nextRequirement
+					}
+				}
+				return true
+			}
+			return false
+		}(); !ok {
+			return res, ogenerrors.ErrSecurityRequirementIsNotSatisfied
+		}
+	}
+
+	stage = "SendRequest"
+	resp, err := c.cfg.Client.Do(r)
+	if err != nil {
+		return res, errors.Wrap(err, "do request")
+	}
+	defer resp.Body.Close()
+
+	stage = "DecodeResponse"
+	result, err := decodeGetAccountExtraCurrencyHistoryByIDResponse(resp)
 	if err != nil {
 		return res, errors.Wrap(err, "decode response")
 	}
@@ -8549,6 +8821,130 @@ func (c *Client) sendGetEvent(ctx context.Context, params GetEventParams) (res *
 	return result, nil
 }
 
+// GetExtraCurrencyInfo invokes getExtraCurrencyInfo operation.
+//
+// Get extra currency info by id.
+//
+// GET /v2/extra-currency/{id}
+func (c *Client) GetExtraCurrencyInfo(ctx context.Context, params GetExtraCurrencyInfoParams) (*EcPreview, error) {
+	res, err := c.sendGetExtraCurrencyInfo(ctx, params)
+	return res, err
+}
+
+func (c *Client) sendGetExtraCurrencyInfo(ctx context.Context, params GetExtraCurrencyInfoParams) (res *EcPreview, err error) {
+	otelAttrs := []attribute.KeyValue{
+		otelogen.OperationID("getExtraCurrencyInfo"),
+		semconv.HTTPRequestMethodKey.String("GET"),
+		semconv.HTTPRouteKey.String("/v2/extra-currency/{id}"),
+	}
+
+	// Run stopwatch.
+	startTime := time.Now()
+	defer func() {
+		// Use floating point division here for higher precision (instead of Millisecond method).
+		elapsedDuration := time.Since(startTime)
+		c.duration.Record(ctx, float64(elapsedDuration)/float64(time.Millisecond), metric.WithAttributes(otelAttrs...))
+	}()
+
+	// Increment request counter.
+	c.requests.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
+
+	// Start a span for this request.
+	ctx, span := c.cfg.Tracer.Start(ctx, GetExtraCurrencyInfoOperation,
+		trace.WithAttributes(otelAttrs...),
+		clientSpanKind,
+	)
+	// Track stage for error reporting.
+	var stage string
+	defer func() {
+		if err != nil {
+			span.RecordError(err)
+			span.SetStatus(codes.Error, stage)
+			c.errors.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
+		}
+		span.End()
+	}()
+
+	stage = "BuildURL"
+	u := uri.Clone(c.requestURL(ctx))
+	var pathParts [2]string
+	pathParts[0] = "/v2/extra-currency/"
+	{
+		// Encode "id" parameter.
+		e := uri.NewPathEncoder(uri.PathEncoderConfig{
+			Param:   "id",
+			Style:   uri.PathStyleSimple,
+			Explode: false,
+		})
+		if err := func() error {
+			return e.EncodeValue(conv.Int32ToString(params.ID))
+		}(); err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		encoded, err := e.Result()
+		if err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		pathParts[1] = encoded
+	}
+	uri.AddPathParts(u, pathParts[:]...)
+
+	stage = "EncodeRequest"
+	r, err := ht.NewRequest(ctx, "GET", u)
+	if err != nil {
+		return res, errors.Wrap(err, "create request")
+	}
+
+	{
+		type bitset = [1]uint8
+		var satisfied bitset
+		{
+			stage = "Security:BearerAuth"
+			switch err := c.securityBearerAuth(ctx, GetExtraCurrencyInfoOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 0
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"BearerAuth\"")
+			}
+		}
+
+		if ok := func() bool {
+		nextRequirement:
+			for _, requirement := range []bitset{
+				{0b00000001},
+				{},
+			} {
+				for i, mask := range requirement {
+					if satisfied[i]&mask != mask {
+						continue nextRequirement
+					}
+				}
+				return true
+			}
+			return false
+		}(); !ok {
+			return res, ogenerrors.ErrSecurityRequirementIsNotSatisfied
+		}
+	}
+
+	stage = "SendRequest"
+	resp, err := c.cfg.Client.Do(r)
+	if err != nil {
+		return res, errors.Wrap(err, "do request")
+	}
+	defer resp.Body.Close()
+
+	stage = "DecodeResponse"
+	result, err := decodeGetExtraCurrencyInfoResponse(resp)
+	if err != nil {
+		return res, errors.Wrap(err, "decode response")
+	}
+
+	return result, nil
+}
+
 // GetInscriptionOpTemplate invokes getInscriptionOpTemplate operation.
 //
 // Return comment for making operation with inscription. please don't use it if you don't know what
@@ -10845,6 +11241,218 @@ func (c *Client) sendGetNftItemsByAddresses(ctx context.Context, request OptGetN
 
 	stage = "DecodeResponse"
 	result, err := decodeGetNftItemsByAddressesResponse(resp)
+	if err != nil {
+		return res, errors.Wrap(err, "decode response")
+	}
+
+	return result, nil
+}
+
+// GetOpenapiJson invokes getOpenapiJson operation.
+//
+// Get the openapi.json file.
+//
+// GET /v2/openapi.json
+func (c *Client) GetOpenapiJson(ctx context.Context) (jx.Raw, error) {
+	res, err := c.sendGetOpenapiJson(ctx)
+	return res, err
+}
+
+func (c *Client) sendGetOpenapiJson(ctx context.Context) (res jx.Raw, err error) {
+	otelAttrs := []attribute.KeyValue{
+		otelogen.OperationID("getOpenapiJson"),
+		semconv.HTTPRequestMethodKey.String("GET"),
+		semconv.HTTPRouteKey.String("/v2/openapi.json"),
+	}
+
+	// Run stopwatch.
+	startTime := time.Now()
+	defer func() {
+		// Use floating point division here for higher precision (instead of Millisecond method).
+		elapsedDuration := time.Since(startTime)
+		c.duration.Record(ctx, float64(elapsedDuration)/float64(time.Millisecond), metric.WithAttributes(otelAttrs...))
+	}()
+
+	// Increment request counter.
+	c.requests.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
+
+	// Start a span for this request.
+	ctx, span := c.cfg.Tracer.Start(ctx, GetOpenapiJsonOperation,
+		trace.WithAttributes(otelAttrs...),
+		clientSpanKind,
+	)
+	// Track stage for error reporting.
+	var stage string
+	defer func() {
+		if err != nil {
+			span.RecordError(err)
+			span.SetStatus(codes.Error, stage)
+			c.errors.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
+		}
+		span.End()
+	}()
+
+	stage = "BuildURL"
+	u := uri.Clone(c.requestURL(ctx))
+	var pathParts [1]string
+	pathParts[0] = "/v2/openapi.json"
+	uri.AddPathParts(u, pathParts[:]...)
+
+	stage = "EncodeRequest"
+	r, err := ht.NewRequest(ctx, "GET", u)
+	if err != nil {
+		return res, errors.Wrap(err, "create request")
+	}
+
+	{
+		type bitset = [1]uint8
+		var satisfied bitset
+		{
+			stage = "Security:BearerAuth"
+			switch err := c.securityBearerAuth(ctx, GetOpenapiJsonOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 0
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"BearerAuth\"")
+			}
+		}
+
+		if ok := func() bool {
+		nextRequirement:
+			for _, requirement := range []bitset{
+				{0b00000001},
+				{},
+			} {
+				for i, mask := range requirement {
+					if satisfied[i]&mask != mask {
+						continue nextRequirement
+					}
+				}
+				return true
+			}
+			return false
+		}(); !ok {
+			return res, ogenerrors.ErrSecurityRequirementIsNotSatisfied
+		}
+	}
+
+	stage = "SendRequest"
+	resp, err := c.cfg.Client.Do(r)
+	if err != nil {
+		return res, errors.Wrap(err, "do request")
+	}
+	defer resp.Body.Close()
+
+	stage = "DecodeResponse"
+	result, err := decodeGetOpenapiJsonResponse(resp)
+	if err != nil {
+		return res, errors.Wrap(err, "decode response")
+	}
+
+	return result, nil
+}
+
+// GetOpenapiYml invokes getOpenapiYml operation.
+//
+// Get the openapi.yml file.
+//
+// GET /v2/openapi.yml
+func (c *Client) GetOpenapiYml(ctx context.Context) (GetOpenapiYmlOK, error) {
+	res, err := c.sendGetOpenapiYml(ctx)
+	return res, err
+}
+
+func (c *Client) sendGetOpenapiYml(ctx context.Context) (res GetOpenapiYmlOK, err error) {
+	otelAttrs := []attribute.KeyValue{
+		otelogen.OperationID("getOpenapiYml"),
+		semconv.HTTPRequestMethodKey.String("GET"),
+		semconv.HTTPRouteKey.String("/v2/openapi.yml"),
+	}
+
+	// Run stopwatch.
+	startTime := time.Now()
+	defer func() {
+		// Use floating point division here for higher precision (instead of Millisecond method).
+		elapsedDuration := time.Since(startTime)
+		c.duration.Record(ctx, float64(elapsedDuration)/float64(time.Millisecond), metric.WithAttributes(otelAttrs...))
+	}()
+
+	// Increment request counter.
+	c.requests.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
+
+	// Start a span for this request.
+	ctx, span := c.cfg.Tracer.Start(ctx, GetOpenapiYmlOperation,
+		trace.WithAttributes(otelAttrs...),
+		clientSpanKind,
+	)
+	// Track stage for error reporting.
+	var stage string
+	defer func() {
+		if err != nil {
+			span.RecordError(err)
+			span.SetStatus(codes.Error, stage)
+			c.errors.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
+		}
+		span.End()
+	}()
+
+	stage = "BuildURL"
+	u := uri.Clone(c.requestURL(ctx))
+	var pathParts [1]string
+	pathParts[0] = "/v2/openapi.yml"
+	uri.AddPathParts(u, pathParts[:]...)
+
+	stage = "EncodeRequest"
+	r, err := ht.NewRequest(ctx, "GET", u)
+	if err != nil {
+		return res, errors.Wrap(err, "create request")
+	}
+
+	{
+		type bitset = [1]uint8
+		var satisfied bitset
+		{
+			stage = "Security:BearerAuth"
+			switch err := c.securityBearerAuth(ctx, GetOpenapiYmlOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 0
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"BearerAuth\"")
+			}
+		}
+
+		if ok := func() bool {
+		nextRequirement:
+			for _, requirement := range []bitset{
+				{0b00000001},
+				{},
+			} {
+				for i, mask := range requirement {
+					if satisfied[i]&mask != mask {
+						continue nextRequirement
+					}
+				}
+				return true
+			}
+			return false
+		}(); !ok {
+			return res, ogenerrors.ErrSecurityRequirementIsNotSatisfied
+		}
+	}
+
+	stage = "SendRequest"
+	resp, err := c.cfg.Client.Do(r)
+	if err != nil {
+		return res, errors.Wrap(err, "do request")
+	}
+	defer resp.Body.Close()
+
+	stage = "DecodeResponse"
+	result, err := decodeGetOpenapiYmlResponse(resp)
 	if err != nil {
 		return res, errors.Wrap(err, "decode response")
 	}
