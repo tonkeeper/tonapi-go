@@ -129,35 +129,6 @@ type GetAccountExtraCurrencyHistoryByIDParams struct {
 	EndDate   OptInt64
 }
 
-// GetAccountInscriptionsParams is parameters of getAccountInscriptions operation.
-type GetAccountInscriptionsParams struct {
-	// Account ID.
-	AccountID string
-	Limit     OptInt
-	Offset    OptInt
-}
-
-// GetAccountInscriptionsHistoryParams is parameters of getAccountInscriptionsHistory operation.
-type GetAccountInscriptionsHistoryParams struct {
-	// Account ID.
-	AccountID      string
-	AcceptLanguage OptString
-	// Omit this parameter to get last events.
-	BeforeLt OptInt64
-	Limit    OptInt
-}
-
-// GetAccountInscriptionsHistoryByTickerParams is parameters of getAccountInscriptionsHistoryByTicker operation.
-type GetAccountInscriptionsHistoryByTickerParams struct {
-	// Account ID.
-	AccountID      string
-	AcceptLanguage OptString
-	Ticker         string
-	// Omit this parameter to get last events.
-	BeforeLt OptInt64
-	Limit    OptInt
-}
-
 // GetAccountJettonBalanceParams is parameters of getAccountJettonBalance operation.
 type GetAccountJettonBalanceParams struct {
 	// Account ID.
@@ -386,18 +357,6 @@ type GetEventParams struct {
 type GetExtraCurrencyInfoParams struct {
 	// Extra currency id.
 	ID int32
-}
-
-// GetInscriptionOpTemplateParams is parameters of getInscriptionOpTemplate operation.
-type GetInscriptionOpTemplateParams struct {
-	// Masterchain block seqno.
-	Operation   InscriptionOperation
-	Type        GetInscriptionOpTemplateType
-	Destination OptString
-	Comment     OptString
-	Amount      string
-	Ticker      string
-	Who         string
 }
 
 // GetItemsFromCollectionParams is parameters of getItemsFromCollection operation.
