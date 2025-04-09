@@ -9,14 +9,16 @@ import (
 	"time"
 
 	"github.com/go-faster/errors"
+	"github.com/go-faster/jx"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/metric"
-	semconv "go.opentelemetry.io/otel/semconv/v1.19.0"
+	semconv "go.opentelemetry.io/otel/semconv/v1.26.0"
 	"go.opentelemetry.io/otel/trace"
 
 	"github.com/ogen-go/ogen/conv"
 	ht "github.com/ogen-go/ogen/http"
+	"github.com/ogen-go/ogen/ogenerrors"
 	"github.com/ogen-go/ogen/otelogen"
 	"github.com/ogen-go/ogen/uri"
 )
@@ -55,25 +57,25 @@ type Invoker interface {
 	DnsResolve(ctx context.Context, params DnsResolveParams) (*DnsRecord, error)
 	// EmulateMessageToAccountEvent invokes emulateMessageToAccountEvent operation.
 	//
-	// Emulate sending message to blockchain.
+	// Emulate sending message to retrieve account-specific events.
 	//
 	// POST /v2/accounts/{account_id}/events/emulate
 	EmulateMessageToAccountEvent(ctx context.Context, request *EmulateMessageToAccountEventReq, params EmulateMessageToAccountEventParams) (*AccountEvent, error)
 	// EmulateMessageToEvent invokes emulateMessageToEvent operation.
 	//
-	// Emulate sending message to blockchain.
+	// Emulate sending message to retrieve general blockchain events.
 	//
 	// POST /v2/events/emulate
 	EmulateMessageToEvent(ctx context.Context, request *EmulateMessageToEventReq, params EmulateMessageToEventParams) (*Event, error)
 	// EmulateMessageToTrace invokes emulateMessageToTrace operation.
 	//
-	// Emulate sending message to blockchain.
+	// Emulate sending message to retrieve with a detailed execution trace.
 	//
 	// POST /v2/traces/emulate
 	EmulateMessageToTrace(ctx context.Context, request *EmulateMessageToTraceReq, params EmulateMessageToTraceParams) (*Trace, error)
 	// EmulateMessageToWallet invokes emulateMessageToWallet operation.
 	//
-	// Emulate sending message to blockchain.
+	// Emulate sending message to retrieve the resulting wallet state.
 	//
 	// POST /v2/wallet/emulate
 	EmulateMessageToWallet(ctx context.Context, request *EmulateMessageToWalletReq, params EmulateMessageToWalletParams) (*MessageConsequences, error)
@@ -100,7 +102,7 @@ type Invoker interface {
 	// Submits the signed gasless transaction message to the network.
 	//
 	// POST /v2/gasless/send
-	GaslessSend(ctx context.Context, request *GaslessSendReq) error
+	GaslessSend(ctx context.Context, request *GaslessSendReq) (*GaslessTx, error)
 	// GetAccount invokes getAccount operation.
 	//
 	// Get human-friendly information about an account without low-level details.
@@ -135,32 +137,18 @@ type Invoker interface {
 	//
 	// GET /v2/accounts/{account_id}/events
 	GetAccountEvents(ctx context.Context, params GetAccountEventsParams) (*AccountEvents, error)
+	// GetAccountExtraCurrencyHistoryByID invokes getAccountExtraCurrencyHistoryByID operation.
+	//
+	// Get the transfer history of extra currencies for an account.
+	//
+	// GET /v2/accounts/{account_id}/extra-currency/{id}/history
+	GetAccountExtraCurrencyHistoryByID(ctx context.Context, params GetAccountExtraCurrencyHistoryByIDParams) (*AccountEvents, error)
 	// GetAccountInfoByStateInit invokes getAccountInfoByStateInit operation.
 	//
 	// Get account info by state init.
 	//
 	// POST /v2/tonconnect/stateinit
 	GetAccountInfoByStateInit(ctx context.Context, request *GetAccountInfoByStateInitReq) (*AccountInfoByStateInit, error)
-	// GetAccountInscriptions invokes getAccountInscriptions operation.
-	//
-	// Get all inscriptions by owner address. It's experimental API and can be dropped in the future.
-	//
-	// GET /v2/experimental/accounts/{account_id}/inscriptions
-	GetAccountInscriptions(ctx context.Context, params GetAccountInscriptionsParams) (*InscriptionBalances, error)
-	// GetAccountInscriptionsHistory invokes getAccountInscriptionsHistory operation.
-	//
-	// Get the transfer inscriptions history for account. It's experimental API and can be dropped in the
-	// future.
-	//
-	// GET /v2/experimental/accounts/{account_id}/inscriptions/history
-	GetAccountInscriptionsHistory(ctx context.Context, params GetAccountInscriptionsHistoryParams) (*AccountEvents, error)
-	// GetAccountInscriptionsHistoryByTicker invokes getAccountInscriptionsHistoryByTicker operation.
-	//
-	// Get the transfer inscriptions history for account. It's experimental API and can be dropped in the
-	// future.
-	//
-	// GET /v2/experimental/accounts/{account_id}/inscriptions/{ticker}/history
-	GetAccountInscriptionsHistoryByTicker(ctx context.Context, params GetAccountInscriptionsHistoryByTickerParams) (*AccountEvents, error)
 	// GetAccountJettonBalance invokes getAccountJettonBalance operation.
 	//
 	// Get Jetton balance by owner address.
@@ -362,13 +350,12 @@ type Invoker interface {
 	//
 	// GET /v2/events/{event_id}
 	GetEvent(ctx context.Context, params GetEventParams) (*Event, error)
-	// GetInscriptionOpTemplate invokes getInscriptionOpTemplate operation.
+	// GetExtraCurrencyInfo invokes getExtraCurrencyInfo operation.
 	//
-	// Return comment for making operation with inscription. please don't use it if you don't know what
-	// you are doing.
+	// Get extra currency info by id.
 	//
-	// GET /v2/experimental/inscriptions/op-template
-	GetInscriptionOpTemplate(ctx context.Context, params GetInscriptionOpTemplateParams) (*GetInscriptionOpTemplateOK, error)
+	// GET /v2/extra-currency/{id}
+	GetExtraCurrencyInfo(ctx context.Context, params GetExtraCurrencyInfoParams) (*EcPreview, error)
 	// GetItemsFromCollection invokes getItemsFromCollection operation.
 	//
 	// Get NFT items from collection by collection address.
@@ -387,6 +374,12 @@ type Invoker interface {
 	//
 	// GET /v2/jettons/{account_id}
 	GetJettonInfo(ctx context.Context, params GetJettonInfoParams) (*JettonInfo, error)
+	// GetJettonInfosByAddresses invokes getJettonInfosByAddresses operation.
+	//
+	// Get jetton metadata items by jetton master addresses.
+	//
+	// POST /v2/jettons/_bulk
+	GetJettonInfosByAddresses(ctx context.Context, request OptGetJettonInfosByAddressesReq) (*Jettons, error)
 	// GetJettonTransferPayload invokes getJettonTransferPayload operation.
 	//
 	// Get jetton's custom payload and state init required for transfer.
@@ -423,6 +416,12 @@ type Invoker interface {
 	//
 	// GET /v2/nfts/collections/{account_id}
 	GetNftCollection(ctx context.Context, params GetNftCollectionParams) (*NftCollection, error)
+	// GetNftCollectionItemsByAddresses invokes getNftCollectionItemsByAddresses operation.
+	//
+	// Get NFT collection items by their addresses.
+	//
+	// POST /v2/nfts/collections/_bulk
+	GetNftCollectionItemsByAddresses(ctx context.Context, request OptGetNftCollectionItemsByAddressesReq) (*NftCollections, error)
 	// GetNftCollections invokes getNftCollections operation.
 	//
 	// Get NFT collections.
@@ -447,6 +446,18 @@ type Invoker interface {
 	//
 	// POST /v2/nfts/_bulk
 	GetNftItemsByAddresses(ctx context.Context, request OptGetNftItemsByAddressesReq) (*NftItems, error)
+	// GetOpenapiJson invokes getOpenapiJson operation.
+	//
+	// Get the openapi.json file.
+	//
+	// GET /v2/openapi.json
+	GetOpenapiJson(ctx context.Context) (jx.Raw, error)
+	// GetOpenapiYml invokes getOpenapiYml operation.
+	//
+	// Get the openapi.yml file.
+	//
+	// GET /v2/openapi.yml
+	GetOpenapiYml(ctx context.Context) (GetOpenapiYmlOK, error)
 	// GetOutMsgQueueSizes invokes getOutMsgQueueSizes operation.
 	//
 	// Get out msg queue sizes.
@@ -592,12 +603,6 @@ type Invoker interface {
 	//
 	// GET /v2/traces/{trace_id}
 	GetTrace(ctx context.Context, params GetTraceParams) (*Trace, error)
-	// GetWalletBackup invokes getWalletBackup operation.
-	//
-	// Get backup info.
-	//
-	// GET /v2/wallet/backup
-	GetWalletBackup(ctx context.Context, params GetWalletBackupParams) (*GetWalletBackupOK, error)
 	// GetWalletsByPublicKey invokes getWalletsByPublicKey operation.
 	//
 	// Get wallets by public key.
@@ -628,12 +633,6 @@ type Invoker interface {
 	//
 	// POST /v2/liteserver/send_message
 	SendRawMessage(ctx context.Context, request *SendRawMessageReq) (*SendRawMessageOK, error)
-	// SetWalletBackup invokes setWalletBackup operation.
-	//
-	// Set backup info.
-	//
-	// PUT /v2/wallet/backup
-	SetWalletBackup(ctx context.Context, request SetWalletBackupReq, params SetWalletBackupParams) error
 	// Status invokes status operation.
 	//
 	// Status.
@@ -651,6 +650,7 @@ type Invoker interface {
 // Client implements OAS client.
 type Client struct {
 	serverURL *url.URL
+	sec       SecuritySource
 	baseClient
 }
 
@@ -660,7 +660,7 @@ func trimTrailingSlashes(u *url.URL) {
 }
 
 // NewClient initializes new Client defined by OAS.
-func NewClient(serverURL string, opts ...ClientOption) (*Client, error) {
+func NewClient(serverURL string, sec SecuritySource, opts ...ClientOption) (*Client, error) {
 	u, err := url.Parse(serverURL)
 	if err != nil {
 		return nil, err
@@ -673,6 +673,7 @@ func NewClient(serverURL string, opts ...ClientOption) (*Client, error) {
 	}
 	return &Client{
 		serverURL:  u,
+		sec:        sec,
 		baseClient: c,
 	}, nil
 }
@@ -705,7 +706,7 @@ func (c *Client) AccountDnsBackResolve(ctx context.Context, params AccountDnsBac
 func (c *Client) sendAccountDnsBackResolve(ctx context.Context, params AccountDnsBackResolveParams) (res *DomainNames, err error) {
 	otelAttrs := []attribute.KeyValue{
 		otelogen.OperationID("accountDnsBackResolve"),
-		semconv.HTTPMethodKey.String("GET"),
+		semconv.HTTPRequestMethodKey.String("GET"),
 		semconv.HTTPRouteKey.String("/v2/accounts/{account_id}/dns/backresolve"),
 	}
 
@@ -714,14 +715,14 @@ func (c *Client) sendAccountDnsBackResolve(ctx context.Context, params AccountDn
 	defer func() {
 		// Use floating point division here for higher precision (instead of Millisecond method).
 		elapsedDuration := time.Since(startTime)
-		c.duration.Record(ctx, float64(float64(elapsedDuration)/float64(time.Millisecond)), metric.WithAttributes(otelAttrs...))
+		c.duration.Record(ctx, float64(elapsedDuration)/float64(time.Millisecond), metric.WithAttributes(otelAttrs...))
 	}()
 
 	// Increment request counter.
 	c.requests.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
 
 	// Start a span for this request.
-	ctx, span := c.cfg.Tracer.Start(ctx, "AccountDnsBackResolve",
+	ctx, span := c.cfg.Tracer.Start(ctx, AccountDnsBackResolveOperation,
 		trace.WithAttributes(otelAttrs...),
 		clientSpanKind,
 	)
@@ -767,6 +768,40 @@ func (c *Client) sendAccountDnsBackResolve(ctx context.Context, params AccountDn
 		return res, errors.Wrap(err, "create request")
 	}
 
+	{
+		type bitset = [1]uint8
+		var satisfied bitset
+		{
+			stage = "Security:BearerAuth"
+			switch err := c.securityBearerAuth(ctx, AccountDnsBackResolveOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 0
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"BearerAuth\"")
+			}
+		}
+
+		if ok := func() bool {
+		nextRequirement:
+			for _, requirement := range []bitset{
+				{0b00000001},
+				{},
+			} {
+				for i, mask := range requirement {
+					if satisfied[i]&mask != mask {
+						continue nextRequirement
+					}
+				}
+				return true
+			}
+			return false
+		}(); !ok {
+			return res, ogenerrors.ErrSecurityRequirementIsNotSatisfied
+		}
+	}
+
 	stage = "SendRequest"
 	resp, err := c.cfg.Client.Do(r)
 	if err != nil {
@@ -796,7 +831,7 @@ func (c *Client) AddressParse(ctx context.Context, params AddressParseParams) (*
 func (c *Client) sendAddressParse(ctx context.Context, params AddressParseParams) (res *AddressParseOK, err error) {
 	otelAttrs := []attribute.KeyValue{
 		otelogen.OperationID("addressParse"),
-		semconv.HTTPMethodKey.String("GET"),
+		semconv.HTTPRequestMethodKey.String("GET"),
 		semconv.HTTPRouteKey.String("/v2/address/{account_id}/parse"),
 	}
 
@@ -805,14 +840,14 @@ func (c *Client) sendAddressParse(ctx context.Context, params AddressParseParams
 	defer func() {
 		// Use floating point division here for higher precision (instead of Millisecond method).
 		elapsedDuration := time.Since(startTime)
-		c.duration.Record(ctx, float64(float64(elapsedDuration)/float64(time.Millisecond)), metric.WithAttributes(otelAttrs...))
+		c.duration.Record(ctx, float64(elapsedDuration)/float64(time.Millisecond), metric.WithAttributes(otelAttrs...))
 	}()
 
 	// Increment request counter.
 	c.requests.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
 
 	// Start a span for this request.
-	ctx, span := c.cfg.Tracer.Start(ctx, "AddressParse",
+	ctx, span := c.cfg.Tracer.Start(ctx, AddressParseOperation,
 		trace.WithAttributes(otelAttrs...),
 		clientSpanKind,
 	)
@@ -858,6 +893,40 @@ func (c *Client) sendAddressParse(ctx context.Context, params AddressParseParams
 		return res, errors.Wrap(err, "create request")
 	}
 
+	{
+		type bitset = [1]uint8
+		var satisfied bitset
+		{
+			stage = "Security:BearerAuth"
+			switch err := c.securityBearerAuth(ctx, AddressParseOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 0
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"BearerAuth\"")
+			}
+		}
+
+		if ok := func() bool {
+		nextRequirement:
+			for _, requirement := range []bitset{
+				{0b00000001},
+				{},
+			} {
+				for i, mask := range requirement {
+					if satisfied[i]&mask != mask {
+						continue nextRequirement
+					}
+				}
+				return true
+			}
+			return false
+		}(); !ok {
+			return res, ogenerrors.ErrSecurityRequirementIsNotSatisfied
+		}
+	}
+
 	stage = "SendRequest"
 	resp, err := c.cfg.Client.Do(r)
 	if err != nil {
@@ -887,7 +956,7 @@ func (c *Client) BlockchainAccountInspect(ctx context.Context, params Blockchain
 func (c *Client) sendBlockchainAccountInspect(ctx context.Context, params BlockchainAccountInspectParams) (res *BlockchainAccountInspect, err error) {
 	otelAttrs := []attribute.KeyValue{
 		otelogen.OperationID("blockchainAccountInspect"),
-		semconv.HTTPMethodKey.String("GET"),
+		semconv.HTTPRequestMethodKey.String("GET"),
 		semconv.HTTPRouteKey.String("/v2/blockchain/accounts/{account_id}/inspect"),
 	}
 
@@ -896,14 +965,14 @@ func (c *Client) sendBlockchainAccountInspect(ctx context.Context, params Blockc
 	defer func() {
 		// Use floating point division here for higher precision (instead of Millisecond method).
 		elapsedDuration := time.Since(startTime)
-		c.duration.Record(ctx, float64(float64(elapsedDuration)/float64(time.Millisecond)), metric.WithAttributes(otelAttrs...))
+		c.duration.Record(ctx, float64(elapsedDuration)/float64(time.Millisecond), metric.WithAttributes(otelAttrs...))
 	}()
 
 	// Increment request counter.
 	c.requests.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
 
 	// Start a span for this request.
-	ctx, span := c.cfg.Tracer.Start(ctx, "BlockchainAccountInspect",
+	ctx, span := c.cfg.Tracer.Start(ctx, BlockchainAccountInspectOperation,
 		trace.WithAttributes(otelAttrs...),
 		clientSpanKind,
 	)
@@ -949,6 +1018,40 @@ func (c *Client) sendBlockchainAccountInspect(ctx context.Context, params Blockc
 		return res, errors.Wrap(err, "create request")
 	}
 
+	{
+		type bitset = [1]uint8
+		var satisfied bitset
+		{
+			stage = "Security:BearerAuth"
+			switch err := c.securityBearerAuth(ctx, BlockchainAccountInspectOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 0
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"BearerAuth\"")
+			}
+		}
+
+		if ok := func() bool {
+		nextRequirement:
+			for _, requirement := range []bitset{
+				{0b00000001},
+				{},
+			} {
+				for i, mask := range requirement {
+					if satisfied[i]&mask != mask {
+						continue nextRequirement
+					}
+				}
+				return true
+			}
+			return false
+		}(); !ok {
+			return res, ogenerrors.ErrSecurityRequirementIsNotSatisfied
+		}
+	}
+
 	stage = "SendRequest"
 	resp, err := c.cfg.Client.Do(r)
 	if err != nil {
@@ -978,7 +1081,7 @@ func (c *Client) DecodeMessage(ctx context.Context, request *DecodeMessageReq) (
 func (c *Client) sendDecodeMessage(ctx context.Context, request *DecodeMessageReq) (res *DecodedMessage, err error) {
 	otelAttrs := []attribute.KeyValue{
 		otelogen.OperationID("decodeMessage"),
-		semconv.HTTPMethodKey.String("POST"),
+		semconv.HTTPRequestMethodKey.String("POST"),
 		semconv.HTTPRouteKey.String("/v2/message/decode"),
 	}
 
@@ -987,14 +1090,14 @@ func (c *Client) sendDecodeMessage(ctx context.Context, request *DecodeMessageRe
 	defer func() {
 		// Use floating point division here for higher precision (instead of Millisecond method).
 		elapsedDuration := time.Since(startTime)
-		c.duration.Record(ctx, float64(float64(elapsedDuration)/float64(time.Millisecond)), metric.WithAttributes(otelAttrs...))
+		c.duration.Record(ctx, float64(elapsedDuration)/float64(time.Millisecond), metric.WithAttributes(otelAttrs...))
 	}()
 
 	// Increment request counter.
 	c.requests.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
 
 	// Start a span for this request.
-	ctx, span := c.cfg.Tracer.Start(ctx, "DecodeMessage",
+	ctx, span := c.cfg.Tracer.Start(ctx, DecodeMessageOperation,
 		trace.WithAttributes(otelAttrs...),
 		clientSpanKind,
 	)
@@ -1022,6 +1125,40 @@ func (c *Client) sendDecodeMessage(ctx context.Context, request *DecodeMessageRe
 	}
 	if err := encodeDecodeMessageRequest(request, r); err != nil {
 		return res, errors.Wrap(err, "encode request")
+	}
+
+	{
+		type bitset = [1]uint8
+		var satisfied bitset
+		{
+			stage = "Security:BearerAuth"
+			switch err := c.securityBearerAuth(ctx, DecodeMessageOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 0
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"BearerAuth\"")
+			}
+		}
+
+		if ok := func() bool {
+		nextRequirement:
+			for _, requirement := range []bitset{
+				{0b00000001},
+				{},
+			} {
+				for i, mask := range requirement {
+					if satisfied[i]&mask != mask {
+						continue nextRequirement
+					}
+				}
+				return true
+			}
+			return false
+		}(); !ok {
+			return res, ogenerrors.ErrSecurityRequirementIsNotSatisfied
+		}
 	}
 
 	stage = "SendRequest"
@@ -1053,7 +1190,7 @@ func (c *Client) DnsResolve(ctx context.Context, params DnsResolveParams) (*DnsR
 func (c *Client) sendDnsResolve(ctx context.Context, params DnsResolveParams) (res *DnsRecord, err error) {
 	otelAttrs := []attribute.KeyValue{
 		otelogen.OperationID("dnsResolve"),
-		semconv.HTTPMethodKey.String("GET"),
+		semconv.HTTPRequestMethodKey.String("GET"),
 		semconv.HTTPRouteKey.String("/v2/dns/{domain_name}/resolve"),
 	}
 
@@ -1062,14 +1199,14 @@ func (c *Client) sendDnsResolve(ctx context.Context, params DnsResolveParams) (r
 	defer func() {
 		// Use floating point division here for higher precision (instead of Millisecond method).
 		elapsedDuration := time.Since(startTime)
-		c.duration.Record(ctx, float64(float64(elapsedDuration)/float64(time.Millisecond)), metric.WithAttributes(otelAttrs...))
+		c.duration.Record(ctx, float64(elapsedDuration)/float64(time.Millisecond), metric.WithAttributes(otelAttrs...))
 	}()
 
 	// Increment request counter.
 	c.requests.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
 
 	// Start a span for this request.
-	ctx, span := c.cfg.Tracer.Start(ctx, "DnsResolve",
+	ctx, span := c.cfg.Tracer.Start(ctx, DnsResolveOperation,
 		trace.WithAttributes(otelAttrs...),
 		clientSpanKind,
 	)
@@ -1115,6 +1252,40 @@ func (c *Client) sendDnsResolve(ctx context.Context, params DnsResolveParams) (r
 		return res, errors.Wrap(err, "create request")
 	}
 
+	{
+		type bitset = [1]uint8
+		var satisfied bitset
+		{
+			stage = "Security:BearerAuth"
+			switch err := c.securityBearerAuth(ctx, DnsResolveOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 0
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"BearerAuth\"")
+			}
+		}
+
+		if ok := func() bool {
+		nextRequirement:
+			for _, requirement := range []bitset{
+				{0b00000001},
+				{},
+			} {
+				for i, mask := range requirement {
+					if satisfied[i]&mask != mask {
+						continue nextRequirement
+					}
+				}
+				return true
+			}
+			return false
+		}(); !ok {
+			return res, ogenerrors.ErrSecurityRequirementIsNotSatisfied
+		}
+	}
+
 	stage = "SendRequest"
 	resp, err := c.cfg.Client.Do(r)
 	if err != nil {
@@ -1133,7 +1304,7 @@ func (c *Client) sendDnsResolve(ctx context.Context, params DnsResolveParams) (r
 
 // EmulateMessageToAccountEvent invokes emulateMessageToAccountEvent operation.
 //
-// Emulate sending message to blockchain.
+// Emulate sending message to retrieve account-specific events.
 //
 // POST /v2/accounts/{account_id}/events/emulate
 func (c *Client) EmulateMessageToAccountEvent(ctx context.Context, request *EmulateMessageToAccountEventReq, params EmulateMessageToAccountEventParams) (*AccountEvent, error) {
@@ -1144,7 +1315,7 @@ func (c *Client) EmulateMessageToAccountEvent(ctx context.Context, request *Emul
 func (c *Client) sendEmulateMessageToAccountEvent(ctx context.Context, request *EmulateMessageToAccountEventReq, params EmulateMessageToAccountEventParams) (res *AccountEvent, err error) {
 	otelAttrs := []attribute.KeyValue{
 		otelogen.OperationID("emulateMessageToAccountEvent"),
-		semconv.HTTPMethodKey.String("POST"),
+		semconv.HTTPRequestMethodKey.String("POST"),
 		semconv.HTTPRouteKey.String("/v2/accounts/{account_id}/events/emulate"),
 	}
 
@@ -1153,14 +1324,14 @@ func (c *Client) sendEmulateMessageToAccountEvent(ctx context.Context, request *
 	defer func() {
 		// Use floating point division here for higher precision (instead of Millisecond method).
 		elapsedDuration := time.Since(startTime)
-		c.duration.Record(ctx, float64(float64(elapsedDuration)/float64(time.Millisecond)), metric.WithAttributes(otelAttrs...))
+		c.duration.Record(ctx, float64(elapsedDuration)/float64(time.Millisecond), metric.WithAttributes(otelAttrs...))
 	}()
 
 	// Increment request counter.
 	c.requests.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
 
 	// Start a span for this request.
-	ctx, span := c.cfg.Tracer.Start(ctx, "EmulateMessageToAccountEvent",
+	ctx, span := c.cfg.Tracer.Start(ctx, EmulateMessageToAccountEventOperation,
 		trace.WithAttributes(otelAttrs...),
 		clientSpanKind,
 	)
@@ -1247,6 +1418,40 @@ func (c *Client) sendEmulateMessageToAccountEvent(ctx context.Context, request *
 		}
 	}
 
+	{
+		type bitset = [1]uint8
+		var satisfied bitset
+		{
+			stage = "Security:BearerAuth"
+			switch err := c.securityBearerAuth(ctx, EmulateMessageToAccountEventOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 0
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"BearerAuth\"")
+			}
+		}
+
+		if ok := func() bool {
+		nextRequirement:
+			for _, requirement := range []bitset{
+				{0b00000001},
+				{},
+			} {
+				for i, mask := range requirement {
+					if satisfied[i]&mask != mask {
+						continue nextRequirement
+					}
+				}
+				return true
+			}
+			return false
+		}(); !ok {
+			return res, ogenerrors.ErrSecurityRequirementIsNotSatisfied
+		}
+	}
+
 	stage = "SendRequest"
 	resp, err := c.cfg.Client.Do(r)
 	if err != nil {
@@ -1265,7 +1470,7 @@ func (c *Client) sendEmulateMessageToAccountEvent(ctx context.Context, request *
 
 // EmulateMessageToEvent invokes emulateMessageToEvent operation.
 //
-// Emulate sending message to blockchain.
+// Emulate sending message to retrieve general blockchain events.
 //
 // POST /v2/events/emulate
 func (c *Client) EmulateMessageToEvent(ctx context.Context, request *EmulateMessageToEventReq, params EmulateMessageToEventParams) (*Event, error) {
@@ -1276,7 +1481,7 @@ func (c *Client) EmulateMessageToEvent(ctx context.Context, request *EmulateMess
 func (c *Client) sendEmulateMessageToEvent(ctx context.Context, request *EmulateMessageToEventReq, params EmulateMessageToEventParams) (res *Event, err error) {
 	otelAttrs := []attribute.KeyValue{
 		otelogen.OperationID("emulateMessageToEvent"),
-		semconv.HTTPMethodKey.String("POST"),
+		semconv.HTTPRequestMethodKey.String("POST"),
 		semconv.HTTPRouteKey.String("/v2/events/emulate"),
 	}
 
@@ -1285,14 +1490,14 @@ func (c *Client) sendEmulateMessageToEvent(ctx context.Context, request *Emulate
 	defer func() {
 		// Use floating point division here for higher precision (instead of Millisecond method).
 		elapsedDuration := time.Since(startTime)
-		c.duration.Record(ctx, float64(float64(elapsedDuration)/float64(time.Millisecond)), metric.WithAttributes(otelAttrs...))
+		c.duration.Record(ctx, float64(elapsedDuration)/float64(time.Millisecond), metric.WithAttributes(otelAttrs...))
 	}()
 
 	// Increment request counter.
 	c.requests.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
 
 	// Start a span for this request.
-	ctx, span := c.cfg.Tracer.Start(ctx, "EmulateMessageToEvent",
+	ctx, span := c.cfg.Tracer.Start(ctx, EmulateMessageToEventOperation,
 		trace.WithAttributes(otelAttrs...),
 		clientSpanKind,
 	)
@@ -1360,6 +1565,40 @@ func (c *Client) sendEmulateMessageToEvent(ctx context.Context, request *Emulate
 		}
 	}
 
+	{
+		type bitset = [1]uint8
+		var satisfied bitset
+		{
+			stage = "Security:BearerAuth"
+			switch err := c.securityBearerAuth(ctx, EmulateMessageToEventOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 0
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"BearerAuth\"")
+			}
+		}
+
+		if ok := func() bool {
+		nextRequirement:
+			for _, requirement := range []bitset{
+				{0b00000001},
+				{},
+			} {
+				for i, mask := range requirement {
+					if satisfied[i]&mask != mask {
+						continue nextRequirement
+					}
+				}
+				return true
+			}
+			return false
+		}(); !ok {
+			return res, ogenerrors.ErrSecurityRequirementIsNotSatisfied
+		}
+	}
+
 	stage = "SendRequest"
 	resp, err := c.cfg.Client.Do(r)
 	if err != nil {
@@ -1378,7 +1617,7 @@ func (c *Client) sendEmulateMessageToEvent(ctx context.Context, request *Emulate
 
 // EmulateMessageToTrace invokes emulateMessageToTrace operation.
 //
-// Emulate sending message to blockchain.
+// Emulate sending message to retrieve with a detailed execution trace.
 //
 // POST /v2/traces/emulate
 func (c *Client) EmulateMessageToTrace(ctx context.Context, request *EmulateMessageToTraceReq, params EmulateMessageToTraceParams) (*Trace, error) {
@@ -1389,7 +1628,7 @@ func (c *Client) EmulateMessageToTrace(ctx context.Context, request *EmulateMess
 func (c *Client) sendEmulateMessageToTrace(ctx context.Context, request *EmulateMessageToTraceReq, params EmulateMessageToTraceParams) (res *Trace, err error) {
 	otelAttrs := []attribute.KeyValue{
 		otelogen.OperationID("emulateMessageToTrace"),
-		semconv.HTTPMethodKey.String("POST"),
+		semconv.HTTPRequestMethodKey.String("POST"),
 		semconv.HTTPRouteKey.String("/v2/traces/emulate"),
 	}
 
@@ -1398,14 +1637,14 @@ func (c *Client) sendEmulateMessageToTrace(ctx context.Context, request *Emulate
 	defer func() {
 		// Use floating point division here for higher precision (instead of Millisecond method).
 		elapsedDuration := time.Since(startTime)
-		c.duration.Record(ctx, float64(float64(elapsedDuration)/float64(time.Millisecond)), metric.WithAttributes(otelAttrs...))
+		c.duration.Record(ctx, float64(elapsedDuration)/float64(time.Millisecond), metric.WithAttributes(otelAttrs...))
 	}()
 
 	// Increment request counter.
 	c.requests.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
 
 	// Start a span for this request.
-	ctx, span := c.cfg.Tracer.Start(ctx, "EmulateMessageToTrace",
+	ctx, span := c.cfg.Tracer.Start(ctx, EmulateMessageToTraceOperation,
 		trace.WithAttributes(otelAttrs...),
 		clientSpanKind,
 	)
@@ -1456,6 +1695,40 @@ func (c *Client) sendEmulateMessageToTrace(ctx context.Context, request *Emulate
 		return res, errors.Wrap(err, "encode request")
 	}
 
+	{
+		type bitset = [1]uint8
+		var satisfied bitset
+		{
+			stage = "Security:BearerAuth"
+			switch err := c.securityBearerAuth(ctx, EmulateMessageToTraceOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 0
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"BearerAuth\"")
+			}
+		}
+
+		if ok := func() bool {
+		nextRequirement:
+			for _, requirement := range []bitset{
+				{0b00000001},
+				{},
+			} {
+				for i, mask := range requirement {
+					if satisfied[i]&mask != mask {
+						continue nextRequirement
+					}
+				}
+				return true
+			}
+			return false
+		}(); !ok {
+			return res, ogenerrors.ErrSecurityRequirementIsNotSatisfied
+		}
+	}
+
 	stage = "SendRequest"
 	resp, err := c.cfg.Client.Do(r)
 	if err != nil {
@@ -1474,7 +1747,7 @@ func (c *Client) sendEmulateMessageToTrace(ctx context.Context, request *Emulate
 
 // EmulateMessageToWallet invokes emulateMessageToWallet operation.
 //
-// Emulate sending message to blockchain.
+// Emulate sending message to retrieve the resulting wallet state.
 //
 // POST /v2/wallet/emulate
 func (c *Client) EmulateMessageToWallet(ctx context.Context, request *EmulateMessageToWalletReq, params EmulateMessageToWalletParams) (*MessageConsequences, error) {
@@ -1485,7 +1758,7 @@ func (c *Client) EmulateMessageToWallet(ctx context.Context, request *EmulateMes
 func (c *Client) sendEmulateMessageToWallet(ctx context.Context, request *EmulateMessageToWalletReq, params EmulateMessageToWalletParams) (res *MessageConsequences, err error) {
 	otelAttrs := []attribute.KeyValue{
 		otelogen.OperationID("emulateMessageToWallet"),
-		semconv.HTTPMethodKey.String("POST"),
+		semconv.HTTPRequestMethodKey.String("POST"),
 		semconv.HTTPRouteKey.String("/v2/wallet/emulate"),
 	}
 
@@ -1494,14 +1767,14 @@ func (c *Client) sendEmulateMessageToWallet(ctx context.Context, request *Emulat
 	defer func() {
 		// Use floating point division here for higher precision (instead of Millisecond method).
 		elapsedDuration := time.Since(startTime)
-		c.duration.Record(ctx, float64(float64(elapsedDuration)/float64(time.Millisecond)), metric.WithAttributes(otelAttrs...))
+		c.duration.Record(ctx, float64(elapsedDuration)/float64(time.Millisecond), metric.WithAttributes(otelAttrs...))
 	}()
 
 	// Increment request counter.
 	c.requests.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
 
 	// Start a span for this request.
-	ctx, span := c.cfg.Tracer.Start(ctx, "EmulateMessageToWallet",
+	ctx, span := c.cfg.Tracer.Start(ctx, EmulateMessageToWalletOperation,
 		trace.WithAttributes(otelAttrs...),
 		clientSpanKind,
 	)
@@ -1548,6 +1821,40 @@ func (c *Client) sendEmulateMessageToWallet(ctx context.Context, request *Emulat
 		}
 	}
 
+	{
+		type bitset = [1]uint8
+		var satisfied bitset
+		{
+			stage = "Security:BearerAuth"
+			switch err := c.securityBearerAuth(ctx, EmulateMessageToWalletOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 0
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"BearerAuth\"")
+			}
+		}
+
+		if ok := func() bool {
+		nextRequirement:
+			for _, requirement := range []bitset{
+				{0b00000001},
+				{},
+			} {
+				for i, mask := range requirement {
+					if satisfied[i]&mask != mask {
+						continue nextRequirement
+					}
+				}
+				return true
+			}
+			return false
+		}(); !ok {
+			return res, ogenerrors.ErrSecurityRequirementIsNotSatisfied
+		}
+	}
+
 	stage = "SendRequest"
 	resp, err := c.cfg.Client.Do(r)
 	if err != nil {
@@ -1577,7 +1884,7 @@ func (c *Client) ExecGetMethodForBlockchainAccount(ctx context.Context, params E
 func (c *Client) sendExecGetMethodForBlockchainAccount(ctx context.Context, params ExecGetMethodForBlockchainAccountParams) (res *MethodExecutionResult, err error) {
 	otelAttrs := []attribute.KeyValue{
 		otelogen.OperationID("execGetMethodForBlockchainAccount"),
-		semconv.HTTPMethodKey.String("GET"),
+		semconv.HTTPRequestMethodKey.String("GET"),
 		semconv.HTTPRouteKey.String("/v2/blockchain/accounts/{account_id}/methods/{method_name}"),
 	}
 
@@ -1586,14 +1893,14 @@ func (c *Client) sendExecGetMethodForBlockchainAccount(ctx context.Context, para
 	defer func() {
 		// Use floating point division here for higher precision (instead of Millisecond method).
 		elapsedDuration := time.Since(startTime)
-		c.duration.Record(ctx, float64(float64(elapsedDuration)/float64(time.Millisecond)), metric.WithAttributes(otelAttrs...))
+		c.duration.Record(ctx, float64(elapsedDuration)/float64(time.Millisecond), metric.WithAttributes(otelAttrs...))
 	}()
 
 	// Increment request counter.
 	c.requests.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
 
 	// Start a span for this request.
-	ctx, span := c.cfg.Tracer.Start(ctx, "ExecGetMethodForBlockchainAccount",
+	ctx, span := c.cfg.Tracer.Start(ctx, ExecGetMethodForBlockchainAccountOperation,
 		trace.WithAttributes(otelAttrs...),
 		clientSpanKind,
 	)
@@ -1662,16 +1969,19 @@ func (c *Client) sendExecGetMethodForBlockchainAccount(ctx context.Context, para
 		}
 
 		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
-			return e.EncodeArray(func(e uri.Encoder) error {
-				for i, item := range params.Args {
-					if err := func() error {
-						return e.EncodeValue(conv.StringToString(item))
-					}(); err != nil {
-						return errors.Wrapf(err, "[%d]", i)
+			if params.Args != nil {
+				return e.EncodeArray(func(e uri.Encoder) error {
+					for i, item := range params.Args {
+						if err := func() error {
+							return e.EncodeValue(conv.StringToString(item))
+						}(); err != nil {
+							return errors.Wrapf(err, "[%d]", i)
+						}
 					}
-				}
-				return nil
-			})
+					return nil
+				})
+			}
+			return nil
 		}); err != nil {
 			return res, errors.Wrap(err, "encode query")
 		}
@@ -1682,6 +1992,40 @@ func (c *Client) sendExecGetMethodForBlockchainAccount(ctx context.Context, para
 	r, err := ht.NewRequest(ctx, "GET", u)
 	if err != nil {
 		return res, errors.Wrap(err, "create request")
+	}
+
+	{
+		type bitset = [1]uint8
+		var satisfied bitset
+		{
+			stage = "Security:BearerAuth"
+			switch err := c.securityBearerAuth(ctx, ExecGetMethodForBlockchainAccountOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 0
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"BearerAuth\"")
+			}
+		}
+
+		if ok := func() bool {
+		nextRequirement:
+			for _, requirement := range []bitset{
+				{0b00000001},
+				{},
+			} {
+				for i, mask := range requirement {
+					if satisfied[i]&mask != mask {
+						continue nextRequirement
+					}
+				}
+				return true
+			}
+			return false
+		}(); !ok {
+			return res, ogenerrors.ErrSecurityRequirementIsNotSatisfied
+		}
 	}
 
 	stage = "SendRequest"
@@ -1713,7 +2057,7 @@ func (c *Client) GaslessConfig(ctx context.Context) (*GaslessConfig, error) {
 func (c *Client) sendGaslessConfig(ctx context.Context) (res *GaslessConfig, err error) {
 	otelAttrs := []attribute.KeyValue{
 		otelogen.OperationID("gaslessConfig"),
-		semconv.HTTPMethodKey.String("GET"),
+		semconv.HTTPRequestMethodKey.String("GET"),
 		semconv.HTTPRouteKey.String("/v2/gasless/config"),
 	}
 
@@ -1722,14 +2066,14 @@ func (c *Client) sendGaslessConfig(ctx context.Context) (res *GaslessConfig, err
 	defer func() {
 		// Use floating point division here for higher precision (instead of Millisecond method).
 		elapsedDuration := time.Since(startTime)
-		c.duration.Record(ctx, float64(float64(elapsedDuration)/float64(time.Millisecond)), metric.WithAttributes(otelAttrs...))
+		c.duration.Record(ctx, float64(elapsedDuration)/float64(time.Millisecond), metric.WithAttributes(otelAttrs...))
 	}()
 
 	// Increment request counter.
 	c.requests.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
 
 	// Start a span for this request.
-	ctx, span := c.cfg.Tracer.Start(ctx, "GaslessConfig",
+	ctx, span := c.cfg.Tracer.Start(ctx, GaslessConfigOperation,
 		trace.WithAttributes(otelAttrs...),
 		clientSpanKind,
 	)
@@ -1754,6 +2098,40 @@ func (c *Client) sendGaslessConfig(ctx context.Context) (res *GaslessConfig, err
 	r, err := ht.NewRequest(ctx, "GET", u)
 	if err != nil {
 		return res, errors.Wrap(err, "create request")
+	}
+
+	{
+		type bitset = [1]uint8
+		var satisfied bitset
+		{
+			stage = "Security:BearerAuth"
+			switch err := c.securityBearerAuth(ctx, GaslessConfigOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 0
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"BearerAuth\"")
+			}
+		}
+
+		if ok := func() bool {
+		nextRequirement:
+			for _, requirement := range []bitset{
+				{0b00000001},
+				{},
+			} {
+				for i, mask := range requirement {
+					if satisfied[i]&mask != mask {
+						continue nextRequirement
+					}
+				}
+				return true
+			}
+			return false
+		}(); !ok {
+			return res, ogenerrors.ErrSecurityRequirementIsNotSatisfied
+		}
 	}
 
 	stage = "SendRequest"
@@ -1783,11 +2161,6 @@ func (c *Client) GaslessEstimate(ctx context.Context, request *GaslessEstimateRe
 }
 
 func (c *Client) sendGaslessEstimate(ctx context.Context, request *GaslessEstimateReq, params GaslessEstimateParams) (res *SignRawParams, err error) {
-	otelAttrs := []attribute.KeyValue{
-		otelogen.OperationID("gaslessEstimate"),
-		semconv.HTTPMethodKey.String("POST"),
-		semconv.HTTPRouteKey.String("/v2/gasless/estimate/{master_id}"),
-	}
 	// Validate request before sending.
 	if err := func() error {
 		if err := request.Validate(); err != nil {
@@ -1797,20 +2170,25 @@ func (c *Client) sendGaslessEstimate(ctx context.Context, request *GaslessEstima
 	}(); err != nil {
 		return res, errors.Wrap(err, "validate")
 	}
+	otelAttrs := []attribute.KeyValue{
+		otelogen.OperationID("gaslessEstimate"),
+		semconv.HTTPRequestMethodKey.String("POST"),
+		semconv.HTTPRouteKey.String("/v2/gasless/estimate/{master_id}"),
+	}
 
 	// Run stopwatch.
 	startTime := time.Now()
 	defer func() {
 		// Use floating point division here for higher precision (instead of Millisecond method).
 		elapsedDuration := time.Since(startTime)
-		c.duration.Record(ctx, float64(float64(elapsedDuration)/float64(time.Millisecond)), metric.WithAttributes(otelAttrs...))
+		c.duration.Record(ctx, float64(elapsedDuration)/float64(time.Millisecond), metric.WithAttributes(otelAttrs...))
 	}()
 
 	// Increment request counter.
 	c.requests.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
 
 	// Start a span for this request.
-	ctx, span := c.cfg.Tracer.Start(ctx, "GaslessEstimate",
+	ctx, span := c.cfg.Tracer.Start(ctx, GaslessEstimateOperation,
 		trace.WithAttributes(otelAttrs...),
 		clientSpanKind,
 	)
@@ -1858,6 +2236,57 @@ func (c *Client) sendGaslessEstimate(ctx context.Context, request *GaslessEstima
 		return res, errors.Wrap(err, "encode request")
 	}
 
+	stage = "EncodeHeaderParams"
+	h := uri.NewHeaderEncoder(r.Header)
+	{
+		cfg := uri.HeaderParameterEncodingConfig{
+			Name:    "Accept-Language",
+			Explode: false,
+		}
+		if err := h.EncodeParam(cfg, func(e uri.Encoder) error {
+			if val, ok := params.AcceptLanguage.Get(); ok {
+				return e.EncodeValue(conv.StringToString(val))
+			}
+			return nil
+		}); err != nil {
+			return res, errors.Wrap(err, "encode header")
+		}
+	}
+
+	{
+		type bitset = [1]uint8
+		var satisfied bitset
+		{
+			stage = "Security:BearerAuth"
+			switch err := c.securityBearerAuth(ctx, GaslessEstimateOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 0
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"BearerAuth\"")
+			}
+		}
+
+		if ok := func() bool {
+		nextRequirement:
+			for _, requirement := range []bitset{
+				{0b00000001},
+				{},
+			} {
+				for i, mask := range requirement {
+					if satisfied[i]&mask != mask {
+						continue nextRequirement
+					}
+				}
+				return true
+			}
+			return false
+		}(); !ok {
+			return res, ogenerrors.ErrSecurityRequirementIsNotSatisfied
+		}
+	}
+
 	stage = "SendRequest"
 	resp, err := c.cfg.Client.Do(r)
 	if err != nil {
@@ -1879,15 +2308,15 @@ func (c *Client) sendGaslessEstimate(ctx context.Context, request *GaslessEstima
 // Submits the signed gasless transaction message to the network.
 //
 // POST /v2/gasless/send
-func (c *Client) GaslessSend(ctx context.Context, request *GaslessSendReq) error {
-	_, err := c.sendGaslessSend(ctx, request)
-	return err
+func (c *Client) GaslessSend(ctx context.Context, request *GaslessSendReq) (*GaslessTx, error) {
+	res, err := c.sendGaslessSend(ctx, request)
+	return res, err
 }
 
-func (c *Client) sendGaslessSend(ctx context.Context, request *GaslessSendReq) (res *GaslessSendOK, err error) {
+func (c *Client) sendGaslessSend(ctx context.Context, request *GaslessSendReq) (res *GaslessTx, err error) {
 	otelAttrs := []attribute.KeyValue{
 		otelogen.OperationID("gaslessSend"),
-		semconv.HTTPMethodKey.String("POST"),
+		semconv.HTTPRequestMethodKey.String("POST"),
 		semconv.HTTPRouteKey.String("/v2/gasless/send"),
 	}
 
@@ -1896,14 +2325,14 @@ func (c *Client) sendGaslessSend(ctx context.Context, request *GaslessSendReq) (
 	defer func() {
 		// Use floating point division here for higher precision (instead of Millisecond method).
 		elapsedDuration := time.Since(startTime)
-		c.duration.Record(ctx, float64(float64(elapsedDuration)/float64(time.Millisecond)), metric.WithAttributes(otelAttrs...))
+		c.duration.Record(ctx, float64(elapsedDuration)/float64(time.Millisecond), metric.WithAttributes(otelAttrs...))
 	}()
 
 	// Increment request counter.
 	c.requests.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
 
 	// Start a span for this request.
-	ctx, span := c.cfg.Tracer.Start(ctx, "GaslessSend",
+	ctx, span := c.cfg.Tracer.Start(ctx, GaslessSendOperation,
 		trace.WithAttributes(otelAttrs...),
 		clientSpanKind,
 	)
@@ -1931,6 +2360,40 @@ func (c *Client) sendGaslessSend(ctx context.Context, request *GaslessSendReq) (
 	}
 	if err := encodeGaslessSendRequest(request, r); err != nil {
 		return res, errors.Wrap(err, "encode request")
+	}
+
+	{
+		type bitset = [1]uint8
+		var satisfied bitset
+		{
+			stage = "Security:BearerAuth"
+			switch err := c.securityBearerAuth(ctx, GaslessSendOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 0
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"BearerAuth\"")
+			}
+		}
+
+		if ok := func() bool {
+		nextRequirement:
+			for _, requirement := range []bitset{
+				{0b00000001},
+				{},
+			} {
+				for i, mask := range requirement {
+					if satisfied[i]&mask != mask {
+						continue nextRequirement
+					}
+				}
+				return true
+			}
+			return false
+		}(); !ok {
+			return res, ogenerrors.ErrSecurityRequirementIsNotSatisfied
+		}
 	}
 
 	stage = "SendRequest"
@@ -1962,7 +2425,7 @@ func (c *Client) GetAccount(ctx context.Context, params GetAccountParams) (*Acco
 func (c *Client) sendGetAccount(ctx context.Context, params GetAccountParams) (res *Account, err error) {
 	otelAttrs := []attribute.KeyValue{
 		otelogen.OperationID("getAccount"),
-		semconv.HTTPMethodKey.String("GET"),
+		semconv.HTTPRequestMethodKey.String("GET"),
 		semconv.HTTPRouteKey.String("/v2/accounts/{account_id}"),
 	}
 
@@ -1971,14 +2434,14 @@ func (c *Client) sendGetAccount(ctx context.Context, params GetAccountParams) (r
 	defer func() {
 		// Use floating point division here for higher precision (instead of Millisecond method).
 		elapsedDuration := time.Since(startTime)
-		c.duration.Record(ctx, float64(float64(elapsedDuration)/float64(time.Millisecond)), metric.WithAttributes(otelAttrs...))
+		c.duration.Record(ctx, float64(elapsedDuration)/float64(time.Millisecond), metric.WithAttributes(otelAttrs...))
 	}()
 
 	// Increment request counter.
 	c.requests.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
 
 	// Start a span for this request.
-	ctx, span := c.cfg.Tracer.Start(ctx, "GetAccount",
+	ctx, span := c.cfg.Tracer.Start(ctx, GetAccountOperation,
 		trace.WithAttributes(otelAttrs...),
 		clientSpanKind,
 	)
@@ -2023,6 +2486,40 @@ func (c *Client) sendGetAccount(ctx context.Context, params GetAccountParams) (r
 		return res, errors.Wrap(err, "create request")
 	}
 
+	{
+		type bitset = [1]uint8
+		var satisfied bitset
+		{
+			stage = "Security:BearerAuth"
+			switch err := c.securityBearerAuth(ctx, GetAccountOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 0
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"BearerAuth\"")
+			}
+		}
+
+		if ok := func() bool {
+		nextRequirement:
+			for _, requirement := range []bitset{
+				{0b00000001},
+				{},
+			} {
+				for i, mask := range requirement {
+					if satisfied[i]&mask != mask {
+						continue nextRequirement
+					}
+				}
+				return true
+			}
+			return false
+		}(); !ok {
+			return res, ogenerrors.ErrSecurityRequirementIsNotSatisfied
+		}
+	}
+
 	stage = "SendRequest"
 	resp, err := c.cfg.Client.Do(r)
 	if err != nil {
@@ -2052,7 +2549,7 @@ func (c *Client) GetAccountDiff(ctx context.Context, params GetAccountDiffParams
 func (c *Client) sendGetAccountDiff(ctx context.Context, params GetAccountDiffParams) (res *GetAccountDiffOK, err error) {
 	otelAttrs := []attribute.KeyValue{
 		otelogen.OperationID("getAccountDiff"),
-		semconv.HTTPMethodKey.String("GET"),
+		semconv.HTTPRequestMethodKey.String("GET"),
 		semconv.HTTPRouteKey.String("/v2/accounts/{account_id}/diff"),
 	}
 
@@ -2061,14 +2558,14 @@ func (c *Client) sendGetAccountDiff(ctx context.Context, params GetAccountDiffPa
 	defer func() {
 		// Use floating point division here for higher precision (instead of Millisecond method).
 		elapsedDuration := time.Since(startTime)
-		c.duration.Record(ctx, float64(float64(elapsedDuration)/float64(time.Millisecond)), metric.WithAttributes(otelAttrs...))
+		c.duration.Record(ctx, float64(elapsedDuration)/float64(time.Millisecond), metric.WithAttributes(otelAttrs...))
 	}()
 
 	// Increment request counter.
 	c.requests.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
 
 	// Start a span for this request.
-	ctx, span := c.cfg.Tracer.Start(ctx, "GetAccountDiff",
+	ctx, span := c.cfg.Tracer.Start(ctx, GetAccountDiffOperation,
 		trace.WithAttributes(otelAttrs...),
 		clientSpanKind,
 	)
@@ -2146,6 +2643,40 @@ func (c *Client) sendGetAccountDiff(ctx context.Context, params GetAccountDiffPa
 		return res, errors.Wrap(err, "create request")
 	}
 
+	{
+		type bitset = [1]uint8
+		var satisfied bitset
+		{
+			stage = "Security:BearerAuth"
+			switch err := c.securityBearerAuth(ctx, GetAccountDiffOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 0
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"BearerAuth\"")
+			}
+		}
+
+		if ok := func() bool {
+		nextRequirement:
+			for _, requirement := range []bitset{
+				{0b00000001},
+				{},
+			} {
+				for i, mask := range requirement {
+					if satisfied[i]&mask != mask {
+						continue nextRequirement
+					}
+				}
+				return true
+			}
+			return false
+		}(); !ok {
+			return res, ogenerrors.ErrSecurityRequirementIsNotSatisfied
+		}
+	}
+
 	stage = "SendRequest"
 	resp, err := c.cfg.Client.Do(r)
 	if err != nil {
@@ -2175,7 +2706,7 @@ func (c *Client) GetAccountDnsExpiring(ctx context.Context, params GetAccountDns
 func (c *Client) sendGetAccountDnsExpiring(ctx context.Context, params GetAccountDnsExpiringParams) (res *DnsExpiring, err error) {
 	otelAttrs := []attribute.KeyValue{
 		otelogen.OperationID("getAccountDnsExpiring"),
-		semconv.HTTPMethodKey.String("GET"),
+		semconv.HTTPRequestMethodKey.String("GET"),
 		semconv.HTTPRouteKey.String("/v2/accounts/{account_id}/dns/expiring"),
 	}
 
@@ -2184,14 +2715,14 @@ func (c *Client) sendGetAccountDnsExpiring(ctx context.Context, params GetAccoun
 	defer func() {
 		// Use floating point division here for higher precision (instead of Millisecond method).
 		elapsedDuration := time.Since(startTime)
-		c.duration.Record(ctx, float64(float64(elapsedDuration)/float64(time.Millisecond)), metric.WithAttributes(otelAttrs...))
+		c.duration.Record(ctx, float64(elapsedDuration)/float64(time.Millisecond), metric.WithAttributes(otelAttrs...))
 	}()
 
 	// Increment request counter.
 	c.requests.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
 
 	// Start a span for this request.
-	ctx, span := c.cfg.Tracer.Start(ctx, "GetAccountDnsExpiring",
+	ctx, span := c.cfg.Tracer.Start(ctx, GetAccountDnsExpiringOperation,
 		trace.WithAttributes(otelAttrs...),
 		clientSpanKind,
 	)
@@ -2258,6 +2789,40 @@ func (c *Client) sendGetAccountDnsExpiring(ctx context.Context, params GetAccoun
 		return res, errors.Wrap(err, "create request")
 	}
 
+	{
+		type bitset = [1]uint8
+		var satisfied bitset
+		{
+			stage = "Security:BearerAuth"
+			switch err := c.securityBearerAuth(ctx, GetAccountDnsExpiringOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 0
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"BearerAuth\"")
+			}
+		}
+
+		if ok := func() bool {
+		nextRequirement:
+			for _, requirement := range []bitset{
+				{0b00000001},
+				{},
+			} {
+				for i, mask := range requirement {
+					if satisfied[i]&mask != mask {
+						continue nextRequirement
+					}
+				}
+				return true
+			}
+			return false
+		}(); !ok {
+			return res, ogenerrors.ErrSecurityRequirementIsNotSatisfied
+		}
+	}
+
 	stage = "SendRequest"
 	resp, err := c.cfg.Client.Do(r)
 	if err != nil {
@@ -2287,7 +2852,7 @@ func (c *Client) GetAccountEvent(ctx context.Context, params GetAccountEventPara
 func (c *Client) sendGetAccountEvent(ctx context.Context, params GetAccountEventParams) (res *AccountEvent, err error) {
 	otelAttrs := []attribute.KeyValue{
 		otelogen.OperationID("getAccountEvent"),
-		semconv.HTTPMethodKey.String("GET"),
+		semconv.HTTPRequestMethodKey.String("GET"),
 		semconv.HTTPRouteKey.String("/v2/accounts/{account_id}/events/{event_id}"),
 	}
 
@@ -2296,14 +2861,14 @@ func (c *Client) sendGetAccountEvent(ctx context.Context, params GetAccountEvent
 	defer func() {
 		// Use floating point division here for higher precision (instead of Millisecond method).
 		elapsedDuration := time.Since(startTime)
-		c.duration.Record(ctx, float64(float64(elapsedDuration)/float64(time.Millisecond)), metric.WithAttributes(otelAttrs...))
+		c.duration.Record(ctx, float64(elapsedDuration)/float64(time.Millisecond), metric.WithAttributes(otelAttrs...))
 	}()
 
 	// Increment request counter.
 	c.requests.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
 
 	// Start a span for this request.
-	ctx, span := c.cfg.Tracer.Start(ctx, "GetAccountEvent",
+	ctx, span := c.cfg.Tracer.Start(ctx, GetAccountEventOperation,
 		trace.WithAttributes(otelAttrs...),
 		clientSpanKind,
 	)
@@ -2405,6 +2970,40 @@ func (c *Client) sendGetAccountEvent(ctx context.Context, params GetAccountEvent
 		}
 	}
 
+	{
+		type bitset = [1]uint8
+		var satisfied bitset
+		{
+			stage = "Security:BearerAuth"
+			switch err := c.securityBearerAuth(ctx, GetAccountEventOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 0
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"BearerAuth\"")
+			}
+		}
+
+		if ok := func() bool {
+		nextRequirement:
+			for _, requirement := range []bitset{
+				{0b00000001},
+				{},
+			} {
+				for i, mask := range requirement {
+					if satisfied[i]&mask != mask {
+						continue nextRequirement
+					}
+				}
+				return true
+			}
+			return false
+		}(); !ok {
+			return res, ogenerrors.ErrSecurityRequirementIsNotSatisfied
+		}
+	}
+
 	stage = "SendRequest"
 	resp, err := c.cfg.Client.Do(r)
 	if err != nil {
@@ -2438,7 +3037,7 @@ func (c *Client) GetAccountEvents(ctx context.Context, params GetAccountEventsPa
 func (c *Client) sendGetAccountEvents(ctx context.Context, params GetAccountEventsParams) (res *AccountEvents, err error) {
 	otelAttrs := []attribute.KeyValue{
 		otelogen.OperationID("getAccountEvents"),
-		semconv.HTTPMethodKey.String("GET"),
+		semconv.HTTPRequestMethodKey.String("GET"),
 		semconv.HTTPRouteKey.String("/v2/accounts/{account_id}/events"),
 	}
 
@@ -2447,14 +3046,14 @@ func (c *Client) sendGetAccountEvents(ctx context.Context, params GetAccountEven
 	defer func() {
 		// Use floating point division here for higher precision (instead of Millisecond method).
 		elapsedDuration := time.Since(startTime)
-		c.duration.Record(ctx, float64(float64(elapsedDuration)/float64(time.Millisecond)), metric.WithAttributes(otelAttrs...))
+		c.duration.Record(ctx, float64(elapsedDuration)/float64(time.Millisecond), metric.WithAttributes(otelAttrs...))
 	}()
 
 	// Increment request counter.
 	c.requests.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
 
 	// Start a span for this request.
-	ctx, span := c.cfg.Tracer.Start(ctx, "GetAccountEvents",
+	ctx, span := c.cfg.Tracer.Start(ctx, GetAccountEventsOperation,
 		trace.WithAttributes(otelAttrs...),
 		clientSpanKind,
 	)
@@ -2620,6 +3219,40 @@ func (c *Client) sendGetAccountEvents(ctx context.Context, params GetAccountEven
 		}
 	}
 
+	{
+		type bitset = [1]uint8
+		var satisfied bitset
+		{
+			stage = "Security:BearerAuth"
+			switch err := c.securityBearerAuth(ctx, GetAccountEventsOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 0
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"BearerAuth\"")
+			}
+		}
+
+		if ok := func() bool {
+		nextRequirement:
+			for _, requirement := range []bitset{
+				{0b00000001},
+				{},
+			} {
+				for i, mask := range requirement {
+					if satisfied[i]&mask != mask {
+						continue nextRequirement
+					}
+				}
+				return true
+			}
+			return false
+		}(); !ok {
+			return res, ogenerrors.ErrSecurityRequirementIsNotSatisfied
+		}
+	}
+
 	stage = "SendRequest"
 	resp, err := c.cfg.Client.Do(r)
 	if err != nil {
@@ -2636,21 +3269,21 @@ func (c *Client) sendGetAccountEvents(ctx context.Context, params GetAccountEven
 	return result, nil
 }
 
-// GetAccountInfoByStateInit invokes getAccountInfoByStateInit operation.
+// GetAccountExtraCurrencyHistoryByID invokes getAccountExtraCurrencyHistoryByID operation.
 //
-// Get account info by state init.
+// Get the transfer history of extra currencies for an account.
 //
-// POST /v2/tonconnect/stateinit
-func (c *Client) GetAccountInfoByStateInit(ctx context.Context, request *GetAccountInfoByStateInitReq) (*AccountInfoByStateInit, error) {
-	res, err := c.sendGetAccountInfoByStateInit(ctx, request)
+// GET /v2/accounts/{account_id}/extra-currency/{id}/history
+func (c *Client) GetAccountExtraCurrencyHistoryByID(ctx context.Context, params GetAccountExtraCurrencyHistoryByIDParams) (*AccountEvents, error) {
+	res, err := c.sendGetAccountExtraCurrencyHistoryByID(ctx, params)
 	return res, err
 }
 
-func (c *Client) sendGetAccountInfoByStateInit(ctx context.Context, request *GetAccountInfoByStateInitReq) (res *AccountInfoByStateInit, err error) {
+func (c *Client) sendGetAccountExtraCurrencyHistoryByID(ctx context.Context, params GetAccountExtraCurrencyHistoryByIDParams) (res *AccountEvents, err error) {
 	otelAttrs := []attribute.KeyValue{
-		otelogen.OperationID("getAccountInfoByStateInit"),
-		semconv.HTTPMethodKey.String("POST"),
-		semconv.HTTPRouteKey.String("/v2/tonconnect/stateinit"),
+		otelogen.OperationID("getAccountExtraCurrencyHistoryByID"),
+		semconv.HTTPRequestMethodKey.String("GET"),
+		semconv.HTTPRouteKey.String("/v2/accounts/{account_id}/extra-currency/{id}/history"),
 	}
 
 	// Run stopwatch.
@@ -2658,366 +3291,14 @@ func (c *Client) sendGetAccountInfoByStateInit(ctx context.Context, request *Get
 	defer func() {
 		// Use floating point division here for higher precision (instead of Millisecond method).
 		elapsedDuration := time.Since(startTime)
-		c.duration.Record(ctx, float64(float64(elapsedDuration)/float64(time.Millisecond)), metric.WithAttributes(otelAttrs...))
+		c.duration.Record(ctx, float64(elapsedDuration)/float64(time.Millisecond), metric.WithAttributes(otelAttrs...))
 	}()
 
 	// Increment request counter.
 	c.requests.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
 
 	// Start a span for this request.
-	ctx, span := c.cfg.Tracer.Start(ctx, "GetAccountInfoByStateInit",
-		trace.WithAttributes(otelAttrs...),
-		clientSpanKind,
-	)
-	// Track stage for error reporting.
-	var stage string
-	defer func() {
-		if err != nil {
-			span.RecordError(err)
-			span.SetStatus(codes.Error, stage)
-			c.errors.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
-		}
-		span.End()
-	}()
-
-	stage = "BuildURL"
-	u := uri.Clone(c.requestURL(ctx))
-	var pathParts [1]string
-	pathParts[0] = "/v2/tonconnect/stateinit"
-	uri.AddPathParts(u, pathParts[:]...)
-
-	stage = "EncodeRequest"
-	r, err := ht.NewRequest(ctx, "POST", u)
-	if err != nil {
-		return res, errors.Wrap(err, "create request")
-	}
-	if err := encodeGetAccountInfoByStateInitRequest(request, r); err != nil {
-		return res, errors.Wrap(err, "encode request")
-	}
-
-	stage = "SendRequest"
-	resp, err := c.cfg.Client.Do(r)
-	if err != nil {
-		return res, errors.Wrap(err, "do request")
-	}
-	defer resp.Body.Close()
-
-	stage = "DecodeResponse"
-	result, err := decodeGetAccountInfoByStateInitResponse(resp)
-	if err != nil {
-		return res, errors.Wrap(err, "decode response")
-	}
-
-	return result, nil
-}
-
-// GetAccountInscriptions invokes getAccountInscriptions operation.
-//
-// Get all inscriptions by owner address. It's experimental API and can be dropped in the future.
-//
-// GET /v2/experimental/accounts/{account_id}/inscriptions
-func (c *Client) GetAccountInscriptions(ctx context.Context, params GetAccountInscriptionsParams) (*InscriptionBalances, error) {
-	res, err := c.sendGetAccountInscriptions(ctx, params)
-	return res, err
-}
-
-func (c *Client) sendGetAccountInscriptions(ctx context.Context, params GetAccountInscriptionsParams) (res *InscriptionBalances, err error) {
-	otelAttrs := []attribute.KeyValue{
-		otelogen.OperationID("getAccountInscriptions"),
-		semconv.HTTPMethodKey.String("GET"),
-		semconv.HTTPRouteKey.String("/v2/experimental/accounts/{account_id}/inscriptions"),
-	}
-
-	// Run stopwatch.
-	startTime := time.Now()
-	defer func() {
-		// Use floating point division here for higher precision (instead of Millisecond method).
-		elapsedDuration := time.Since(startTime)
-		c.duration.Record(ctx, float64(float64(elapsedDuration)/float64(time.Millisecond)), metric.WithAttributes(otelAttrs...))
-	}()
-
-	// Increment request counter.
-	c.requests.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
-
-	// Start a span for this request.
-	ctx, span := c.cfg.Tracer.Start(ctx, "GetAccountInscriptions",
-		trace.WithAttributes(otelAttrs...),
-		clientSpanKind,
-	)
-	// Track stage for error reporting.
-	var stage string
-	defer func() {
-		if err != nil {
-			span.RecordError(err)
-			span.SetStatus(codes.Error, stage)
-			c.errors.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
-		}
-		span.End()
-	}()
-
-	stage = "BuildURL"
-	u := uri.Clone(c.requestURL(ctx))
-	var pathParts [3]string
-	pathParts[0] = "/v2/experimental/accounts/"
-	{
-		// Encode "account_id" parameter.
-		e := uri.NewPathEncoder(uri.PathEncoderConfig{
-			Param:   "account_id",
-			Style:   uri.PathStyleSimple,
-			Explode: false,
-		})
-		if err := func() error {
-			return e.EncodeValue(conv.StringToString(params.AccountID))
-		}(); err != nil {
-			return res, errors.Wrap(err, "encode path")
-		}
-		encoded, err := e.Result()
-		if err != nil {
-			return res, errors.Wrap(err, "encode path")
-		}
-		pathParts[1] = encoded
-	}
-	pathParts[2] = "/inscriptions"
-	uri.AddPathParts(u, pathParts[:]...)
-
-	stage = "EncodeQueryParams"
-	q := uri.NewQueryEncoder()
-	{
-		// Encode "limit" parameter.
-		cfg := uri.QueryParameterEncodingConfig{
-			Name:    "limit",
-			Style:   uri.QueryStyleForm,
-			Explode: true,
-		}
-
-		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
-			if val, ok := params.Limit.Get(); ok {
-				return e.EncodeValue(conv.IntToString(val))
-			}
-			return nil
-		}); err != nil {
-			return res, errors.Wrap(err, "encode query")
-		}
-	}
-	{
-		// Encode "offset" parameter.
-		cfg := uri.QueryParameterEncodingConfig{
-			Name:    "offset",
-			Style:   uri.QueryStyleForm,
-			Explode: true,
-		}
-
-		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
-			if val, ok := params.Offset.Get(); ok {
-				return e.EncodeValue(conv.IntToString(val))
-			}
-			return nil
-		}); err != nil {
-			return res, errors.Wrap(err, "encode query")
-		}
-	}
-	u.RawQuery = q.Values().Encode()
-
-	stage = "EncodeRequest"
-	r, err := ht.NewRequest(ctx, "GET", u)
-	if err != nil {
-		return res, errors.Wrap(err, "create request")
-	}
-
-	stage = "SendRequest"
-	resp, err := c.cfg.Client.Do(r)
-	if err != nil {
-		return res, errors.Wrap(err, "do request")
-	}
-	defer resp.Body.Close()
-
-	stage = "DecodeResponse"
-	result, err := decodeGetAccountInscriptionsResponse(resp)
-	if err != nil {
-		return res, errors.Wrap(err, "decode response")
-	}
-
-	return result, nil
-}
-
-// GetAccountInscriptionsHistory invokes getAccountInscriptionsHistory operation.
-//
-// Get the transfer inscriptions history for account. It's experimental API and can be dropped in the
-// future.
-//
-// GET /v2/experimental/accounts/{account_id}/inscriptions/history
-func (c *Client) GetAccountInscriptionsHistory(ctx context.Context, params GetAccountInscriptionsHistoryParams) (*AccountEvents, error) {
-	res, err := c.sendGetAccountInscriptionsHistory(ctx, params)
-	return res, err
-}
-
-func (c *Client) sendGetAccountInscriptionsHistory(ctx context.Context, params GetAccountInscriptionsHistoryParams) (res *AccountEvents, err error) {
-	otelAttrs := []attribute.KeyValue{
-		otelogen.OperationID("getAccountInscriptionsHistory"),
-		semconv.HTTPMethodKey.String("GET"),
-		semconv.HTTPRouteKey.String("/v2/experimental/accounts/{account_id}/inscriptions/history"),
-	}
-
-	// Run stopwatch.
-	startTime := time.Now()
-	defer func() {
-		// Use floating point division here for higher precision (instead of Millisecond method).
-		elapsedDuration := time.Since(startTime)
-		c.duration.Record(ctx, float64(float64(elapsedDuration)/float64(time.Millisecond)), metric.WithAttributes(otelAttrs...))
-	}()
-
-	// Increment request counter.
-	c.requests.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
-
-	// Start a span for this request.
-	ctx, span := c.cfg.Tracer.Start(ctx, "GetAccountInscriptionsHistory",
-		trace.WithAttributes(otelAttrs...),
-		clientSpanKind,
-	)
-	// Track stage for error reporting.
-	var stage string
-	defer func() {
-		if err != nil {
-			span.RecordError(err)
-			span.SetStatus(codes.Error, stage)
-			c.errors.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
-		}
-		span.End()
-	}()
-
-	stage = "BuildURL"
-	u := uri.Clone(c.requestURL(ctx))
-	var pathParts [3]string
-	pathParts[0] = "/v2/experimental/accounts/"
-	{
-		// Encode "account_id" parameter.
-		e := uri.NewPathEncoder(uri.PathEncoderConfig{
-			Param:   "account_id",
-			Style:   uri.PathStyleSimple,
-			Explode: false,
-		})
-		if err := func() error {
-			return e.EncodeValue(conv.StringToString(params.AccountID))
-		}(); err != nil {
-			return res, errors.Wrap(err, "encode path")
-		}
-		encoded, err := e.Result()
-		if err != nil {
-			return res, errors.Wrap(err, "encode path")
-		}
-		pathParts[1] = encoded
-	}
-	pathParts[2] = "/inscriptions/history"
-	uri.AddPathParts(u, pathParts[:]...)
-
-	stage = "EncodeQueryParams"
-	q := uri.NewQueryEncoder()
-	{
-		// Encode "before_lt" parameter.
-		cfg := uri.QueryParameterEncodingConfig{
-			Name:    "before_lt",
-			Style:   uri.QueryStyleForm,
-			Explode: true,
-		}
-
-		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
-			if val, ok := params.BeforeLt.Get(); ok {
-				return e.EncodeValue(conv.Int64ToString(val))
-			}
-			return nil
-		}); err != nil {
-			return res, errors.Wrap(err, "encode query")
-		}
-	}
-	{
-		// Encode "limit" parameter.
-		cfg := uri.QueryParameterEncodingConfig{
-			Name:    "limit",
-			Style:   uri.QueryStyleForm,
-			Explode: true,
-		}
-
-		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
-			if val, ok := params.Limit.Get(); ok {
-				return e.EncodeValue(conv.IntToString(val))
-			}
-			return nil
-		}); err != nil {
-			return res, errors.Wrap(err, "encode query")
-		}
-	}
-	u.RawQuery = q.Values().Encode()
-
-	stage = "EncodeRequest"
-	r, err := ht.NewRequest(ctx, "GET", u)
-	if err != nil {
-		return res, errors.Wrap(err, "create request")
-	}
-
-	stage = "EncodeHeaderParams"
-	h := uri.NewHeaderEncoder(r.Header)
-	{
-		cfg := uri.HeaderParameterEncodingConfig{
-			Name:    "Accept-Language",
-			Explode: false,
-		}
-		if err := h.EncodeParam(cfg, func(e uri.Encoder) error {
-			if val, ok := params.AcceptLanguage.Get(); ok {
-				return e.EncodeValue(conv.StringToString(val))
-			}
-			return nil
-		}); err != nil {
-			return res, errors.Wrap(err, "encode header")
-		}
-	}
-
-	stage = "SendRequest"
-	resp, err := c.cfg.Client.Do(r)
-	if err != nil {
-		return res, errors.Wrap(err, "do request")
-	}
-	defer resp.Body.Close()
-
-	stage = "DecodeResponse"
-	result, err := decodeGetAccountInscriptionsHistoryResponse(resp)
-	if err != nil {
-		return res, errors.Wrap(err, "decode response")
-	}
-
-	return result, nil
-}
-
-// GetAccountInscriptionsHistoryByTicker invokes getAccountInscriptionsHistoryByTicker operation.
-//
-// Get the transfer inscriptions history for account. It's experimental API and can be dropped in the
-// future.
-//
-// GET /v2/experimental/accounts/{account_id}/inscriptions/{ticker}/history
-func (c *Client) GetAccountInscriptionsHistoryByTicker(ctx context.Context, params GetAccountInscriptionsHistoryByTickerParams) (*AccountEvents, error) {
-	res, err := c.sendGetAccountInscriptionsHistoryByTicker(ctx, params)
-	return res, err
-}
-
-func (c *Client) sendGetAccountInscriptionsHistoryByTicker(ctx context.Context, params GetAccountInscriptionsHistoryByTickerParams) (res *AccountEvents, err error) {
-	otelAttrs := []attribute.KeyValue{
-		otelogen.OperationID("getAccountInscriptionsHistoryByTicker"),
-		semconv.HTTPMethodKey.String("GET"),
-		semconv.HTTPRouteKey.String("/v2/experimental/accounts/{account_id}/inscriptions/{ticker}/history"),
-	}
-
-	// Run stopwatch.
-	startTime := time.Now()
-	defer func() {
-		// Use floating point division here for higher precision (instead of Millisecond method).
-		elapsedDuration := time.Since(startTime)
-		c.duration.Record(ctx, float64(float64(elapsedDuration)/float64(time.Millisecond)), metric.WithAttributes(otelAttrs...))
-	}()
-
-	// Increment request counter.
-	c.requests.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
-
-	// Start a span for this request.
-	ctx, span := c.cfg.Tracer.Start(ctx, "GetAccountInscriptionsHistoryByTicker",
+	ctx, span := c.cfg.Tracer.Start(ctx, GetAccountExtraCurrencyHistoryByIDOperation,
 		trace.WithAttributes(otelAttrs...),
 		clientSpanKind,
 	)
@@ -3035,7 +3316,7 @@ func (c *Client) sendGetAccountInscriptionsHistoryByTicker(ctx context.Context, 
 	stage = "BuildURL"
 	u := uri.Clone(c.requestURL(ctx))
 	var pathParts [5]string
-	pathParts[0] = "/v2/experimental/accounts/"
+	pathParts[0] = "/v2/accounts/"
 	{
 		// Encode "account_id" parameter.
 		e := uri.NewPathEncoder(uri.PathEncoderConfig{
@@ -3054,16 +3335,16 @@ func (c *Client) sendGetAccountInscriptionsHistoryByTicker(ctx context.Context, 
 		}
 		pathParts[1] = encoded
 	}
-	pathParts[2] = "/inscriptions/"
+	pathParts[2] = "/extra-currency/"
 	{
-		// Encode "ticker" parameter.
+		// Encode "id" parameter.
 		e := uri.NewPathEncoder(uri.PathEncoderConfig{
-			Param:   "ticker",
+			Param:   "id",
 			Style:   uri.PathStyleSimple,
 			Explode: false,
 		})
 		if err := func() error {
-			return e.EncodeValue(conv.StringToString(params.Ticker))
+			return e.EncodeValue(conv.Int32ToString(params.ID))
 		}(); err != nil {
 			return res, errors.Wrap(err, "encode path")
 		}
@@ -3104,8 +3385,39 @@ func (c *Client) sendGetAccountInscriptionsHistoryByTicker(ctx context.Context, 
 		}
 
 		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
-			if val, ok := params.Limit.Get(); ok {
-				return e.EncodeValue(conv.IntToString(val))
+			return e.EncodeValue(conv.IntToString(params.Limit))
+		}); err != nil {
+			return res, errors.Wrap(err, "encode query")
+		}
+	}
+	{
+		// Encode "start_date" parameter.
+		cfg := uri.QueryParameterEncodingConfig{
+			Name:    "start_date",
+			Style:   uri.QueryStyleForm,
+			Explode: true,
+		}
+
+		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
+			if val, ok := params.StartDate.Get(); ok {
+				return e.EncodeValue(conv.Int64ToString(val))
+			}
+			return nil
+		}); err != nil {
+			return res, errors.Wrap(err, "encode query")
+		}
+	}
+	{
+		// Encode "end_date" parameter.
+		cfg := uri.QueryParameterEncodingConfig{
+			Name:    "end_date",
+			Style:   uri.QueryStyleForm,
+			Explode: true,
+		}
+
+		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
+			if val, ok := params.EndDate.Get(); ok {
+				return e.EncodeValue(conv.Int64ToString(val))
 			}
 			return nil
 		}); err != nil {
@@ -3137,6 +3449,40 @@ func (c *Client) sendGetAccountInscriptionsHistoryByTicker(ctx context.Context, 
 		}
 	}
 
+	{
+		type bitset = [1]uint8
+		var satisfied bitset
+		{
+			stage = "Security:BearerAuth"
+			switch err := c.securityBearerAuth(ctx, GetAccountExtraCurrencyHistoryByIDOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 0
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"BearerAuth\"")
+			}
+		}
+
+		if ok := func() bool {
+		nextRequirement:
+			for _, requirement := range []bitset{
+				{0b00000001},
+				{},
+			} {
+				for i, mask := range requirement {
+					if satisfied[i]&mask != mask {
+						continue nextRequirement
+					}
+				}
+				return true
+			}
+			return false
+		}(); !ok {
+			return res, ogenerrors.ErrSecurityRequirementIsNotSatisfied
+		}
+	}
+
 	stage = "SendRequest"
 	resp, err := c.cfg.Client.Do(r)
 	if err != nil {
@@ -3145,7 +3491,116 @@ func (c *Client) sendGetAccountInscriptionsHistoryByTicker(ctx context.Context, 
 	defer resp.Body.Close()
 
 	stage = "DecodeResponse"
-	result, err := decodeGetAccountInscriptionsHistoryByTickerResponse(resp)
+	result, err := decodeGetAccountExtraCurrencyHistoryByIDResponse(resp)
+	if err != nil {
+		return res, errors.Wrap(err, "decode response")
+	}
+
+	return result, nil
+}
+
+// GetAccountInfoByStateInit invokes getAccountInfoByStateInit operation.
+//
+// Get account info by state init.
+//
+// POST /v2/tonconnect/stateinit
+func (c *Client) GetAccountInfoByStateInit(ctx context.Context, request *GetAccountInfoByStateInitReq) (*AccountInfoByStateInit, error) {
+	res, err := c.sendGetAccountInfoByStateInit(ctx, request)
+	return res, err
+}
+
+func (c *Client) sendGetAccountInfoByStateInit(ctx context.Context, request *GetAccountInfoByStateInitReq) (res *AccountInfoByStateInit, err error) {
+	otelAttrs := []attribute.KeyValue{
+		otelogen.OperationID("getAccountInfoByStateInit"),
+		semconv.HTTPRequestMethodKey.String("POST"),
+		semconv.HTTPRouteKey.String("/v2/tonconnect/stateinit"),
+	}
+
+	// Run stopwatch.
+	startTime := time.Now()
+	defer func() {
+		// Use floating point division here for higher precision (instead of Millisecond method).
+		elapsedDuration := time.Since(startTime)
+		c.duration.Record(ctx, float64(elapsedDuration)/float64(time.Millisecond), metric.WithAttributes(otelAttrs...))
+	}()
+
+	// Increment request counter.
+	c.requests.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
+
+	// Start a span for this request.
+	ctx, span := c.cfg.Tracer.Start(ctx, GetAccountInfoByStateInitOperation,
+		trace.WithAttributes(otelAttrs...),
+		clientSpanKind,
+	)
+	// Track stage for error reporting.
+	var stage string
+	defer func() {
+		if err != nil {
+			span.RecordError(err)
+			span.SetStatus(codes.Error, stage)
+			c.errors.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
+		}
+		span.End()
+	}()
+
+	stage = "BuildURL"
+	u := uri.Clone(c.requestURL(ctx))
+	var pathParts [1]string
+	pathParts[0] = "/v2/tonconnect/stateinit"
+	uri.AddPathParts(u, pathParts[:]...)
+
+	stage = "EncodeRequest"
+	r, err := ht.NewRequest(ctx, "POST", u)
+	if err != nil {
+		return res, errors.Wrap(err, "create request")
+	}
+	if err := encodeGetAccountInfoByStateInitRequest(request, r); err != nil {
+		return res, errors.Wrap(err, "encode request")
+	}
+
+	{
+		type bitset = [1]uint8
+		var satisfied bitset
+		{
+			stage = "Security:BearerAuth"
+			switch err := c.securityBearerAuth(ctx, GetAccountInfoByStateInitOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 0
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"BearerAuth\"")
+			}
+		}
+
+		if ok := func() bool {
+		nextRequirement:
+			for _, requirement := range []bitset{
+				{0b00000001},
+				{},
+			} {
+				for i, mask := range requirement {
+					if satisfied[i]&mask != mask {
+						continue nextRequirement
+					}
+				}
+				return true
+			}
+			return false
+		}(); !ok {
+			return res, ogenerrors.ErrSecurityRequirementIsNotSatisfied
+		}
+	}
+
+	stage = "SendRequest"
+	resp, err := c.cfg.Client.Do(r)
+	if err != nil {
+		return res, errors.Wrap(err, "do request")
+	}
+	defer resp.Body.Close()
+
+	stage = "DecodeResponse"
+	result, err := decodeGetAccountInfoByStateInitResponse(resp)
 	if err != nil {
 		return res, errors.Wrap(err, "decode response")
 	}
@@ -3166,7 +3621,7 @@ func (c *Client) GetAccountJettonBalance(ctx context.Context, params GetAccountJ
 func (c *Client) sendGetAccountJettonBalance(ctx context.Context, params GetAccountJettonBalanceParams) (res *JettonBalance, err error) {
 	otelAttrs := []attribute.KeyValue{
 		otelogen.OperationID("getAccountJettonBalance"),
-		semconv.HTTPMethodKey.String("GET"),
+		semconv.HTTPRequestMethodKey.String("GET"),
 		semconv.HTTPRouteKey.String("/v2/accounts/{account_id}/jettons/{jetton_id}"),
 	}
 
@@ -3175,14 +3630,14 @@ func (c *Client) sendGetAccountJettonBalance(ctx context.Context, params GetAcco
 	defer func() {
 		// Use floating point division here for higher precision (instead of Millisecond method).
 		elapsedDuration := time.Since(startTime)
-		c.duration.Record(ctx, float64(float64(elapsedDuration)/float64(time.Millisecond)), metric.WithAttributes(otelAttrs...))
+		c.duration.Record(ctx, float64(elapsedDuration)/float64(time.Millisecond), metric.WithAttributes(otelAttrs...))
 	}()
 
 	// Increment request counter.
 	c.requests.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
 
 	// Start a span for this request.
-	ctx, span := c.cfg.Tracer.Start(ctx, "GetAccountJettonBalance",
+	ctx, span := c.cfg.Tracer.Start(ctx, GetAccountJettonBalanceOperation,
 		trace.WithAttributes(otelAttrs...),
 		clientSpanKind,
 	)
@@ -3251,16 +3706,19 @@ func (c *Client) sendGetAccountJettonBalance(ctx context.Context, params GetAcco
 		}
 
 		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
-			return e.EncodeArray(func(e uri.Encoder) error {
-				for i, item := range params.Currencies {
-					if err := func() error {
-						return e.EncodeValue(conv.StringToString(item))
-					}(); err != nil {
-						return errors.Wrapf(err, "[%d]", i)
+			if params.Currencies != nil {
+				return e.EncodeArray(func(e uri.Encoder) error {
+					for i, item := range params.Currencies {
+						if err := func() error {
+							return e.EncodeValue(conv.StringToString(item))
+						}(); err != nil {
+							return errors.Wrapf(err, "[%d]", i)
+						}
 					}
-				}
-				return nil
-			})
+					return nil
+				})
+			}
+			return nil
 		}); err != nil {
 			return res, errors.Wrap(err, "encode query")
 		}
@@ -3274,16 +3732,19 @@ func (c *Client) sendGetAccountJettonBalance(ctx context.Context, params GetAcco
 		}
 
 		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
-			return e.EncodeArray(func(e uri.Encoder) error {
-				for i, item := range params.SupportedExtensions {
-					if err := func() error {
-						return e.EncodeValue(conv.StringToString(item))
-					}(); err != nil {
-						return errors.Wrapf(err, "[%d]", i)
+			if params.SupportedExtensions != nil {
+				return e.EncodeArray(func(e uri.Encoder) error {
+					for i, item := range params.SupportedExtensions {
+						if err := func() error {
+							return e.EncodeValue(conv.StringToString(item))
+						}(); err != nil {
+							return errors.Wrapf(err, "[%d]", i)
+						}
 					}
-				}
-				return nil
-			})
+					return nil
+				})
+			}
+			return nil
 		}); err != nil {
 			return res, errors.Wrap(err, "encode query")
 		}
@@ -3294,6 +3755,40 @@ func (c *Client) sendGetAccountJettonBalance(ctx context.Context, params GetAcco
 	r, err := ht.NewRequest(ctx, "GET", u)
 	if err != nil {
 		return res, errors.Wrap(err, "create request")
+	}
+
+	{
+		type bitset = [1]uint8
+		var satisfied bitset
+		{
+			stage = "Security:BearerAuth"
+			switch err := c.securityBearerAuth(ctx, GetAccountJettonBalanceOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 0
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"BearerAuth\"")
+			}
+		}
+
+		if ok := func() bool {
+		nextRequirement:
+			for _, requirement := range []bitset{
+				{0b00000001},
+				{},
+			} {
+				for i, mask := range requirement {
+					if satisfied[i]&mask != mask {
+						continue nextRequirement
+					}
+				}
+				return true
+			}
+			return false
+		}(); !ok {
+			return res, ogenerrors.ErrSecurityRequirementIsNotSatisfied
+		}
 	}
 
 	stage = "SendRequest"
@@ -3325,7 +3820,7 @@ func (c *Client) GetAccountJettonHistoryByID(ctx context.Context, params GetAcco
 func (c *Client) sendGetAccountJettonHistoryByID(ctx context.Context, params GetAccountJettonHistoryByIDParams) (res *AccountEvents, err error) {
 	otelAttrs := []attribute.KeyValue{
 		otelogen.OperationID("getAccountJettonHistoryByID"),
-		semconv.HTTPMethodKey.String("GET"),
+		semconv.HTTPRequestMethodKey.String("GET"),
 		semconv.HTTPRouteKey.String("/v2/accounts/{account_id}/jettons/{jetton_id}/history"),
 	}
 
@@ -3334,14 +3829,14 @@ func (c *Client) sendGetAccountJettonHistoryByID(ctx context.Context, params Get
 	defer func() {
 		// Use floating point division here for higher precision (instead of Millisecond method).
 		elapsedDuration := time.Since(startTime)
-		c.duration.Record(ctx, float64(float64(elapsedDuration)/float64(time.Millisecond)), metric.WithAttributes(otelAttrs...))
+		c.duration.Record(ctx, float64(elapsedDuration)/float64(time.Millisecond), metric.WithAttributes(otelAttrs...))
 	}()
 
 	// Increment request counter.
 	c.requests.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
 
 	// Start a span for this request.
-	ctx, span := c.cfg.Tracer.Start(ctx, "GetAccountJettonHistoryByID",
+	ctx, span := c.cfg.Tracer.Start(ctx, GetAccountJettonHistoryByIDOperation,
 		trace.WithAttributes(otelAttrs...),
 		clientSpanKind,
 	)
@@ -3492,6 +3987,40 @@ func (c *Client) sendGetAccountJettonHistoryByID(ctx context.Context, params Get
 		}
 	}
 
+	{
+		type bitset = [1]uint8
+		var satisfied bitset
+		{
+			stage = "Security:BearerAuth"
+			switch err := c.securityBearerAuth(ctx, GetAccountJettonHistoryByIDOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 0
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"BearerAuth\"")
+			}
+		}
+
+		if ok := func() bool {
+		nextRequirement:
+			for _, requirement := range []bitset{
+				{0b00000001},
+				{},
+			} {
+				for i, mask := range requirement {
+					if satisfied[i]&mask != mask {
+						continue nextRequirement
+					}
+				}
+				return true
+			}
+			return false
+		}(); !ok {
+			return res, ogenerrors.ErrSecurityRequirementIsNotSatisfied
+		}
+	}
+
 	stage = "SendRequest"
 	resp, err := c.cfg.Client.Do(r)
 	if err != nil {
@@ -3521,7 +4050,7 @@ func (c *Client) GetAccountJettonsBalances(ctx context.Context, params GetAccoun
 func (c *Client) sendGetAccountJettonsBalances(ctx context.Context, params GetAccountJettonsBalancesParams) (res *JettonsBalances, err error) {
 	otelAttrs := []attribute.KeyValue{
 		otelogen.OperationID("getAccountJettonsBalances"),
-		semconv.HTTPMethodKey.String("GET"),
+		semconv.HTTPRequestMethodKey.String("GET"),
 		semconv.HTTPRouteKey.String("/v2/accounts/{account_id}/jettons"),
 	}
 
@@ -3530,14 +4059,14 @@ func (c *Client) sendGetAccountJettonsBalances(ctx context.Context, params GetAc
 	defer func() {
 		// Use floating point division here for higher precision (instead of Millisecond method).
 		elapsedDuration := time.Since(startTime)
-		c.duration.Record(ctx, float64(float64(elapsedDuration)/float64(time.Millisecond)), metric.WithAttributes(otelAttrs...))
+		c.duration.Record(ctx, float64(elapsedDuration)/float64(time.Millisecond), metric.WithAttributes(otelAttrs...))
 	}()
 
 	// Increment request counter.
 	c.requests.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
 
 	// Start a span for this request.
-	ctx, span := c.cfg.Tracer.Start(ctx, "GetAccountJettonsBalances",
+	ctx, span := c.cfg.Tracer.Start(ctx, GetAccountJettonsBalancesOperation,
 		trace.WithAttributes(otelAttrs...),
 		clientSpanKind,
 	)
@@ -3588,16 +4117,19 @@ func (c *Client) sendGetAccountJettonsBalances(ctx context.Context, params GetAc
 		}
 
 		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
-			return e.EncodeArray(func(e uri.Encoder) error {
-				for i, item := range params.Currencies {
-					if err := func() error {
-						return e.EncodeValue(conv.StringToString(item))
-					}(); err != nil {
-						return errors.Wrapf(err, "[%d]", i)
+			if params.Currencies != nil {
+				return e.EncodeArray(func(e uri.Encoder) error {
+					for i, item := range params.Currencies {
+						if err := func() error {
+							return e.EncodeValue(conv.StringToString(item))
+						}(); err != nil {
+							return errors.Wrapf(err, "[%d]", i)
+						}
 					}
-				}
-				return nil
-			})
+					return nil
+				})
+			}
+			return nil
 		}); err != nil {
 			return res, errors.Wrap(err, "encode query")
 		}
@@ -3611,16 +4143,19 @@ func (c *Client) sendGetAccountJettonsBalances(ctx context.Context, params GetAc
 		}
 
 		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
-			return e.EncodeArray(func(e uri.Encoder) error {
-				for i, item := range params.SupportedExtensions {
-					if err := func() error {
-						return e.EncodeValue(conv.StringToString(item))
-					}(); err != nil {
-						return errors.Wrapf(err, "[%d]", i)
+			if params.SupportedExtensions != nil {
+				return e.EncodeArray(func(e uri.Encoder) error {
+					for i, item := range params.SupportedExtensions {
+						if err := func() error {
+							return e.EncodeValue(conv.StringToString(item))
+						}(); err != nil {
+							return errors.Wrapf(err, "[%d]", i)
+						}
 					}
-				}
-				return nil
-			})
+					return nil
+				})
+			}
+			return nil
 		}); err != nil {
 			return res, errors.Wrap(err, "encode query")
 		}
@@ -3631,6 +4166,40 @@ func (c *Client) sendGetAccountJettonsBalances(ctx context.Context, params GetAc
 	r, err := ht.NewRequest(ctx, "GET", u)
 	if err != nil {
 		return res, errors.Wrap(err, "create request")
+	}
+
+	{
+		type bitset = [1]uint8
+		var satisfied bitset
+		{
+			stage = "Security:BearerAuth"
+			switch err := c.securityBearerAuth(ctx, GetAccountJettonsBalancesOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 0
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"BearerAuth\"")
+			}
+		}
+
+		if ok := func() bool {
+		nextRequirement:
+			for _, requirement := range []bitset{
+				{0b00000001},
+				{},
+			} {
+				for i, mask := range requirement {
+					if satisfied[i]&mask != mask {
+						continue nextRequirement
+					}
+				}
+				return true
+			}
+			return false
+		}(); !ok {
+			return res, ogenerrors.ErrSecurityRequirementIsNotSatisfied
+		}
 	}
 
 	stage = "SendRequest"
@@ -3662,7 +4231,7 @@ func (c *Client) GetAccountJettonsHistory(ctx context.Context, params GetAccount
 func (c *Client) sendGetAccountJettonsHistory(ctx context.Context, params GetAccountJettonsHistoryParams) (res *AccountEvents, err error) {
 	otelAttrs := []attribute.KeyValue{
 		otelogen.OperationID("getAccountJettonsHistory"),
-		semconv.HTTPMethodKey.String("GET"),
+		semconv.HTTPRequestMethodKey.String("GET"),
 		semconv.HTTPRouteKey.String("/v2/accounts/{account_id}/jettons/history"),
 	}
 
@@ -3671,14 +4240,14 @@ func (c *Client) sendGetAccountJettonsHistory(ctx context.Context, params GetAcc
 	defer func() {
 		// Use floating point division here for higher precision (instead of Millisecond method).
 		elapsedDuration := time.Since(startTime)
-		c.duration.Record(ctx, float64(float64(elapsedDuration)/float64(time.Millisecond)), metric.WithAttributes(otelAttrs...))
+		c.duration.Record(ctx, float64(elapsedDuration)/float64(time.Millisecond), metric.WithAttributes(otelAttrs...))
 	}()
 
 	// Increment request counter.
 	c.requests.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
 
 	// Start a span for this request.
-	ctx, span := c.cfg.Tracer.Start(ctx, "GetAccountJettonsHistory",
+	ctx, span := c.cfg.Tracer.Start(ctx, GetAccountJettonsHistoryOperation,
 		trace.WithAttributes(otelAttrs...),
 		clientSpanKind,
 	)
@@ -3810,6 +4379,40 @@ func (c *Client) sendGetAccountJettonsHistory(ctx context.Context, params GetAcc
 		}
 	}
 
+	{
+		type bitset = [1]uint8
+		var satisfied bitset
+		{
+			stage = "Security:BearerAuth"
+			switch err := c.securityBearerAuth(ctx, GetAccountJettonsHistoryOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 0
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"BearerAuth\"")
+			}
+		}
+
+		if ok := func() bool {
+		nextRequirement:
+			for _, requirement := range []bitset{
+				{0b00000001},
+				{},
+			} {
+				for i, mask := range requirement {
+					if satisfied[i]&mask != mask {
+						continue nextRequirement
+					}
+				}
+				return true
+			}
+			return false
+		}(); !ok {
+			return res, ogenerrors.ErrSecurityRequirementIsNotSatisfied
+		}
+	}
+
 	stage = "SendRequest"
 	resp, err := c.cfg.Client.Do(r)
 	if err != nil {
@@ -3839,7 +4442,7 @@ func (c *Client) GetAccountMultisigs(ctx context.Context, params GetAccountMulti
 func (c *Client) sendGetAccountMultisigs(ctx context.Context, params GetAccountMultisigsParams) (res *Multisigs, err error) {
 	otelAttrs := []attribute.KeyValue{
 		otelogen.OperationID("getAccountMultisigs"),
-		semconv.HTTPMethodKey.String("GET"),
+		semconv.HTTPRequestMethodKey.String("GET"),
 		semconv.HTTPRouteKey.String("/v2/accounts/{account_id}/multisigs"),
 	}
 
@@ -3848,14 +4451,14 @@ func (c *Client) sendGetAccountMultisigs(ctx context.Context, params GetAccountM
 	defer func() {
 		// Use floating point division here for higher precision (instead of Millisecond method).
 		elapsedDuration := time.Since(startTime)
-		c.duration.Record(ctx, float64(float64(elapsedDuration)/float64(time.Millisecond)), metric.WithAttributes(otelAttrs...))
+		c.duration.Record(ctx, float64(elapsedDuration)/float64(time.Millisecond), metric.WithAttributes(otelAttrs...))
 	}()
 
 	// Increment request counter.
 	c.requests.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
 
 	// Start a span for this request.
-	ctx, span := c.cfg.Tracer.Start(ctx, "GetAccountMultisigs",
+	ctx, span := c.cfg.Tracer.Start(ctx, GetAccountMultisigsOperation,
 		trace.WithAttributes(otelAttrs...),
 		clientSpanKind,
 	)
@@ -3901,6 +4504,40 @@ func (c *Client) sendGetAccountMultisigs(ctx context.Context, params GetAccountM
 		return res, errors.Wrap(err, "create request")
 	}
 
+	{
+		type bitset = [1]uint8
+		var satisfied bitset
+		{
+			stage = "Security:BearerAuth"
+			switch err := c.securityBearerAuth(ctx, GetAccountMultisigsOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 0
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"BearerAuth\"")
+			}
+		}
+
+		if ok := func() bool {
+		nextRequirement:
+			for _, requirement := range []bitset{
+				{0b00000001},
+				{},
+			} {
+				for i, mask := range requirement {
+					if satisfied[i]&mask != mask {
+						continue nextRequirement
+					}
+				}
+				return true
+			}
+			return false
+		}(); !ok {
+			return res, ogenerrors.ErrSecurityRequirementIsNotSatisfied
+		}
+	}
+
 	stage = "SendRequest"
 	resp, err := c.cfg.Client.Do(r)
 	if err != nil {
@@ -3930,7 +4567,7 @@ func (c *Client) GetAccountNftHistory(ctx context.Context, params GetAccountNftH
 func (c *Client) sendGetAccountNftHistory(ctx context.Context, params GetAccountNftHistoryParams) (res *AccountEvents, err error) {
 	otelAttrs := []attribute.KeyValue{
 		otelogen.OperationID("getAccountNftHistory"),
-		semconv.HTTPMethodKey.String("GET"),
+		semconv.HTTPRequestMethodKey.String("GET"),
 		semconv.HTTPRouteKey.String("/v2/accounts/{account_id}/nfts/history"),
 	}
 
@@ -3939,14 +4576,14 @@ func (c *Client) sendGetAccountNftHistory(ctx context.Context, params GetAccount
 	defer func() {
 		// Use floating point division here for higher precision (instead of Millisecond method).
 		elapsedDuration := time.Since(startTime)
-		c.duration.Record(ctx, float64(float64(elapsedDuration)/float64(time.Millisecond)), metric.WithAttributes(otelAttrs...))
+		c.duration.Record(ctx, float64(elapsedDuration)/float64(time.Millisecond), metric.WithAttributes(otelAttrs...))
 	}()
 
 	// Increment request counter.
 	c.requests.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
 
 	// Start a span for this request.
-	ctx, span := c.cfg.Tracer.Start(ctx, "GetAccountNftHistory",
+	ctx, span := c.cfg.Tracer.Start(ctx, GetAccountNftHistoryOperation,
 		trace.WithAttributes(otelAttrs...),
 		clientSpanKind,
 	)
@@ -4078,6 +4715,40 @@ func (c *Client) sendGetAccountNftHistory(ctx context.Context, params GetAccount
 		}
 	}
 
+	{
+		type bitset = [1]uint8
+		var satisfied bitset
+		{
+			stage = "Security:BearerAuth"
+			switch err := c.securityBearerAuth(ctx, GetAccountNftHistoryOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 0
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"BearerAuth\"")
+			}
+		}
+
+		if ok := func() bool {
+		nextRequirement:
+			for _, requirement := range []bitset{
+				{0b00000001},
+				{},
+			} {
+				for i, mask := range requirement {
+					if satisfied[i]&mask != mask {
+						continue nextRequirement
+					}
+				}
+				return true
+			}
+			return false
+		}(); !ok {
+			return res, ogenerrors.ErrSecurityRequirementIsNotSatisfied
+		}
+	}
+
 	stage = "SendRequest"
 	resp, err := c.cfg.Client.Do(r)
 	if err != nil {
@@ -4107,7 +4778,7 @@ func (c *Client) GetAccountNftItems(ctx context.Context, params GetAccountNftIte
 func (c *Client) sendGetAccountNftItems(ctx context.Context, params GetAccountNftItemsParams) (res *NftItems, err error) {
 	otelAttrs := []attribute.KeyValue{
 		otelogen.OperationID("getAccountNftItems"),
-		semconv.HTTPMethodKey.String("GET"),
+		semconv.HTTPRequestMethodKey.String("GET"),
 		semconv.HTTPRouteKey.String("/v2/accounts/{account_id}/nfts"),
 	}
 
@@ -4116,14 +4787,14 @@ func (c *Client) sendGetAccountNftItems(ctx context.Context, params GetAccountNf
 	defer func() {
 		// Use floating point division here for higher precision (instead of Millisecond method).
 		elapsedDuration := time.Since(startTime)
-		c.duration.Record(ctx, float64(float64(elapsedDuration)/float64(time.Millisecond)), metric.WithAttributes(otelAttrs...))
+		c.duration.Record(ctx, float64(elapsedDuration)/float64(time.Millisecond), metric.WithAttributes(otelAttrs...))
 	}()
 
 	// Increment request counter.
 	c.requests.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
 
 	// Start a span for this request.
-	ctx, span := c.cfg.Tracer.Start(ctx, "GetAccountNftItems",
+	ctx, span := c.cfg.Tracer.Start(ctx, GetAccountNftItemsOperation,
 		trace.WithAttributes(otelAttrs...),
 		clientSpanKind,
 	)
@@ -4241,6 +4912,40 @@ func (c *Client) sendGetAccountNftItems(ctx context.Context, params GetAccountNf
 		return res, errors.Wrap(err, "create request")
 	}
 
+	{
+		type bitset = [1]uint8
+		var satisfied bitset
+		{
+			stage = "Security:BearerAuth"
+			switch err := c.securityBearerAuth(ctx, GetAccountNftItemsOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 0
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"BearerAuth\"")
+			}
+		}
+
+		if ok := func() bool {
+		nextRequirement:
+			for _, requirement := range []bitset{
+				{0b00000001},
+				{},
+			} {
+				for i, mask := range requirement {
+					if satisfied[i]&mask != mask {
+						continue nextRequirement
+					}
+				}
+				return true
+			}
+			return false
+		}(); !ok {
+			return res, ogenerrors.ErrSecurityRequirementIsNotSatisfied
+		}
+	}
+
 	stage = "SendRequest"
 	resp, err := c.cfg.Client.Do(r)
 	if err != nil {
@@ -4270,7 +4975,7 @@ func (c *Client) GetAccountNominatorsPools(ctx context.Context, params GetAccoun
 func (c *Client) sendGetAccountNominatorsPools(ctx context.Context, params GetAccountNominatorsPoolsParams) (res *AccountStaking, err error) {
 	otelAttrs := []attribute.KeyValue{
 		otelogen.OperationID("getAccountNominatorsPools"),
-		semconv.HTTPMethodKey.String("GET"),
+		semconv.HTTPRequestMethodKey.String("GET"),
 		semconv.HTTPRouteKey.String("/v2/staking/nominator/{account_id}/pools"),
 	}
 
@@ -4279,14 +4984,14 @@ func (c *Client) sendGetAccountNominatorsPools(ctx context.Context, params GetAc
 	defer func() {
 		// Use floating point division here for higher precision (instead of Millisecond method).
 		elapsedDuration := time.Since(startTime)
-		c.duration.Record(ctx, float64(float64(elapsedDuration)/float64(time.Millisecond)), metric.WithAttributes(otelAttrs...))
+		c.duration.Record(ctx, float64(elapsedDuration)/float64(time.Millisecond), metric.WithAttributes(otelAttrs...))
 	}()
 
 	// Increment request counter.
 	c.requests.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
 
 	// Start a span for this request.
-	ctx, span := c.cfg.Tracer.Start(ctx, "GetAccountNominatorsPools",
+	ctx, span := c.cfg.Tracer.Start(ctx, GetAccountNominatorsPoolsOperation,
 		trace.WithAttributes(otelAttrs...),
 		clientSpanKind,
 	)
@@ -4332,6 +5037,40 @@ func (c *Client) sendGetAccountNominatorsPools(ctx context.Context, params GetAc
 		return res, errors.Wrap(err, "create request")
 	}
 
+	{
+		type bitset = [1]uint8
+		var satisfied bitset
+		{
+			stage = "Security:BearerAuth"
+			switch err := c.securityBearerAuth(ctx, GetAccountNominatorsPoolsOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 0
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"BearerAuth\"")
+			}
+		}
+
+		if ok := func() bool {
+		nextRequirement:
+			for _, requirement := range []bitset{
+				{0b00000001},
+				{},
+			} {
+				for i, mask := range requirement {
+					if satisfied[i]&mask != mask {
+						continue nextRequirement
+					}
+				}
+				return true
+			}
+			return false
+		}(); !ok {
+			return res, ogenerrors.ErrSecurityRequirementIsNotSatisfied
+		}
+	}
+
 	stage = "SendRequest"
 	resp, err := c.cfg.Client.Do(r)
 	if err != nil {
@@ -4361,7 +5100,7 @@ func (c *Client) GetAccountPublicKey(ctx context.Context, params GetAccountPubli
 func (c *Client) sendGetAccountPublicKey(ctx context.Context, params GetAccountPublicKeyParams) (res *GetAccountPublicKeyOK, err error) {
 	otelAttrs := []attribute.KeyValue{
 		otelogen.OperationID("getAccountPublicKey"),
-		semconv.HTTPMethodKey.String("GET"),
+		semconv.HTTPRequestMethodKey.String("GET"),
 		semconv.HTTPRouteKey.String("/v2/accounts/{account_id}/publickey"),
 	}
 
@@ -4370,14 +5109,14 @@ func (c *Client) sendGetAccountPublicKey(ctx context.Context, params GetAccountP
 	defer func() {
 		// Use floating point division here for higher precision (instead of Millisecond method).
 		elapsedDuration := time.Since(startTime)
-		c.duration.Record(ctx, float64(float64(elapsedDuration)/float64(time.Millisecond)), metric.WithAttributes(otelAttrs...))
+		c.duration.Record(ctx, float64(elapsedDuration)/float64(time.Millisecond), metric.WithAttributes(otelAttrs...))
 	}()
 
 	// Increment request counter.
 	c.requests.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
 
 	// Start a span for this request.
-	ctx, span := c.cfg.Tracer.Start(ctx, "GetAccountPublicKey",
+	ctx, span := c.cfg.Tracer.Start(ctx, GetAccountPublicKeyOperation,
 		trace.WithAttributes(otelAttrs...),
 		clientSpanKind,
 	)
@@ -4423,6 +5162,40 @@ func (c *Client) sendGetAccountPublicKey(ctx context.Context, params GetAccountP
 		return res, errors.Wrap(err, "create request")
 	}
 
+	{
+		type bitset = [1]uint8
+		var satisfied bitset
+		{
+			stage = "Security:BearerAuth"
+			switch err := c.securityBearerAuth(ctx, GetAccountPublicKeyOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 0
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"BearerAuth\"")
+			}
+		}
+
+		if ok := func() bool {
+		nextRequirement:
+			for _, requirement := range []bitset{
+				{0b00000001},
+				{},
+			} {
+				for i, mask := range requirement {
+					if satisfied[i]&mask != mask {
+						continue nextRequirement
+					}
+				}
+				return true
+			}
+			return false
+		}(); !ok {
+			return res, ogenerrors.ErrSecurityRequirementIsNotSatisfied
+		}
+	}
+
 	stage = "SendRequest"
 	resp, err := c.cfg.Client.Do(r)
 	if err != nil {
@@ -4452,7 +5225,7 @@ func (c *Client) GetAccountSeqno(ctx context.Context, params GetAccountSeqnoPara
 func (c *Client) sendGetAccountSeqno(ctx context.Context, params GetAccountSeqnoParams) (res *Seqno, err error) {
 	otelAttrs := []attribute.KeyValue{
 		otelogen.OperationID("getAccountSeqno"),
-		semconv.HTTPMethodKey.String("GET"),
+		semconv.HTTPRequestMethodKey.String("GET"),
 		semconv.HTTPRouteKey.String("/v2/wallet/{account_id}/seqno"),
 	}
 
@@ -4461,14 +5234,14 @@ func (c *Client) sendGetAccountSeqno(ctx context.Context, params GetAccountSeqno
 	defer func() {
 		// Use floating point division here for higher precision (instead of Millisecond method).
 		elapsedDuration := time.Since(startTime)
-		c.duration.Record(ctx, float64(float64(elapsedDuration)/float64(time.Millisecond)), metric.WithAttributes(otelAttrs...))
+		c.duration.Record(ctx, float64(elapsedDuration)/float64(time.Millisecond), metric.WithAttributes(otelAttrs...))
 	}()
 
 	// Increment request counter.
 	c.requests.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
 
 	// Start a span for this request.
-	ctx, span := c.cfg.Tracer.Start(ctx, "GetAccountSeqno",
+	ctx, span := c.cfg.Tracer.Start(ctx, GetAccountSeqnoOperation,
 		trace.WithAttributes(otelAttrs...),
 		clientSpanKind,
 	)
@@ -4514,6 +5287,40 @@ func (c *Client) sendGetAccountSeqno(ctx context.Context, params GetAccountSeqno
 		return res, errors.Wrap(err, "create request")
 	}
 
+	{
+		type bitset = [1]uint8
+		var satisfied bitset
+		{
+			stage = "Security:BearerAuth"
+			switch err := c.securityBearerAuth(ctx, GetAccountSeqnoOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 0
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"BearerAuth\"")
+			}
+		}
+
+		if ok := func() bool {
+		nextRequirement:
+			for _, requirement := range []bitset{
+				{0b00000001},
+				{},
+			} {
+				for i, mask := range requirement {
+					if satisfied[i]&mask != mask {
+						continue nextRequirement
+					}
+				}
+				return true
+			}
+			return false
+		}(); !ok {
+			return res, ogenerrors.ErrSecurityRequirementIsNotSatisfied
+		}
+	}
+
 	stage = "SendRequest"
 	resp, err := c.cfg.Client.Do(r)
 	if err != nil {
@@ -4543,7 +5350,7 @@ func (c *Client) GetAccountSubscriptions(ctx context.Context, params GetAccountS
 func (c *Client) sendGetAccountSubscriptions(ctx context.Context, params GetAccountSubscriptionsParams) (res *Subscriptions, err error) {
 	otelAttrs := []attribute.KeyValue{
 		otelogen.OperationID("getAccountSubscriptions"),
-		semconv.HTTPMethodKey.String("GET"),
+		semconv.HTTPRequestMethodKey.String("GET"),
 		semconv.HTTPRouteKey.String("/v2/accounts/{account_id}/subscriptions"),
 	}
 
@@ -4552,14 +5359,14 @@ func (c *Client) sendGetAccountSubscriptions(ctx context.Context, params GetAcco
 	defer func() {
 		// Use floating point division here for higher precision (instead of Millisecond method).
 		elapsedDuration := time.Since(startTime)
-		c.duration.Record(ctx, float64(float64(elapsedDuration)/float64(time.Millisecond)), metric.WithAttributes(otelAttrs...))
+		c.duration.Record(ctx, float64(elapsedDuration)/float64(time.Millisecond), metric.WithAttributes(otelAttrs...))
 	}()
 
 	// Increment request counter.
 	c.requests.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
 
 	// Start a span for this request.
-	ctx, span := c.cfg.Tracer.Start(ctx, "GetAccountSubscriptions",
+	ctx, span := c.cfg.Tracer.Start(ctx, GetAccountSubscriptionsOperation,
 		trace.WithAttributes(otelAttrs...),
 		clientSpanKind,
 	)
@@ -4605,6 +5412,40 @@ func (c *Client) sendGetAccountSubscriptions(ctx context.Context, params GetAcco
 		return res, errors.Wrap(err, "create request")
 	}
 
+	{
+		type bitset = [1]uint8
+		var satisfied bitset
+		{
+			stage = "Security:BearerAuth"
+			switch err := c.securityBearerAuth(ctx, GetAccountSubscriptionsOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 0
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"BearerAuth\"")
+			}
+		}
+
+		if ok := func() bool {
+		nextRequirement:
+			for _, requirement := range []bitset{
+				{0b00000001},
+				{},
+			} {
+				for i, mask := range requirement {
+					if satisfied[i]&mask != mask {
+						continue nextRequirement
+					}
+				}
+				return true
+			}
+			return false
+		}(); !ok {
+			return res, ogenerrors.ErrSecurityRequirementIsNotSatisfied
+		}
+	}
+
 	stage = "SendRequest"
 	resp, err := c.cfg.Client.Do(r)
 	if err != nil {
@@ -4634,7 +5475,7 @@ func (c *Client) GetAccountTraces(ctx context.Context, params GetAccountTracesPa
 func (c *Client) sendGetAccountTraces(ctx context.Context, params GetAccountTracesParams) (res *TraceIDs, err error) {
 	otelAttrs := []attribute.KeyValue{
 		otelogen.OperationID("getAccountTraces"),
-		semconv.HTTPMethodKey.String("GET"),
+		semconv.HTTPRequestMethodKey.String("GET"),
 		semconv.HTTPRouteKey.String("/v2/accounts/{account_id}/traces"),
 	}
 
@@ -4643,14 +5484,14 @@ func (c *Client) sendGetAccountTraces(ctx context.Context, params GetAccountTrac
 	defer func() {
 		// Use floating point division here for higher precision (instead of Millisecond method).
 		elapsedDuration := time.Since(startTime)
-		c.duration.Record(ctx, float64(float64(elapsedDuration)/float64(time.Millisecond)), metric.WithAttributes(otelAttrs...))
+		c.duration.Record(ctx, float64(elapsedDuration)/float64(time.Millisecond), metric.WithAttributes(otelAttrs...))
 	}()
 
 	// Increment request counter.
 	c.requests.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
 
 	// Start a span for this request.
-	ctx, span := c.cfg.Tracer.Start(ctx, "GetAccountTraces",
+	ctx, span := c.cfg.Tracer.Start(ctx, GetAccountTracesOperation,
 		trace.WithAttributes(otelAttrs...),
 		clientSpanKind,
 	)
@@ -4734,6 +5575,40 @@ func (c *Client) sendGetAccountTraces(ctx context.Context, params GetAccountTrac
 		return res, errors.Wrap(err, "create request")
 	}
 
+	{
+		type bitset = [1]uint8
+		var satisfied bitset
+		{
+			stage = "Security:BearerAuth"
+			switch err := c.securityBearerAuth(ctx, GetAccountTracesOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 0
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"BearerAuth\"")
+			}
+		}
+
+		if ok := func() bool {
+		nextRequirement:
+			for _, requirement := range []bitset{
+				{0b00000001},
+				{},
+			} {
+				for i, mask := range requirement {
+					if satisfied[i]&mask != mask {
+						continue nextRequirement
+					}
+				}
+				return true
+			}
+			return false
+		}(); !ok {
+			return res, ogenerrors.ErrSecurityRequirementIsNotSatisfied
+		}
+	}
+
 	stage = "SendRequest"
 	resp, err := c.cfg.Client.Do(r)
 	if err != nil {
@@ -4761,11 +5636,6 @@ func (c *Client) GetAccounts(ctx context.Context, request OptGetAccountsReq, par
 }
 
 func (c *Client) sendGetAccounts(ctx context.Context, request OptGetAccountsReq, params GetAccountsParams) (res *Accounts, err error) {
-	otelAttrs := []attribute.KeyValue{
-		otelogen.OperationID("getAccounts"),
-		semconv.HTTPMethodKey.String("POST"),
-		semconv.HTTPRouteKey.String("/v2/accounts/_bulk"),
-	}
 	// Validate request before sending.
 	if err := func() error {
 		if value, ok := request.Get(); ok {
@@ -4782,20 +5652,25 @@ func (c *Client) sendGetAccounts(ctx context.Context, request OptGetAccountsReq,
 	}(); err != nil {
 		return res, errors.Wrap(err, "validate")
 	}
+	otelAttrs := []attribute.KeyValue{
+		otelogen.OperationID("getAccounts"),
+		semconv.HTTPRequestMethodKey.String("POST"),
+		semconv.HTTPRouteKey.String("/v2/accounts/_bulk"),
+	}
 
 	// Run stopwatch.
 	startTime := time.Now()
 	defer func() {
 		// Use floating point division here for higher precision (instead of Millisecond method).
 		elapsedDuration := time.Since(startTime)
-		c.duration.Record(ctx, float64(float64(elapsedDuration)/float64(time.Millisecond)), metric.WithAttributes(otelAttrs...))
+		c.duration.Record(ctx, float64(elapsedDuration)/float64(time.Millisecond), metric.WithAttributes(otelAttrs...))
 	}()
 
 	// Increment request counter.
 	c.requests.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
 
 	// Start a span for this request.
-	ctx, span := c.cfg.Tracer.Start(ctx, "GetAccounts",
+	ctx, span := c.cfg.Tracer.Start(ctx, GetAccountsOperation,
 		trace.WithAttributes(otelAttrs...),
 		clientSpanKind,
 	)
@@ -4846,6 +5721,40 @@ func (c *Client) sendGetAccounts(ctx context.Context, request OptGetAccountsReq,
 		return res, errors.Wrap(err, "encode request")
 	}
 
+	{
+		type bitset = [1]uint8
+		var satisfied bitset
+		{
+			stage = "Security:BearerAuth"
+			switch err := c.securityBearerAuth(ctx, GetAccountsOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 0
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"BearerAuth\"")
+			}
+		}
+
+		if ok := func() bool {
+		nextRequirement:
+			for _, requirement := range []bitset{
+				{0b00000001},
+				{},
+			} {
+				for i, mask := range requirement {
+					if satisfied[i]&mask != mask {
+						continue nextRequirement
+					}
+				}
+				return true
+			}
+			return false
+		}(); !ok {
+			return res, ogenerrors.ErrSecurityRequirementIsNotSatisfied
+		}
+	}
+
 	stage = "SendRequest"
 	resp, err := c.cfg.Client.Do(r)
 	if err != nil {
@@ -4875,7 +5784,7 @@ func (c *Client) GetAllAuctions(ctx context.Context, params GetAllAuctionsParams
 func (c *Client) sendGetAllAuctions(ctx context.Context, params GetAllAuctionsParams) (res *Auctions, err error) {
 	otelAttrs := []attribute.KeyValue{
 		otelogen.OperationID("getAllAuctions"),
-		semconv.HTTPMethodKey.String("GET"),
+		semconv.HTTPRequestMethodKey.String("GET"),
 		semconv.HTTPRouteKey.String("/v2/dns/auctions"),
 	}
 
@@ -4884,14 +5793,14 @@ func (c *Client) sendGetAllAuctions(ctx context.Context, params GetAllAuctionsPa
 	defer func() {
 		// Use floating point division here for higher precision (instead of Millisecond method).
 		elapsedDuration := time.Since(startTime)
-		c.duration.Record(ctx, float64(float64(elapsedDuration)/float64(time.Millisecond)), metric.WithAttributes(otelAttrs...))
+		c.duration.Record(ctx, float64(elapsedDuration)/float64(time.Millisecond), metric.WithAttributes(otelAttrs...))
 	}()
 
 	// Increment request counter.
 	c.requests.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
 
 	// Start a span for this request.
-	ctx, span := c.cfg.Tracer.Start(ctx, "GetAllAuctions",
+	ctx, span := c.cfg.Tracer.Start(ctx, GetAllAuctionsOperation,
 		trace.WithAttributes(otelAttrs...),
 		clientSpanKind,
 	)
@@ -4939,6 +5848,40 @@ func (c *Client) sendGetAllAuctions(ctx context.Context, params GetAllAuctionsPa
 		return res, errors.Wrap(err, "create request")
 	}
 
+	{
+		type bitset = [1]uint8
+		var satisfied bitset
+		{
+			stage = "Security:BearerAuth"
+			switch err := c.securityBearerAuth(ctx, GetAllAuctionsOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 0
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"BearerAuth\"")
+			}
+		}
+
+		if ok := func() bool {
+		nextRequirement:
+			for _, requirement := range []bitset{
+				{0b00000001},
+				{},
+			} {
+				for i, mask := range requirement {
+					if satisfied[i]&mask != mask {
+						continue nextRequirement
+					}
+				}
+				return true
+			}
+			return false
+		}(); !ok {
+			return res, ogenerrors.ErrSecurityRequirementIsNotSatisfied
+		}
+	}
+
 	stage = "SendRequest"
 	resp, err := c.cfg.Client.Do(r)
 	if err != nil {
@@ -4968,7 +5911,7 @@ func (c *Client) GetAllRawShardsInfo(ctx context.Context, params GetAllRawShards
 func (c *Client) sendGetAllRawShardsInfo(ctx context.Context, params GetAllRawShardsInfoParams) (res *GetAllRawShardsInfoOK, err error) {
 	otelAttrs := []attribute.KeyValue{
 		otelogen.OperationID("getAllRawShardsInfo"),
-		semconv.HTTPMethodKey.String("GET"),
+		semconv.HTTPRequestMethodKey.String("GET"),
 		semconv.HTTPRouteKey.String("/v2/liteserver/get_all_shards_info/{block_id}"),
 	}
 
@@ -4977,14 +5920,14 @@ func (c *Client) sendGetAllRawShardsInfo(ctx context.Context, params GetAllRawSh
 	defer func() {
 		// Use floating point division here for higher precision (instead of Millisecond method).
 		elapsedDuration := time.Since(startTime)
-		c.duration.Record(ctx, float64(float64(elapsedDuration)/float64(time.Millisecond)), metric.WithAttributes(otelAttrs...))
+		c.duration.Record(ctx, float64(elapsedDuration)/float64(time.Millisecond), metric.WithAttributes(otelAttrs...))
 	}()
 
 	// Increment request counter.
 	c.requests.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
 
 	// Start a span for this request.
-	ctx, span := c.cfg.Tracer.Start(ctx, "GetAllRawShardsInfo",
+	ctx, span := c.cfg.Tracer.Start(ctx, GetAllRawShardsInfoOperation,
 		trace.WithAttributes(otelAttrs...),
 		clientSpanKind,
 	)
@@ -5029,6 +5972,40 @@ func (c *Client) sendGetAllRawShardsInfo(ctx context.Context, params GetAllRawSh
 		return res, errors.Wrap(err, "create request")
 	}
 
+	{
+		type bitset = [1]uint8
+		var satisfied bitset
+		{
+			stage = "Security:BearerAuth"
+			switch err := c.securityBearerAuth(ctx, GetAllRawShardsInfoOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 0
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"BearerAuth\"")
+			}
+		}
+
+		if ok := func() bool {
+		nextRequirement:
+			for _, requirement := range []bitset{
+				{0b00000001},
+				{},
+			} {
+				for i, mask := range requirement {
+					if satisfied[i]&mask != mask {
+						continue nextRequirement
+					}
+				}
+				return true
+			}
+			return false
+		}(); !ok {
+			return res, ogenerrors.ErrSecurityRequirementIsNotSatisfied
+		}
+	}
+
 	stage = "SendRequest"
 	resp, err := c.cfg.Client.Do(r)
 	if err != nil {
@@ -5058,7 +6035,7 @@ func (c *Client) GetBlockchainAccountTransactions(ctx context.Context, params Ge
 func (c *Client) sendGetBlockchainAccountTransactions(ctx context.Context, params GetBlockchainAccountTransactionsParams) (res *Transactions, err error) {
 	otelAttrs := []attribute.KeyValue{
 		otelogen.OperationID("getBlockchainAccountTransactions"),
-		semconv.HTTPMethodKey.String("GET"),
+		semconv.HTTPRequestMethodKey.String("GET"),
 		semconv.HTTPRouteKey.String("/v2/blockchain/accounts/{account_id}/transactions"),
 	}
 
@@ -5067,14 +6044,14 @@ func (c *Client) sendGetBlockchainAccountTransactions(ctx context.Context, param
 	defer func() {
 		// Use floating point division here for higher precision (instead of Millisecond method).
 		elapsedDuration := time.Since(startTime)
-		c.duration.Record(ctx, float64(float64(elapsedDuration)/float64(time.Millisecond)), metric.WithAttributes(otelAttrs...))
+		c.duration.Record(ctx, float64(elapsedDuration)/float64(time.Millisecond), metric.WithAttributes(otelAttrs...))
 	}()
 
 	// Increment request counter.
 	c.requests.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
 
 	// Start a span for this request.
-	ctx, span := c.cfg.Tracer.Start(ctx, "GetBlockchainAccountTransactions",
+	ctx, span := c.cfg.Tracer.Start(ctx, GetBlockchainAccountTransactionsOperation,
 		trace.WithAttributes(otelAttrs...),
 		clientSpanKind,
 	)
@@ -5192,6 +6169,40 @@ func (c *Client) sendGetBlockchainAccountTransactions(ctx context.Context, param
 		return res, errors.Wrap(err, "create request")
 	}
 
+	{
+		type bitset = [1]uint8
+		var satisfied bitset
+		{
+			stage = "Security:BearerAuth"
+			switch err := c.securityBearerAuth(ctx, GetBlockchainAccountTransactionsOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 0
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"BearerAuth\"")
+			}
+		}
+
+		if ok := func() bool {
+		nextRequirement:
+			for _, requirement := range []bitset{
+				{0b00000001},
+				{},
+			} {
+				for i, mask := range requirement {
+					if satisfied[i]&mask != mask {
+						continue nextRequirement
+					}
+				}
+				return true
+			}
+			return false
+		}(); !ok {
+			return res, ogenerrors.ErrSecurityRequirementIsNotSatisfied
+		}
+	}
+
 	stage = "SendRequest"
 	resp, err := c.cfg.Client.Do(r)
 	if err != nil {
@@ -5221,7 +6232,7 @@ func (c *Client) GetBlockchainBlock(ctx context.Context, params GetBlockchainBlo
 func (c *Client) sendGetBlockchainBlock(ctx context.Context, params GetBlockchainBlockParams) (res *BlockchainBlock, err error) {
 	otelAttrs := []attribute.KeyValue{
 		otelogen.OperationID("getBlockchainBlock"),
-		semconv.HTTPMethodKey.String("GET"),
+		semconv.HTTPRequestMethodKey.String("GET"),
 		semconv.HTTPRouteKey.String("/v2/blockchain/blocks/{block_id}"),
 	}
 
@@ -5230,14 +6241,14 @@ func (c *Client) sendGetBlockchainBlock(ctx context.Context, params GetBlockchai
 	defer func() {
 		// Use floating point division here for higher precision (instead of Millisecond method).
 		elapsedDuration := time.Since(startTime)
-		c.duration.Record(ctx, float64(float64(elapsedDuration)/float64(time.Millisecond)), metric.WithAttributes(otelAttrs...))
+		c.duration.Record(ctx, float64(elapsedDuration)/float64(time.Millisecond), metric.WithAttributes(otelAttrs...))
 	}()
 
 	// Increment request counter.
 	c.requests.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
 
 	// Start a span for this request.
-	ctx, span := c.cfg.Tracer.Start(ctx, "GetBlockchainBlock",
+	ctx, span := c.cfg.Tracer.Start(ctx, GetBlockchainBlockOperation,
 		trace.WithAttributes(otelAttrs...),
 		clientSpanKind,
 	)
@@ -5282,6 +6293,40 @@ func (c *Client) sendGetBlockchainBlock(ctx context.Context, params GetBlockchai
 		return res, errors.Wrap(err, "create request")
 	}
 
+	{
+		type bitset = [1]uint8
+		var satisfied bitset
+		{
+			stage = "Security:BearerAuth"
+			switch err := c.securityBearerAuth(ctx, GetBlockchainBlockOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 0
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"BearerAuth\"")
+			}
+		}
+
+		if ok := func() bool {
+		nextRequirement:
+			for _, requirement := range []bitset{
+				{0b00000001},
+				{},
+			} {
+				for i, mask := range requirement {
+					if satisfied[i]&mask != mask {
+						continue nextRequirement
+					}
+				}
+				return true
+			}
+			return false
+		}(); !ok {
+			return res, ogenerrors.ErrSecurityRequirementIsNotSatisfied
+		}
+	}
+
 	stage = "SendRequest"
 	resp, err := c.cfg.Client.Do(r)
 	if err != nil {
@@ -5311,7 +6356,7 @@ func (c *Client) GetBlockchainBlockTransactions(ctx context.Context, params GetB
 func (c *Client) sendGetBlockchainBlockTransactions(ctx context.Context, params GetBlockchainBlockTransactionsParams) (res *Transactions, err error) {
 	otelAttrs := []attribute.KeyValue{
 		otelogen.OperationID("getBlockchainBlockTransactions"),
-		semconv.HTTPMethodKey.String("GET"),
+		semconv.HTTPRequestMethodKey.String("GET"),
 		semconv.HTTPRouteKey.String("/v2/blockchain/blocks/{block_id}/transactions"),
 	}
 
@@ -5320,14 +6365,14 @@ func (c *Client) sendGetBlockchainBlockTransactions(ctx context.Context, params 
 	defer func() {
 		// Use floating point division here for higher precision (instead of Millisecond method).
 		elapsedDuration := time.Since(startTime)
-		c.duration.Record(ctx, float64(float64(elapsedDuration)/float64(time.Millisecond)), metric.WithAttributes(otelAttrs...))
+		c.duration.Record(ctx, float64(elapsedDuration)/float64(time.Millisecond), metric.WithAttributes(otelAttrs...))
 	}()
 
 	// Increment request counter.
 	c.requests.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
 
 	// Start a span for this request.
-	ctx, span := c.cfg.Tracer.Start(ctx, "GetBlockchainBlockTransactions",
+	ctx, span := c.cfg.Tracer.Start(ctx, GetBlockchainBlockTransactionsOperation,
 		trace.WithAttributes(otelAttrs...),
 		clientSpanKind,
 	)
@@ -5373,6 +6418,40 @@ func (c *Client) sendGetBlockchainBlockTransactions(ctx context.Context, params 
 		return res, errors.Wrap(err, "create request")
 	}
 
+	{
+		type bitset = [1]uint8
+		var satisfied bitset
+		{
+			stage = "Security:BearerAuth"
+			switch err := c.securityBearerAuth(ctx, GetBlockchainBlockTransactionsOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 0
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"BearerAuth\"")
+			}
+		}
+
+		if ok := func() bool {
+		nextRequirement:
+			for _, requirement := range []bitset{
+				{0b00000001},
+				{},
+			} {
+				for i, mask := range requirement {
+					if satisfied[i]&mask != mask {
+						continue nextRequirement
+					}
+				}
+				return true
+			}
+			return false
+		}(); !ok {
+			return res, ogenerrors.ErrSecurityRequirementIsNotSatisfied
+		}
+	}
+
 	stage = "SendRequest"
 	resp, err := c.cfg.Client.Do(r)
 	if err != nil {
@@ -5402,7 +6481,7 @@ func (c *Client) GetBlockchainConfig(ctx context.Context) (*BlockchainConfig, er
 func (c *Client) sendGetBlockchainConfig(ctx context.Context) (res *BlockchainConfig, err error) {
 	otelAttrs := []attribute.KeyValue{
 		otelogen.OperationID("getBlockchainConfig"),
-		semconv.HTTPMethodKey.String("GET"),
+		semconv.HTTPRequestMethodKey.String("GET"),
 		semconv.HTTPRouteKey.String("/v2/blockchain/config"),
 	}
 
@@ -5411,14 +6490,14 @@ func (c *Client) sendGetBlockchainConfig(ctx context.Context) (res *BlockchainCo
 	defer func() {
 		// Use floating point division here for higher precision (instead of Millisecond method).
 		elapsedDuration := time.Since(startTime)
-		c.duration.Record(ctx, float64(float64(elapsedDuration)/float64(time.Millisecond)), metric.WithAttributes(otelAttrs...))
+		c.duration.Record(ctx, float64(elapsedDuration)/float64(time.Millisecond), metric.WithAttributes(otelAttrs...))
 	}()
 
 	// Increment request counter.
 	c.requests.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
 
 	// Start a span for this request.
-	ctx, span := c.cfg.Tracer.Start(ctx, "GetBlockchainConfig",
+	ctx, span := c.cfg.Tracer.Start(ctx, GetBlockchainConfigOperation,
 		trace.WithAttributes(otelAttrs...),
 		clientSpanKind,
 	)
@@ -5443,6 +6522,40 @@ func (c *Client) sendGetBlockchainConfig(ctx context.Context) (res *BlockchainCo
 	r, err := ht.NewRequest(ctx, "GET", u)
 	if err != nil {
 		return res, errors.Wrap(err, "create request")
+	}
+
+	{
+		type bitset = [1]uint8
+		var satisfied bitset
+		{
+			stage = "Security:BearerAuth"
+			switch err := c.securityBearerAuth(ctx, GetBlockchainConfigOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 0
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"BearerAuth\"")
+			}
+		}
+
+		if ok := func() bool {
+		nextRequirement:
+			for _, requirement := range []bitset{
+				{0b00000001},
+				{},
+			} {
+				for i, mask := range requirement {
+					if satisfied[i]&mask != mask {
+						continue nextRequirement
+					}
+				}
+				return true
+			}
+			return false
+		}(); !ok {
+			return res, ogenerrors.ErrSecurityRequirementIsNotSatisfied
+		}
 	}
 
 	stage = "SendRequest"
@@ -5474,7 +6587,7 @@ func (c *Client) GetBlockchainConfigFromBlock(ctx context.Context, params GetBlo
 func (c *Client) sendGetBlockchainConfigFromBlock(ctx context.Context, params GetBlockchainConfigFromBlockParams) (res *BlockchainConfig, err error) {
 	otelAttrs := []attribute.KeyValue{
 		otelogen.OperationID("getBlockchainConfigFromBlock"),
-		semconv.HTTPMethodKey.String("GET"),
+		semconv.HTTPRequestMethodKey.String("GET"),
 		semconv.HTTPRouteKey.String("/v2/blockchain/masterchain/{masterchain_seqno}/config"),
 	}
 
@@ -5483,14 +6596,14 @@ func (c *Client) sendGetBlockchainConfigFromBlock(ctx context.Context, params Ge
 	defer func() {
 		// Use floating point division here for higher precision (instead of Millisecond method).
 		elapsedDuration := time.Since(startTime)
-		c.duration.Record(ctx, float64(float64(elapsedDuration)/float64(time.Millisecond)), metric.WithAttributes(otelAttrs...))
+		c.duration.Record(ctx, float64(elapsedDuration)/float64(time.Millisecond), metric.WithAttributes(otelAttrs...))
 	}()
 
 	// Increment request counter.
 	c.requests.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
 
 	// Start a span for this request.
-	ctx, span := c.cfg.Tracer.Start(ctx, "GetBlockchainConfigFromBlock",
+	ctx, span := c.cfg.Tracer.Start(ctx, GetBlockchainConfigFromBlockOperation,
 		trace.WithAttributes(otelAttrs...),
 		clientSpanKind,
 	)
@@ -5536,6 +6649,40 @@ func (c *Client) sendGetBlockchainConfigFromBlock(ctx context.Context, params Ge
 		return res, errors.Wrap(err, "create request")
 	}
 
+	{
+		type bitset = [1]uint8
+		var satisfied bitset
+		{
+			stage = "Security:BearerAuth"
+			switch err := c.securityBearerAuth(ctx, GetBlockchainConfigFromBlockOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 0
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"BearerAuth\"")
+			}
+		}
+
+		if ok := func() bool {
+		nextRequirement:
+			for _, requirement := range []bitset{
+				{0b00000001},
+				{},
+			} {
+				for i, mask := range requirement {
+					if satisfied[i]&mask != mask {
+						continue nextRequirement
+					}
+				}
+				return true
+			}
+			return false
+		}(); !ok {
+			return res, ogenerrors.ErrSecurityRequirementIsNotSatisfied
+		}
+	}
+
 	stage = "SendRequest"
 	resp, err := c.cfg.Client.Do(r)
 	if err != nil {
@@ -5567,7 +6714,7 @@ func (c *Client) GetBlockchainMasterchainBlocks(ctx context.Context, params GetB
 func (c *Client) sendGetBlockchainMasterchainBlocks(ctx context.Context, params GetBlockchainMasterchainBlocksParams) (res *BlockchainBlocks, err error) {
 	otelAttrs := []attribute.KeyValue{
 		otelogen.OperationID("getBlockchainMasterchainBlocks"),
-		semconv.HTTPMethodKey.String("GET"),
+		semconv.HTTPRequestMethodKey.String("GET"),
 		semconv.HTTPRouteKey.String("/v2/blockchain/masterchain/{masterchain_seqno}/blocks"),
 	}
 
@@ -5576,14 +6723,14 @@ func (c *Client) sendGetBlockchainMasterchainBlocks(ctx context.Context, params 
 	defer func() {
 		// Use floating point division here for higher precision (instead of Millisecond method).
 		elapsedDuration := time.Since(startTime)
-		c.duration.Record(ctx, float64(float64(elapsedDuration)/float64(time.Millisecond)), metric.WithAttributes(otelAttrs...))
+		c.duration.Record(ctx, float64(elapsedDuration)/float64(time.Millisecond), metric.WithAttributes(otelAttrs...))
 	}()
 
 	// Increment request counter.
 	c.requests.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
 
 	// Start a span for this request.
-	ctx, span := c.cfg.Tracer.Start(ctx, "GetBlockchainMasterchainBlocks",
+	ctx, span := c.cfg.Tracer.Start(ctx, GetBlockchainMasterchainBlocksOperation,
 		trace.WithAttributes(otelAttrs...),
 		clientSpanKind,
 	)
@@ -5629,6 +6776,40 @@ func (c *Client) sendGetBlockchainMasterchainBlocks(ctx context.Context, params 
 		return res, errors.Wrap(err, "create request")
 	}
 
+	{
+		type bitset = [1]uint8
+		var satisfied bitset
+		{
+			stage = "Security:BearerAuth"
+			switch err := c.securityBearerAuth(ctx, GetBlockchainMasterchainBlocksOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 0
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"BearerAuth\"")
+			}
+		}
+
+		if ok := func() bool {
+		nextRequirement:
+			for _, requirement := range []bitset{
+				{0b00000001},
+				{},
+			} {
+				for i, mask := range requirement {
+					if satisfied[i]&mask != mask {
+						continue nextRequirement
+					}
+				}
+				return true
+			}
+			return false
+		}(); !ok {
+			return res, ogenerrors.ErrSecurityRequirementIsNotSatisfied
+		}
+	}
+
 	stage = "SendRequest"
 	resp, err := c.cfg.Client.Do(r)
 	if err != nil {
@@ -5658,7 +6839,7 @@ func (c *Client) GetBlockchainMasterchainHead(ctx context.Context) (*BlockchainB
 func (c *Client) sendGetBlockchainMasterchainHead(ctx context.Context) (res *BlockchainBlock, err error) {
 	otelAttrs := []attribute.KeyValue{
 		otelogen.OperationID("getBlockchainMasterchainHead"),
-		semconv.HTTPMethodKey.String("GET"),
+		semconv.HTTPRequestMethodKey.String("GET"),
 		semconv.HTTPRouteKey.String("/v2/blockchain/masterchain-head"),
 	}
 
@@ -5667,14 +6848,14 @@ func (c *Client) sendGetBlockchainMasterchainHead(ctx context.Context) (res *Blo
 	defer func() {
 		// Use floating point division here for higher precision (instead of Millisecond method).
 		elapsedDuration := time.Since(startTime)
-		c.duration.Record(ctx, float64(float64(elapsedDuration)/float64(time.Millisecond)), metric.WithAttributes(otelAttrs...))
+		c.duration.Record(ctx, float64(elapsedDuration)/float64(time.Millisecond), metric.WithAttributes(otelAttrs...))
 	}()
 
 	// Increment request counter.
 	c.requests.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
 
 	// Start a span for this request.
-	ctx, span := c.cfg.Tracer.Start(ctx, "GetBlockchainMasterchainHead",
+	ctx, span := c.cfg.Tracer.Start(ctx, GetBlockchainMasterchainHeadOperation,
 		trace.WithAttributes(otelAttrs...),
 		clientSpanKind,
 	)
@@ -5699,6 +6880,40 @@ func (c *Client) sendGetBlockchainMasterchainHead(ctx context.Context) (res *Blo
 	r, err := ht.NewRequest(ctx, "GET", u)
 	if err != nil {
 		return res, errors.Wrap(err, "create request")
+	}
+
+	{
+		type bitset = [1]uint8
+		var satisfied bitset
+		{
+			stage = "Security:BearerAuth"
+			switch err := c.securityBearerAuth(ctx, GetBlockchainMasterchainHeadOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 0
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"BearerAuth\"")
+			}
+		}
+
+		if ok := func() bool {
+		nextRequirement:
+			for _, requirement := range []bitset{
+				{0b00000001},
+				{},
+			} {
+				for i, mask := range requirement {
+					if satisfied[i]&mask != mask {
+						continue nextRequirement
+					}
+				}
+				return true
+			}
+			return false
+		}(); !ok {
+			return res, ogenerrors.ErrSecurityRequirementIsNotSatisfied
+		}
 	}
 
 	stage = "SendRequest"
@@ -5730,7 +6945,7 @@ func (c *Client) GetBlockchainMasterchainShards(ctx context.Context, params GetB
 func (c *Client) sendGetBlockchainMasterchainShards(ctx context.Context, params GetBlockchainMasterchainShardsParams) (res *BlockchainBlockShards, err error) {
 	otelAttrs := []attribute.KeyValue{
 		otelogen.OperationID("getBlockchainMasterchainShards"),
-		semconv.HTTPMethodKey.String("GET"),
+		semconv.HTTPRequestMethodKey.String("GET"),
 		semconv.HTTPRouteKey.String("/v2/blockchain/masterchain/{masterchain_seqno}/shards"),
 	}
 
@@ -5739,14 +6954,14 @@ func (c *Client) sendGetBlockchainMasterchainShards(ctx context.Context, params 
 	defer func() {
 		// Use floating point division here for higher precision (instead of Millisecond method).
 		elapsedDuration := time.Since(startTime)
-		c.duration.Record(ctx, float64(float64(elapsedDuration)/float64(time.Millisecond)), metric.WithAttributes(otelAttrs...))
+		c.duration.Record(ctx, float64(elapsedDuration)/float64(time.Millisecond), metric.WithAttributes(otelAttrs...))
 	}()
 
 	// Increment request counter.
 	c.requests.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
 
 	// Start a span for this request.
-	ctx, span := c.cfg.Tracer.Start(ctx, "GetBlockchainMasterchainShards",
+	ctx, span := c.cfg.Tracer.Start(ctx, GetBlockchainMasterchainShardsOperation,
 		trace.WithAttributes(otelAttrs...),
 		clientSpanKind,
 	)
@@ -5792,6 +7007,40 @@ func (c *Client) sendGetBlockchainMasterchainShards(ctx context.Context, params 
 		return res, errors.Wrap(err, "create request")
 	}
 
+	{
+		type bitset = [1]uint8
+		var satisfied bitset
+		{
+			stage = "Security:BearerAuth"
+			switch err := c.securityBearerAuth(ctx, GetBlockchainMasterchainShardsOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 0
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"BearerAuth\"")
+			}
+		}
+
+		if ok := func() bool {
+		nextRequirement:
+			for _, requirement := range []bitset{
+				{0b00000001},
+				{},
+			} {
+				for i, mask := range requirement {
+					if satisfied[i]&mask != mask {
+						continue nextRequirement
+					}
+				}
+				return true
+			}
+			return false
+		}(); !ok {
+			return res, ogenerrors.ErrSecurityRequirementIsNotSatisfied
+		}
+	}
+
 	stage = "SendRequest"
 	resp, err := c.cfg.Client.Do(r)
 	if err != nil {
@@ -5823,7 +7072,7 @@ func (c *Client) GetBlockchainMasterchainTransactions(ctx context.Context, param
 func (c *Client) sendGetBlockchainMasterchainTransactions(ctx context.Context, params GetBlockchainMasterchainTransactionsParams) (res *Transactions, err error) {
 	otelAttrs := []attribute.KeyValue{
 		otelogen.OperationID("getBlockchainMasterchainTransactions"),
-		semconv.HTTPMethodKey.String("GET"),
+		semconv.HTTPRequestMethodKey.String("GET"),
 		semconv.HTTPRouteKey.String("/v2/blockchain/masterchain/{masterchain_seqno}/transactions"),
 	}
 
@@ -5832,14 +7081,14 @@ func (c *Client) sendGetBlockchainMasterchainTransactions(ctx context.Context, p
 	defer func() {
 		// Use floating point division here for higher precision (instead of Millisecond method).
 		elapsedDuration := time.Since(startTime)
-		c.duration.Record(ctx, float64(float64(elapsedDuration)/float64(time.Millisecond)), metric.WithAttributes(otelAttrs...))
+		c.duration.Record(ctx, float64(elapsedDuration)/float64(time.Millisecond), metric.WithAttributes(otelAttrs...))
 	}()
 
 	// Increment request counter.
 	c.requests.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
 
 	// Start a span for this request.
-	ctx, span := c.cfg.Tracer.Start(ctx, "GetBlockchainMasterchainTransactions",
+	ctx, span := c.cfg.Tracer.Start(ctx, GetBlockchainMasterchainTransactionsOperation,
 		trace.WithAttributes(otelAttrs...),
 		clientSpanKind,
 	)
@@ -5885,6 +7134,40 @@ func (c *Client) sendGetBlockchainMasterchainTransactions(ctx context.Context, p
 		return res, errors.Wrap(err, "create request")
 	}
 
+	{
+		type bitset = [1]uint8
+		var satisfied bitset
+		{
+			stage = "Security:BearerAuth"
+			switch err := c.securityBearerAuth(ctx, GetBlockchainMasterchainTransactionsOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 0
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"BearerAuth\"")
+			}
+		}
+
+		if ok := func() bool {
+		nextRequirement:
+			for _, requirement := range []bitset{
+				{0b00000001},
+				{},
+			} {
+				for i, mask := range requirement {
+					if satisfied[i]&mask != mask {
+						continue nextRequirement
+					}
+				}
+				return true
+			}
+			return false
+		}(); !ok {
+			return res, ogenerrors.ErrSecurityRequirementIsNotSatisfied
+		}
+	}
+
 	stage = "SendRequest"
 	resp, err := c.cfg.Client.Do(r)
 	if err != nil {
@@ -5914,7 +7197,7 @@ func (c *Client) GetBlockchainRawAccount(ctx context.Context, params GetBlockcha
 func (c *Client) sendGetBlockchainRawAccount(ctx context.Context, params GetBlockchainRawAccountParams) (res *BlockchainRawAccount, err error) {
 	otelAttrs := []attribute.KeyValue{
 		otelogen.OperationID("getBlockchainRawAccount"),
-		semconv.HTTPMethodKey.String("GET"),
+		semconv.HTTPRequestMethodKey.String("GET"),
 		semconv.HTTPRouteKey.String("/v2/blockchain/accounts/{account_id}"),
 	}
 
@@ -5923,14 +7206,14 @@ func (c *Client) sendGetBlockchainRawAccount(ctx context.Context, params GetBloc
 	defer func() {
 		// Use floating point division here for higher precision (instead of Millisecond method).
 		elapsedDuration := time.Since(startTime)
-		c.duration.Record(ctx, float64(float64(elapsedDuration)/float64(time.Millisecond)), metric.WithAttributes(otelAttrs...))
+		c.duration.Record(ctx, float64(elapsedDuration)/float64(time.Millisecond), metric.WithAttributes(otelAttrs...))
 	}()
 
 	// Increment request counter.
 	c.requests.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
 
 	// Start a span for this request.
-	ctx, span := c.cfg.Tracer.Start(ctx, "GetBlockchainRawAccount",
+	ctx, span := c.cfg.Tracer.Start(ctx, GetBlockchainRawAccountOperation,
 		trace.WithAttributes(otelAttrs...),
 		clientSpanKind,
 	)
@@ -5975,6 +7258,40 @@ func (c *Client) sendGetBlockchainRawAccount(ctx context.Context, params GetBloc
 		return res, errors.Wrap(err, "create request")
 	}
 
+	{
+		type bitset = [1]uint8
+		var satisfied bitset
+		{
+			stage = "Security:BearerAuth"
+			switch err := c.securityBearerAuth(ctx, GetBlockchainRawAccountOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 0
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"BearerAuth\"")
+			}
+		}
+
+		if ok := func() bool {
+		nextRequirement:
+			for _, requirement := range []bitset{
+				{0b00000001},
+				{},
+			} {
+				for i, mask := range requirement {
+					if satisfied[i]&mask != mask {
+						continue nextRequirement
+					}
+				}
+				return true
+			}
+			return false
+		}(); !ok {
+			return res, ogenerrors.ErrSecurityRequirementIsNotSatisfied
+		}
+	}
+
 	stage = "SendRequest"
 	resp, err := c.cfg.Client.Do(r)
 	if err != nil {
@@ -6004,7 +7321,7 @@ func (c *Client) GetBlockchainTransaction(ctx context.Context, params GetBlockch
 func (c *Client) sendGetBlockchainTransaction(ctx context.Context, params GetBlockchainTransactionParams) (res *Transaction, err error) {
 	otelAttrs := []attribute.KeyValue{
 		otelogen.OperationID("getBlockchainTransaction"),
-		semconv.HTTPMethodKey.String("GET"),
+		semconv.HTTPRequestMethodKey.String("GET"),
 		semconv.HTTPRouteKey.String("/v2/blockchain/transactions/{transaction_id}"),
 	}
 
@@ -6013,14 +7330,14 @@ func (c *Client) sendGetBlockchainTransaction(ctx context.Context, params GetBlo
 	defer func() {
 		// Use floating point division here for higher precision (instead of Millisecond method).
 		elapsedDuration := time.Since(startTime)
-		c.duration.Record(ctx, float64(float64(elapsedDuration)/float64(time.Millisecond)), metric.WithAttributes(otelAttrs...))
+		c.duration.Record(ctx, float64(elapsedDuration)/float64(time.Millisecond), metric.WithAttributes(otelAttrs...))
 	}()
 
 	// Increment request counter.
 	c.requests.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
 
 	// Start a span for this request.
-	ctx, span := c.cfg.Tracer.Start(ctx, "GetBlockchainTransaction",
+	ctx, span := c.cfg.Tracer.Start(ctx, GetBlockchainTransactionOperation,
 		trace.WithAttributes(otelAttrs...),
 		clientSpanKind,
 	)
@@ -6065,6 +7382,40 @@ func (c *Client) sendGetBlockchainTransaction(ctx context.Context, params GetBlo
 		return res, errors.Wrap(err, "create request")
 	}
 
+	{
+		type bitset = [1]uint8
+		var satisfied bitset
+		{
+			stage = "Security:BearerAuth"
+			switch err := c.securityBearerAuth(ctx, GetBlockchainTransactionOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 0
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"BearerAuth\"")
+			}
+		}
+
+		if ok := func() bool {
+		nextRequirement:
+			for _, requirement := range []bitset{
+				{0b00000001},
+				{},
+			} {
+				for i, mask := range requirement {
+					if satisfied[i]&mask != mask {
+						continue nextRequirement
+					}
+				}
+				return true
+			}
+			return false
+		}(); !ok {
+			return res, ogenerrors.ErrSecurityRequirementIsNotSatisfied
+		}
+	}
+
 	stage = "SendRequest"
 	resp, err := c.cfg.Client.Do(r)
 	if err != nil {
@@ -6094,7 +7445,7 @@ func (c *Client) GetBlockchainTransactionByMessageHash(ctx context.Context, para
 func (c *Client) sendGetBlockchainTransactionByMessageHash(ctx context.Context, params GetBlockchainTransactionByMessageHashParams) (res *Transaction, err error) {
 	otelAttrs := []attribute.KeyValue{
 		otelogen.OperationID("getBlockchainTransactionByMessageHash"),
-		semconv.HTTPMethodKey.String("GET"),
+		semconv.HTTPRequestMethodKey.String("GET"),
 		semconv.HTTPRouteKey.String("/v2/blockchain/messages/{msg_id}/transaction"),
 	}
 
@@ -6103,14 +7454,14 @@ func (c *Client) sendGetBlockchainTransactionByMessageHash(ctx context.Context, 
 	defer func() {
 		// Use floating point division here for higher precision (instead of Millisecond method).
 		elapsedDuration := time.Since(startTime)
-		c.duration.Record(ctx, float64(float64(elapsedDuration)/float64(time.Millisecond)), metric.WithAttributes(otelAttrs...))
+		c.duration.Record(ctx, float64(elapsedDuration)/float64(time.Millisecond), metric.WithAttributes(otelAttrs...))
 	}()
 
 	// Increment request counter.
 	c.requests.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
 
 	// Start a span for this request.
-	ctx, span := c.cfg.Tracer.Start(ctx, "GetBlockchainTransactionByMessageHash",
+	ctx, span := c.cfg.Tracer.Start(ctx, GetBlockchainTransactionByMessageHashOperation,
 		trace.WithAttributes(otelAttrs...),
 		clientSpanKind,
 	)
@@ -6156,6 +7507,40 @@ func (c *Client) sendGetBlockchainTransactionByMessageHash(ctx context.Context, 
 		return res, errors.Wrap(err, "create request")
 	}
 
+	{
+		type bitset = [1]uint8
+		var satisfied bitset
+		{
+			stage = "Security:BearerAuth"
+			switch err := c.securityBearerAuth(ctx, GetBlockchainTransactionByMessageHashOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 0
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"BearerAuth\"")
+			}
+		}
+
+		if ok := func() bool {
+		nextRequirement:
+			for _, requirement := range []bitset{
+				{0b00000001},
+				{},
+			} {
+				for i, mask := range requirement {
+					if satisfied[i]&mask != mask {
+						continue nextRequirement
+					}
+				}
+				return true
+			}
+			return false
+		}(); !ok {
+			return res, ogenerrors.ErrSecurityRequirementIsNotSatisfied
+		}
+	}
+
 	stage = "SendRequest"
 	resp, err := c.cfg.Client.Do(r)
 	if err != nil {
@@ -6185,7 +7570,7 @@ func (c *Client) GetBlockchainValidators(ctx context.Context) (*Validators, erro
 func (c *Client) sendGetBlockchainValidators(ctx context.Context) (res *Validators, err error) {
 	otelAttrs := []attribute.KeyValue{
 		otelogen.OperationID("getBlockchainValidators"),
-		semconv.HTTPMethodKey.String("GET"),
+		semconv.HTTPRequestMethodKey.String("GET"),
 		semconv.HTTPRouteKey.String("/v2/blockchain/validators"),
 	}
 
@@ -6194,14 +7579,14 @@ func (c *Client) sendGetBlockchainValidators(ctx context.Context) (res *Validato
 	defer func() {
 		// Use floating point division here for higher precision (instead of Millisecond method).
 		elapsedDuration := time.Since(startTime)
-		c.duration.Record(ctx, float64(float64(elapsedDuration)/float64(time.Millisecond)), metric.WithAttributes(otelAttrs...))
+		c.duration.Record(ctx, float64(elapsedDuration)/float64(time.Millisecond), metric.WithAttributes(otelAttrs...))
 	}()
 
 	// Increment request counter.
 	c.requests.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
 
 	// Start a span for this request.
-	ctx, span := c.cfg.Tracer.Start(ctx, "GetBlockchainValidators",
+	ctx, span := c.cfg.Tracer.Start(ctx, GetBlockchainValidatorsOperation,
 		trace.WithAttributes(otelAttrs...),
 		clientSpanKind,
 	)
@@ -6226,6 +7611,40 @@ func (c *Client) sendGetBlockchainValidators(ctx context.Context) (res *Validato
 	r, err := ht.NewRequest(ctx, "GET", u)
 	if err != nil {
 		return res, errors.Wrap(err, "create request")
+	}
+
+	{
+		type bitset = [1]uint8
+		var satisfied bitset
+		{
+			stage = "Security:BearerAuth"
+			switch err := c.securityBearerAuth(ctx, GetBlockchainValidatorsOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 0
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"BearerAuth\"")
+			}
+		}
+
+		if ok := func() bool {
+		nextRequirement:
+			for _, requirement := range []bitset{
+				{0b00000001},
+				{},
+			} {
+				for i, mask := range requirement {
+					if satisfied[i]&mask != mask {
+						continue nextRequirement
+					}
+				}
+				return true
+			}
+			return false
+		}(); !ok {
+			return res, ogenerrors.ErrSecurityRequirementIsNotSatisfied
+		}
 	}
 
 	stage = "SendRequest"
@@ -6257,7 +7676,7 @@ func (c *Client) GetChartRates(ctx context.Context, params GetChartRatesParams) 
 func (c *Client) sendGetChartRates(ctx context.Context, params GetChartRatesParams) (res *GetChartRatesOK, err error) {
 	otelAttrs := []attribute.KeyValue{
 		otelogen.OperationID("getChartRates"),
-		semconv.HTTPMethodKey.String("GET"),
+		semconv.HTTPRequestMethodKey.String("GET"),
 		semconv.HTTPRouteKey.String("/v2/rates/chart"),
 	}
 
@@ -6266,14 +7685,14 @@ func (c *Client) sendGetChartRates(ctx context.Context, params GetChartRatesPara
 	defer func() {
 		// Use floating point division here for higher precision (instead of Millisecond method).
 		elapsedDuration := time.Since(startTime)
-		c.duration.Record(ctx, float64(float64(elapsedDuration)/float64(time.Millisecond)), metric.WithAttributes(otelAttrs...))
+		c.duration.Record(ctx, float64(elapsedDuration)/float64(time.Millisecond), metric.WithAttributes(otelAttrs...))
 	}()
 
 	// Increment request counter.
 	c.requests.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
 
 	// Start a span for this request.
-	ctx, span := c.cfg.Tracer.Start(ctx, "GetChartRates",
+	ctx, span := c.cfg.Tracer.Start(ctx, GetChartRatesOperation,
 		trace.WithAttributes(otelAttrs...),
 		clientSpanKind,
 	)
@@ -6386,6 +7805,40 @@ func (c *Client) sendGetChartRates(ctx context.Context, params GetChartRatesPara
 		return res, errors.Wrap(err, "create request")
 	}
 
+	{
+		type bitset = [1]uint8
+		var satisfied bitset
+		{
+			stage = "Security:BearerAuth"
+			switch err := c.securityBearerAuth(ctx, GetChartRatesOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 0
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"BearerAuth\"")
+			}
+		}
+
+		if ok := func() bool {
+		nextRequirement:
+			for _, requirement := range []bitset{
+				{0b00000001},
+				{},
+			} {
+				for i, mask := range requirement {
+					if satisfied[i]&mask != mask {
+						continue nextRequirement
+					}
+				}
+				return true
+			}
+			return false
+		}(); !ok {
+			return res, ogenerrors.ErrSecurityRequirementIsNotSatisfied
+		}
+	}
+
 	stage = "SendRequest"
 	resp, err := c.cfg.Client.Do(r)
 	if err != nil {
@@ -6415,7 +7868,7 @@ func (c *Client) GetDnsInfo(ctx context.Context, params GetDnsInfoParams) (*Doma
 func (c *Client) sendGetDnsInfo(ctx context.Context, params GetDnsInfoParams) (res *DomainInfo, err error) {
 	otelAttrs := []attribute.KeyValue{
 		otelogen.OperationID("getDnsInfo"),
-		semconv.HTTPMethodKey.String("GET"),
+		semconv.HTTPRequestMethodKey.String("GET"),
 		semconv.HTTPRouteKey.String("/v2/dns/{domain_name}"),
 	}
 
@@ -6424,14 +7877,14 @@ func (c *Client) sendGetDnsInfo(ctx context.Context, params GetDnsInfoParams) (r
 	defer func() {
 		// Use floating point division here for higher precision (instead of Millisecond method).
 		elapsedDuration := time.Since(startTime)
-		c.duration.Record(ctx, float64(float64(elapsedDuration)/float64(time.Millisecond)), metric.WithAttributes(otelAttrs...))
+		c.duration.Record(ctx, float64(elapsedDuration)/float64(time.Millisecond), metric.WithAttributes(otelAttrs...))
 	}()
 
 	// Increment request counter.
 	c.requests.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
 
 	// Start a span for this request.
-	ctx, span := c.cfg.Tracer.Start(ctx, "GetDnsInfo",
+	ctx, span := c.cfg.Tracer.Start(ctx, GetDnsInfoOperation,
 		trace.WithAttributes(otelAttrs...),
 		clientSpanKind,
 	)
@@ -6476,6 +7929,40 @@ func (c *Client) sendGetDnsInfo(ctx context.Context, params GetDnsInfoParams) (r
 		return res, errors.Wrap(err, "create request")
 	}
 
+	{
+		type bitset = [1]uint8
+		var satisfied bitset
+		{
+			stage = "Security:BearerAuth"
+			switch err := c.securityBearerAuth(ctx, GetDnsInfoOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 0
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"BearerAuth\"")
+			}
+		}
+
+		if ok := func() bool {
+		nextRequirement:
+			for _, requirement := range []bitset{
+				{0b00000001},
+				{},
+			} {
+				for i, mask := range requirement {
+					if satisfied[i]&mask != mask {
+						continue nextRequirement
+					}
+				}
+				return true
+			}
+			return false
+		}(); !ok {
+			return res, ogenerrors.ErrSecurityRequirementIsNotSatisfied
+		}
+	}
+
 	stage = "SendRequest"
 	resp, err := c.cfg.Client.Do(r)
 	if err != nil {
@@ -6505,7 +7992,7 @@ func (c *Client) GetDomainBids(ctx context.Context, params GetDomainBidsParams) 
 func (c *Client) sendGetDomainBids(ctx context.Context, params GetDomainBidsParams) (res *DomainBids, err error) {
 	otelAttrs := []attribute.KeyValue{
 		otelogen.OperationID("getDomainBids"),
-		semconv.HTTPMethodKey.String("GET"),
+		semconv.HTTPRequestMethodKey.String("GET"),
 		semconv.HTTPRouteKey.String("/v2/dns/{domain_name}/bids"),
 	}
 
@@ -6514,14 +8001,14 @@ func (c *Client) sendGetDomainBids(ctx context.Context, params GetDomainBidsPara
 	defer func() {
 		// Use floating point division here for higher precision (instead of Millisecond method).
 		elapsedDuration := time.Since(startTime)
-		c.duration.Record(ctx, float64(float64(elapsedDuration)/float64(time.Millisecond)), metric.WithAttributes(otelAttrs...))
+		c.duration.Record(ctx, float64(elapsedDuration)/float64(time.Millisecond), metric.WithAttributes(otelAttrs...))
 	}()
 
 	// Increment request counter.
 	c.requests.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
 
 	// Start a span for this request.
-	ctx, span := c.cfg.Tracer.Start(ctx, "GetDomainBids",
+	ctx, span := c.cfg.Tracer.Start(ctx, GetDomainBidsOperation,
 		trace.WithAttributes(otelAttrs...),
 		clientSpanKind,
 	)
@@ -6567,6 +8054,40 @@ func (c *Client) sendGetDomainBids(ctx context.Context, params GetDomainBidsPara
 		return res, errors.Wrap(err, "create request")
 	}
 
+	{
+		type bitset = [1]uint8
+		var satisfied bitset
+		{
+			stage = "Security:BearerAuth"
+			switch err := c.securityBearerAuth(ctx, GetDomainBidsOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 0
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"BearerAuth\"")
+			}
+		}
+
+		if ok := func() bool {
+		nextRequirement:
+			for _, requirement := range []bitset{
+				{0b00000001},
+				{},
+			} {
+				for i, mask := range requirement {
+					if satisfied[i]&mask != mask {
+						continue nextRequirement
+					}
+				}
+				return true
+			}
+			return false
+		}(); !ok {
+			return res, ogenerrors.ErrSecurityRequirementIsNotSatisfied
+		}
+	}
+
 	stage = "SendRequest"
 	resp, err := c.cfg.Client.Do(r)
 	if err != nil {
@@ -6601,7 +8122,7 @@ func (c *Client) GetEvent(ctx context.Context, params GetEventParams) (*Event, e
 func (c *Client) sendGetEvent(ctx context.Context, params GetEventParams) (res *Event, err error) {
 	otelAttrs := []attribute.KeyValue{
 		otelogen.OperationID("getEvent"),
-		semconv.HTTPMethodKey.String("GET"),
+		semconv.HTTPRequestMethodKey.String("GET"),
 		semconv.HTTPRouteKey.String("/v2/events/{event_id}"),
 	}
 
@@ -6610,14 +8131,14 @@ func (c *Client) sendGetEvent(ctx context.Context, params GetEventParams) (res *
 	defer func() {
 		// Use floating point division here for higher precision (instead of Millisecond method).
 		elapsedDuration := time.Since(startTime)
-		c.duration.Record(ctx, float64(float64(elapsedDuration)/float64(time.Millisecond)), metric.WithAttributes(otelAttrs...))
+		c.duration.Record(ctx, float64(elapsedDuration)/float64(time.Millisecond), metric.WithAttributes(otelAttrs...))
 	}()
 
 	// Increment request counter.
 	c.requests.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
 
 	// Start a span for this request.
-	ctx, span := c.cfg.Tracer.Start(ctx, "GetEvent",
+	ctx, span := c.cfg.Tracer.Start(ctx, GetEventOperation,
 		trace.WithAttributes(otelAttrs...),
 		clientSpanKind,
 	)
@@ -6679,6 +8200,40 @@ func (c *Client) sendGetEvent(ctx context.Context, params GetEventParams) (res *
 		}
 	}
 
+	{
+		type bitset = [1]uint8
+		var satisfied bitset
+		{
+			stage = "Security:BearerAuth"
+			switch err := c.securityBearerAuth(ctx, GetEventOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 0
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"BearerAuth\"")
+			}
+		}
+
+		if ok := func() bool {
+		nextRequirement:
+			for _, requirement := range []bitset{
+				{0b00000001},
+				{},
+			} {
+				for i, mask := range requirement {
+					if satisfied[i]&mask != mask {
+						continue nextRequirement
+					}
+				}
+				return true
+			}
+			return false
+		}(); !ok {
+			return res, ogenerrors.ErrSecurityRequirementIsNotSatisfied
+		}
+	}
+
 	stage = "SendRequest"
 	resp, err := c.cfg.Client.Do(r)
 	if err != nil {
@@ -6695,22 +8250,21 @@ func (c *Client) sendGetEvent(ctx context.Context, params GetEventParams) (res *
 	return result, nil
 }
 
-// GetInscriptionOpTemplate invokes getInscriptionOpTemplate operation.
+// GetExtraCurrencyInfo invokes getExtraCurrencyInfo operation.
 //
-// Return comment for making operation with inscription. please don't use it if you don't know what
-// you are doing.
+// Get extra currency info by id.
 //
-// GET /v2/experimental/inscriptions/op-template
-func (c *Client) GetInscriptionOpTemplate(ctx context.Context, params GetInscriptionOpTemplateParams) (*GetInscriptionOpTemplateOK, error) {
-	res, err := c.sendGetInscriptionOpTemplate(ctx, params)
+// GET /v2/extra-currency/{id}
+func (c *Client) GetExtraCurrencyInfo(ctx context.Context, params GetExtraCurrencyInfoParams) (*EcPreview, error) {
+	res, err := c.sendGetExtraCurrencyInfo(ctx, params)
 	return res, err
 }
 
-func (c *Client) sendGetInscriptionOpTemplate(ctx context.Context, params GetInscriptionOpTemplateParams) (res *GetInscriptionOpTemplateOK, err error) {
+func (c *Client) sendGetExtraCurrencyInfo(ctx context.Context, params GetExtraCurrencyInfoParams) (res *EcPreview, err error) {
 	otelAttrs := []attribute.KeyValue{
-		otelogen.OperationID("getInscriptionOpTemplate"),
-		semconv.HTTPMethodKey.String("GET"),
-		semconv.HTTPRouteKey.String("/v2/experimental/inscriptions/op-template"),
+		otelogen.OperationID("getExtraCurrencyInfo"),
+		semconv.HTTPRequestMethodKey.String("GET"),
+		semconv.HTTPRouteKey.String("/v2/extra-currency/{id}"),
 	}
 
 	// Run stopwatch.
@@ -6718,14 +8272,14 @@ func (c *Client) sendGetInscriptionOpTemplate(ctx context.Context, params GetIns
 	defer func() {
 		// Use floating point division here for higher precision (instead of Millisecond method).
 		elapsedDuration := time.Since(startTime)
-		c.duration.Record(ctx, float64(float64(elapsedDuration)/float64(time.Millisecond)), metric.WithAttributes(otelAttrs...))
+		c.duration.Record(ctx, float64(elapsedDuration)/float64(time.Millisecond), metric.WithAttributes(otelAttrs...))
 	}()
 
 	// Increment request counter.
 	c.requests.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
 
 	// Start a span for this request.
-	ctx, span := c.cfg.Tracer.Start(ctx, "GetInscriptionOpTemplate",
+	ctx, span := c.cfg.Tracer.Start(ctx, GetExtraCurrencyInfoOperation,
 		trace.WithAttributes(otelAttrs...),
 		clientSpanKind,
 	)
@@ -6742,122 +8296,66 @@ func (c *Client) sendGetInscriptionOpTemplate(ctx context.Context, params GetIns
 
 	stage = "BuildURL"
 	u := uri.Clone(c.requestURL(ctx))
-	var pathParts [1]string
-	pathParts[0] = "/v2/experimental/inscriptions/op-template"
+	var pathParts [2]string
+	pathParts[0] = "/v2/extra-currency/"
+	{
+		// Encode "id" parameter.
+		e := uri.NewPathEncoder(uri.PathEncoderConfig{
+			Param:   "id",
+			Style:   uri.PathStyleSimple,
+			Explode: false,
+		})
+		if err := func() error {
+			return e.EncodeValue(conv.Int32ToString(params.ID))
+		}(); err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		encoded, err := e.Result()
+		if err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		pathParts[1] = encoded
+	}
 	uri.AddPathParts(u, pathParts[:]...)
-
-	stage = "EncodeQueryParams"
-	q := uri.NewQueryEncoder()
-	{
-		// Encode "type" parameter.
-		cfg := uri.QueryParameterEncodingConfig{
-			Name:    "type",
-			Style:   uri.QueryStyleForm,
-			Explode: true,
-		}
-
-		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
-			return e.EncodeValue(conv.StringToString(string(params.Type)))
-		}); err != nil {
-			return res, errors.Wrap(err, "encode query")
-		}
-	}
-	{
-		// Encode "destination" parameter.
-		cfg := uri.QueryParameterEncodingConfig{
-			Name:    "destination",
-			Style:   uri.QueryStyleForm,
-			Explode: true,
-		}
-
-		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
-			if val, ok := params.Destination.Get(); ok {
-				return e.EncodeValue(conv.StringToString(val))
-			}
-			return nil
-		}); err != nil {
-			return res, errors.Wrap(err, "encode query")
-		}
-	}
-	{
-		// Encode "comment" parameter.
-		cfg := uri.QueryParameterEncodingConfig{
-			Name:    "comment",
-			Style:   uri.QueryStyleForm,
-			Explode: true,
-		}
-
-		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
-			if val, ok := params.Comment.Get(); ok {
-				return e.EncodeValue(conv.StringToString(val))
-			}
-			return nil
-		}); err != nil {
-			return res, errors.Wrap(err, "encode query")
-		}
-	}
-	{
-		// Encode "operation" parameter.
-		cfg := uri.QueryParameterEncodingConfig{
-			Name:    "operation",
-			Style:   uri.QueryStyleForm,
-			Explode: true,
-		}
-
-		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
-			return e.EncodeValue(conv.StringToString(string(params.Operation)))
-		}); err != nil {
-			return res, errors.Wrap(err, "encode query")
-		}
-	}
-	{
-		// Encode "amount" parameter.
-		cfg := uri.QueryParameterEncodingConfig{
-			Name:    "amount",
-			Style:   uri.QueryStyleForm,
-			Explode: true,
-		}
-
-		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
-			return e.EncodeValue(conv.StringToString(params.Amount))
-		}); err != nil {
-			return res, errors.Wrap(err, "encode query")
-		}
-	}
-	{
-		// Encode "ticker" parameter.
-		cfg := uri.QueryParameterEncodingConfig{
-			Name:    "ticker",
-			Style:   uri.QueryStyleForm,
-			Explode: true,
-		}
-
-		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
-			return e.EncodeValue(conv.StringToString(params.Ticker))
-		}); err != nil {
-			return res, errors.Wrap(err, "encode query")
-		}
-	}
-	{
-		// Encode "who" parameter.
-		cfg := uri.QueryParameterEncodingConfig{
-			Name:    "who",
-			Style:   uri.QueryStyleForm,
-			Explode: true,
-		}
-
-		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
-			return e.EncodeValue(conv.StringToString(params.Who))
-		}); err != nil {
-			return res, errors.Wrap(err, "encode query")
-		}
-	}
-	u.RawQuery = q.Values().Encode()
 
 	stage = "EncodeRequest"
 	r, err := ht.NewRequest(ctx, "GET", u)
 	if err != nil {
 		return res, errors.Wrap(err, "create request")
+	}
+
+	{
+		type bitset = [1]uint8
+		var satisfied bitset
+		{
+			stage = "Security:BearerAuth"
+			switch err := c.securityBearerAuth(ctx, GetExtraCurrencyInfoOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 0
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"BearerAuth\"")
+			}
+		}
+
+		if ok := func() bool {
+		nextRequirement:
+			for _, requirement := range []bitset{
+				{0b00000001},
+				{},
+			} {
+				for i, mask := range requirement {
+					if satisfied[i]&mask != mask {
+						continue nextRequirement
+					}
+				}
+				return true
+			}
+			return false
+		}(); !ok {
+			return res, ogenerrors.ErrSecurityRequirementIsNotSatisfied
+		}
 	}
 
 	stage = "SendRequest"
@@ -6868,7 +8366,7 @@ func (c *Client) sendGetInscriptionOpTemplate(ctx context.Context, params GetIns
 	defer resp.Body.Close()
 
 	stage = "DecodeResponse"
-	result, err := decodeGetInscriptionOpTemplateResponse(resp)
+	result, err := decodeGetExtraCurrencyInfoResponse(resp)
 	if err != nil {
 		return res, errors.Wrap(err, "decode response")
 	}
@@ -6889,7 +8387,7 @@ func (c *Client) GetItemsFromCollection(ctx context.Context, params GetItemsFrom
 func (c *Client) sendGetItemsFromCollection(ctx context.Context, params GetItemsFromCollectionParams) (res *NftItems, err error) {
 	otelAttrs := []attribute.KeyValue{
 		otelogen.OperationID("getItemsFromCollection"),
-		semconv.HTTPMethodKey.String("GET"),
+		semconv.HTTPRequestMethodKey.String("GET"),
 		semconv.HTTPRouteKey.String("/v2/nfts/collections/{account_id}/items"),
 	}
 
@@ -6898,14 +8396,14 @@ func (c *Client) sendGetItemsFromCollection(ctx context.Context, params GetItems
 	defer func() {
 		// Use floating point division here for higher precision (instead of Millisecond method).
 		elapsedDuration := time.Since(startTime)
-		c.duration.Record(ctx, float64(float64(elapsedDuration)/float64(time.Millisecond)), metric.WithAttributes(otelAttrs...))
+		c.duration.Record(ctx, float64(elapsedDuration)/float64(time.Millisecond), metric.WithAttributes(otelAttrs...))
 	}()
 
 	// Increment request counter.
 	c.requests.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
 
 	// Start a span for this request.
-	ctx, span := c.cfg.Tracer.Start(ctx, "GetItemsFromCollection",
+	ctx, span := c.cfg.Tracer.Start(ctx, GetItemsFromCollectionOperation,
 		trace.WithAttributes(otelAttrs...),
 		clientSpanKind,
 	)
@@ -6989,6 +8487,40 @@ func (c *Client) sendGetItemsFromCollection(ctx context.Context, params GetItems
 		return res, errors.Wrap(err, "create request")
 	}
 
+	{
+		type bitset = [1]uint8
+		var satisfied bitset
+		{
+			stage = "Security:BearerAuth"
+			switch err := c.securityBearerAuth(ctx, GetItemsFromCollectionOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 0
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"BearerAuth\"")
+			}
+		}
+
+		if ok := func() bool {
+		nextRequirement:
+			for _, requirement := range []bitset{
+				{0b00000001},
+				{},
+			} {
+				for i, mask := range requirement {
+					if satisfied[i]&mask != mask {
+						continue nextRequirement
+					}
+				}
+				return true
+			}
+			return false
+		}(); !ok {
+			return res, ogenerrors.ErrSecurityRequirementIsNotSatisfied
+		}
+	}
+
 	stage = "SendRequest"
 	resp, err := c.cfg.Client.Do(r)
 	if err != nil {
@@ -7018,7 +8550,7 @@ func (c *Client) GetJettonHolders(ctx context.Context, params GetJettonHoldersPa
 func (c *Client) sendGetJettonHolders(ctx context.Context, params GetJettonHoldersParams) (res *JettonHolders, err error) {
 	otelAttrs := []attribute.KeyValue{
 		otelogen.OperationID("getJettonHolders"),
-		semconv.HTTPMethodKey.String("GET"),
+		semconv.HTTPRequestMethodKey.String("GET"),
 		semconv.HTTPRouteKey.String("/v2/jettons/{account_id}/holders"),
 	}
 
@@ -7027,14 +8559,14 @@ func (c *Client) sendGetJettonHolders(ctx context.Context, params GetJettonHolde
 	defer func() {
 		// Use floating point division here for higher precision (instead of Millisecond method).
 		elapsedDuration := time.Since(startTime)
-		c.duration.Record(ctx, float64(float64(elapsedDuration)/float64(time.Millisecond)), metric.WithAttributes(otelAttrs...))
+		c.duration.Record(ctx, float64(elapsedDuration)/float64(time.Millisecond), metric.WithAttributes(otelAttrs...))
 	}()
 
 	// Increment request counter.
 	c.requests.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
 
 	// Start a span for this request.
-	ctx, span := c.cfg.Tracer.Start(ctx, "GetJettonHolders",
+	ctx, span := c.cfg.Tracer.Start(ctx, GetJettonHoldersOperation,
 		trace.WithAttributes(otelAttrs...),
 		clientSpanKind,
 	)
@@ -7118,6 +8650,40 @@ func (c *Client) sendGetJettonHolders(ctx context.Context, params GetJettonHolde
 		return res, errors.Wrap(err, "create request")
 	}
 
+	{
+		type bitset = [1]uint8
+		var satisfied bitset
+		{
+			stage = "Security:BearerAuth"
+			switch err := c.securityBearerAuth(ctx, GetJettonHoldersOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 0
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"BearerAuth\"")
+			}
+		}
+
+		if ok := func() bool {
+		nextRequirement:
+			for _, requirement := range []bitset{
+				{0b00000001},
+				{},
+			} {
+				for i, mask := range requirement {
+					if satisfied[i]&mask != mask {
+						continue nextRequirement
+					}
+				}
+				return true
+			}
+			return false
+		}(); !ok {
+			return res, ogenerrors.ErrSecurityRequirementIsNotSatisfied
+		}
+	}
+
 	stage = "SendRequest"
 	resp, err := c.cfg.Client.Do(r)
 	if err != nil {
@@ -7147,7 +8713,7 @@ func (c *Client) GetJettonInfo(ctx context.Context, params GetJettonInfoParams) 
 func (c *Client) sendGetJettonInfo(ctx context.Context, params GetJettonInfoParams) (res *JettonInfo, err error) {
 	otelAttrs := []attribute.KeyValue{
 		otelogen.OperationID("getJettonInfo"),
-		semconv.HTTPMethodKey.String("GET"),
+		semconv.HTTPRequestMethodKey.String("GET"),
 		semconv.HTTPRouteKey.String("/v2/jettons/{account_id}"),
 	}
 
@@ -7156,14 +8722,14 @@ func (c *Client) sendGetJettonInfo(ctx context.Context, params GetJettonInfoPara
 	defer func() {
 		// Use floating point division here for higher precision (instead of Millisecond method).
 		elapsedDuration := time.Since(startTime)
-		c.duration.Record(ctx, float64(float64(elapsedDuration)/float64(time.Millisecond)), metric.WithAttributes(otelAttrs...))
+		c.duration.Record(ctx, float64(elapsedDuration)/float64(time.Millisecond), metric.WithAttributes(otelAttrs...))
 	}()
 
 	// Increment request counter.
 	c.requests.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
 
 	// Start a span for this request.
-	ctx, span := c.cfg.Tracer.Start(ctx, "GetJettonInfo",
+	ctx, span := c.cfg.Tracer.Start(ctx, GetJettonInfoOperation,
 		trace.WithAttributes(otelAttrs...),
 		clientSpanKind,
 	)
@@ -7208,6 +8774,40 @@ func (c *Client) sendGetJettonInfo(ctx context.Context, params GetJettonInfoPara
 		return res, errors.Wrap(err, "create request")
 	}
 
+	{
+		type bitset = [1]uint8
+		var satisfied bitset
+		{
+			stage = "Security:BearerAuth"
+			switch err := c.securityBearerAuth(ctx, GetJettonInfoOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 0
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"BearerAuth\"")
+			}
+		}
+
+		if ok := func() bool {
+		nextRequirement:
+			for _, requirement := range []bitset{
+				{0b00000001},
+				{},
+			} {
+				for i, mask := range requirement {
+					if satisfied[i]&mask != mask {
+						continue nextRequirement
+					}
+				}
+				return true
+			}
+			return false
+		}(); !ok {
+			return res, ogenerrors.ErrSecurityRequirementIsNotSatisfied
+		}
+	}
+
 	stage = "SendRequest"
 	resp, err := c.cfg.Client.Do(r)
 	if err != nil {
@@ -7217,6 +8817,131 @@ func (c *Client) sendGetJettonInfo(ctx context.Context, params GetJettonInfoPara
 
 	stage = "DecodeResponse"
 	result, err := decodeGetJettonInfoResponse(resp)
+	if err != nil {
+		return res, errors.Wrap(err, "decode response")
+	}
+
+	return result, nil
+}
+
+// GetJettonInfosByAddresses invokes getJettonInfosByAddresses operation.
+//
+// Get jetton metadata items by jetton master addresses.
+//
+// POST /v2/jettons/_bulk
+func (c *Client) GetJettonInfosByAddresses(ctx context.Context, request OptGetJettonInfosByAddressesReq) (*Jettons, error) {
+	res, err := c.sendGetJettonInfosByAddresses(ctx, request)
+	return res, err
+}
+
+func (c *Client) sendGetJettonInfosByAddresses(ctx context.Context, request OptGetJettonInfosByAddressesReq) (res *Jettons, err error) {
+	// Validate request before sending.
+	if err := func() error {
+		if value, ok := request.Get(); ok {
+			if err := func() error {
+				if err := value.Validate(); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		return res, errors.Wrap(err, "validate")
+	}
+	otelAttrs := []attribute.KeyValue{
+		otelogen.OperationID("getJettonInfosByAddresses"),
+		semconv.HTTPRequestMethodKey.String("POST"),
+		semconv.HTTPRouteKey.String("/v2/jettons/_bulk"),
+	}
+
+	// Run stopwatch.
+	startTime := time.Now()
+	defer func() {
+		// Use floating point division here for higher precision (instead of Millisecond method).
+		elapsedDuration := time.Since(startTime)
+		c.duration.Record(ctx, float64(elapsedDuration)/float64(time.Millisecond), metric.WithAttributes(otelAttrs...))
+	}()
+
+	// Increment request counter.
+	c.requests.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
+
+	// Start a span for this request.
+	ctx, span := c.cfg.Tracer.Start(ctx, GetJettonInfosByAddressesOperation,
+		trace.WithAttributes(otelAttrs...),
+		clientSpanKind,
+	)
+	// Track stage for error reporting.
+	var stage string
+	defer func() {
+		if err != nil {
+			span.RecordError(err)
+			span.SetStatus(codes.Error, stage)
+			c.errors.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
+		}
+		span.End()
+	}()
+
+	stage = "BuildURL"
+	u := uri.Clone(c.requestURL(ctx))
+	var pathParts [1]string
+	pathParts[0] = "/v2/jettons/_bulk"
+	uri.AddPathParts(u, pathParts[:]...)
+
+	stage = "EncodeRequest"
+	r, err := ht.NewRequest(ctx, "POST", u)
+	if err != nil {
+		return res, errors.Wrap(err, "create request")
+	}
+	if err := encodeGetJettonInfosByAddressesRequest(request, r); err != nil {
+		return res, errors.Wrap(err, "encode request")
+	}
+
+	{
+		type bitset = [1]uint8
+		var satisfied bitset
+		{
+			stage = "Security:BearerAuth"
+			switch err := c.securityBearerAuth(ctx, GetJettonInfosByAddressesOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 0
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"BearerAuth\"")
+			}
+		}
+
+		if ok := func() bool {
+		nextRequirement:
+			for _, requirement := range []bitset{
+				{0b00000001},
+				{},
+			} {
+				for i, mask := range requirement {
+					if satisfied[i]&mask != mask {
+						continue nextRequirement
+					}
+				}
+				return true
+			}
+			return false
+		}(); !ok {
+			return res, ogenerrors.ErrSecurityRequirementIsNotSatisfied
+		}
+	}
+
+	stage = "SendRequest"
+	resp, err := c.cfg.Client.Do(r)
+	if err != nil {
+		return res, errors.Wrap(err, "do request")
+	}
+	defer resp.Body.Close()
+
+	stage = "DecodeResponse"
+	result, err := decodeGetJettonInfosByAddressesResponse(resp)
 	if err != nil {
 		return res, errors.Wrap(err, "decode response")
 	}
@@ -7237,7 +8962,7 @@ func (c *Client) GetJettonTransferPayload(ctx context.Context, params GetJettonT
 func (c *Client) sendGetJettonTransferPayload(ctx context.Context, params GetJettonTransferPayloadParams) (res *JettonTransferPayload, err error) {
 	otelAttrs := []attribute.KeyValue{
 		otelogen.OperationID("getJettonTransferPayload"),
-		semconv.HTTPMethodKey.String("GET"),
+		semconv.HTTPRequestMethodKey.String("GET"),
 		semconv.HTTPRouteKey.String("/v2/jettons/{jetton_id}/transfer/{account_id}/payload"),
 	}
 
@@ -7246,14 +8971,14 @@ func (c *Client) sendGetJettonTransferPayload(ctx context.Context, params GetJet
 	defer func() {
 		// Use floating point division here for higher precision (instead of Millisecond method).
 		elapsedDuration := time.Since(startTime)
-		c.duration.Record(ctx, float64(float64(elapsedDuration)/float64(time.Millisecond)), metric.WithAttributes(otelAttrs...))
+		c.duration.Record(ctx, float64(elapsedDuration)/float64(time.Millisecond), metric.WithAttributes(otelAttrs...))
 	}()
 
 	// Increment request counter.
 	c.requests.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
 
 	// Start a span for this request.
-	ctx, span := c.cfg.Tracer.Start(ctx, "GetJettonTransferPayload",
+	ctx, span := c.cfg.Tracer.Start(ctx, GetJettonTransferPayloadOperation,
 		trace.WithAttributes(otelAttrs...),
 		clientSpanKind,
 	)
@@ -7318,6 +9043,40 @@ func (c *Client) sendGetJettonTransferPayload(ctx context.Context, params GetJet
 		return res, errors.Wrap(err, "create request")
 	}
 
+	{
+		type bitset = [1]uint8
+		var satisfied bitset
+		{
+			stage = "Security:BearerAuth"
+			switch err := c.securityBearerAuth(ctx, GetJettonTransferPayloadOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 0
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"BearerAuth\"")
+			}
+		}
+
+		if ok := func() bool {
+		nextRequirement:
+			for _, requirement := range []bitset{
+				{0b00000001},
+				{},
+			} {
+				for i, mask := range requirement {
+					if satisfied[i]&mask != mask {
+						continue nextRequirement
+					}
+				}
+				return true
+			}
+			return false
+		}(); !ok {
+			return res, ogenerrors.ErrSecurityRequirementIsNotSatisfied
+		}
+	}
+
 	stage = "SendRequest"
 	resp, err := c.cfg.Client.Do(r)
 	if err != nil {
@@ -7347,7 +9106,7 @@ func (c *Client) GetJettons(ctx context.Context, params GetJettonsParams) (*Jett
 func (c *Client) sendGetJettons(ctx context.Context, params GetJettonsParams) (res *Jettons, err error) {
 	otelAttrs := []attribute.KeyValue{
 		otelogen.OperationID("getJettons"),
-		semconv.HTTPMethodKey.String("GET"),
+		semconv.HTTPRequestMethodKey.String("GET"),
 		semconv.HTTPRouteKey.String("/v2/jettons"),
 	}
 
@@ -7356,14 +9115,14 @@ func (c *Client) sendGetJettons(ctx context.Context, params GetJettonsParams) (r
 	defer func() {
 		// Use floating point division here for higher precision (instead of Millisecond method).
 		elapsedDuration := time.Since(startTime)
-		c.duration.Record(ctx, float64(float64(elapsedDuration)/float64(time.Millisecond)), metric.WithAttributes(otelAttrs...))
+		c.duration.Record(ctx, float64(elapsedDuration)/float64(time.Millisecond), metric.WithAttributes(otelAttrs...))
 	}()
 
 	// Increment request counter.
 	c.requests.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
 
 	// Start a span for this request.
-	ctx, span := c.cfg.Tracer.Start(ctx, "GetJettons",
+	ctx, span := c.cfg.Tracer.Start(ctx, GetJettonsOperation,
 		trace.WithAttributes(otelAttrs...),
 		clientSpanKind,
 	)
@@ -7428,6 +9187,40 @@ func (c *Client) sendGetJettons(ctx context.Context, params GetJettonsParams) (r
 		return res, errors.Wrap(err, "create request")
 	}
 
+	{
+		type bitset = [1]uint8
+		var satisfied bitset
+		{
+			stage = "Security:BearerAuth"
+			switch err := c.securityBearerAuth(ctx, GetJettonsOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 0
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"BearerAuth\"")
+			}
+		}
+
+		if ok := func() bool {
+		nextRequirement:
+			for _, requirement := range []bitset{
+				{0b00000001},
+				{},
+			} {
+				for i, mask := range requirement {
+					if satisfied[i]&mask != mask {
+						continue nextRequirement
+					}
+				}
+				return true
+			}
+			return false
+		}(); !ok {
+			return res, ogenerrors.ErrSecurityRequirementIsNotSatisfied
+		}
+	}
+
 	stage = "SendRequest"
 	resp, err := c.cfg.Client.Do(r)
 	if err != nil {
@@ -7457,7 +9250,7 @@ func (c *Client) GetJettonsEvents(ctx context.Context, params GetJettonsEventsPa
 func (c *Client) sendGetJettonsEvents(ctx context.Context, params GetJettonsEventsParams) (res *Event, err error) {
 	otelAttrs := []attribute.KeyValue{
 		otelogen.OperationID("getJettonsEvents"),
-		semconv.HTTPMethodKey.String("GET"),
+		semconv.HTTPRequestMethodKey.String("GET"),
 		semconv.HTTPRouteKey.String("/v2/events/{event_id}/jettons"),
 	}
 
@@ -7466,14 +9259,14 @@ func (c *Client) sendGetJettonsEvents(ctx context.Context, params GetJettonsEven
 	defer func() {
 		// Use floating point division here for higher precision (instead of Millisecond method).
 		elapsedDuration := time.Since(startTime)
-		c.duration.Record(ctx, float64(float64(elapsedDuration)/float64(time.Millisecond)), metric.WithAttributes(otelAttrs...))
+		c.duration.Record(ctx, float64(elapsedDuration)/float64(time.Millisecond), metric.WithAttributes(otelAttrs...))
 	}()
 
 	// Increment request counter.
 	c.requests.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
 
 	// Start a span for this request.
-	ctx, span := c.cfg.Tracer.Start(ctx, "GetJettonsEvents",
+	ctx, span := c.cfg.Tracer.Start(ctx, GetJettonsEventsOperation,
 		trace.WithAttributes(otelAttrs...),
 		clientSpanKind,
 	)
@@ -7536,6 +9329,40 @@ func (c *Client) sendGetJettonsEvents(ctx context.Context, params GetJettonsEven
 		}
 	}
 
+	{
+		type bitset = [1]uint8
+		var satisfied bitset
+		{
+			stage = "Security:BearerAuth"
+			switch err := c.securityBearerAuth(ctx, GetJettonsEventsOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 0
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"BearerAuth\"")
+			}
+		}
+
+		if ok := func() bool {
+		nextRequirement:
+			for _, requirement := range []bitset{
+				{0b00000001},
+				{},
+			} {
+				for i, mask := range requirement {
+					if satisfied[i]&mask != mask {
+						continue nextRequirement
+					}
+				}
+				return true
+			}
+			return false
+		}(); !ok {
+			return res, ogenerrors.ErrSecurityRequirementIsNotSatisfied
+		}
+	}
+
 	stage = "SendRequest"
 	resp, err := c.cfg.Client.Do(r)
 	if err != nil {
@@ -7565,7 +9392,7 @@ func (c *Client) GetMarketsRates(ctx context.Context) (*GetMarketsRatesOK, error
 func (c *Client) sendGetMarketsRates(ctx context.Context) (res *GetMarketsRatesOK, err error) {
 	otelAttrs := []attribute.KeyValue{
 		otelogen.OperationID("getMarketsRates"),
-		semconv.HTTPMethodKey.String("GET"),
+		semconv.HTTPRequestMethodKey.String("GET"),
 		semconv.HTTPRouteKey.String("/v2/rates/markets"),
 	}
 
@@ -7574,14 +9401,14 @@ func (c *Client) sendGetMarketsRates(ctx context.Context) (res *GetMarketsRatesO
 	defer func() {
 		// Use floating point division here for higher precision (instead of Millisecond method).
 		elapsedDuration := time.Since(startTime)
-		c.duration.Record(ctx, float64(float64(elapsedDuration)/float64(time.Millisecond)), metric.WithAttributes(otelAttrs...))
+		c.duration.Record(ctx, float64(elapsedDuration)/float64(time.Millisecond), metric.WithAttributes(otelAttrs...))
 	}()
 
 	// Increment request counter.
 	c.requests.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
 
 	// Start a span for this request.
-	ctx, span := c.cfg.Tracer.Start(ctx, "GetMarketsRates",
+	ctx, span := c.cfg.Tracer.Start(ctx, GetMarketsRatesOperation,
 		trace.WithAttributes(otelAttrs...),
 		clientSpanKind,
 	)
@@ -7606,6 +9433,40 @@ func (c *Client) sendGetMarketsRates(ctx context.Context) (res *GetMarketsRatesO
 	r, err := ht.NewRequest(ctx, "GET", u)
 	if err != nil {
 		return res, errors.Wrap(err, "create request")
+	}
+
+	{
+		type bitset = [1]uint8
+		var satisfied bitset
+		{
+			stage = "Security:BearerAuth"
+			switch err := c.securityBearerAuth(ctx, GetMarketsRatesOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 0
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"BearerAuth\"")
+			}
+		}
+
+		if ok := func() bool {
+		nextRequirement:
+			for _, requirement := range []bitset{
+				{0b00000001},
+				{},
+			} {
+				for i, mask := range requirement {
+					if satisfied[i]&mask != mask {
+						continue nextRequirement
+					}
+				}
+				return true
+			}
+			return false
+		}(); !ok {
+			return res, ogenerrors.ErrSecurityRequirementIsNotSatisfied
+		}
 	}
 
 	stage = "SendRequest"
@@ -7637,7 +9498,7 @@ func (c *Client) GetMultisigAccount(ctx context.Context, params GetMultisigAccou
 func (c *Client) sendGetMultisigAccount(ctx context.Context, params GetMultisigAccountParams) (res *Multisig, err error) {
 	otelAttrs := []attribute.KeyValue{
 		otelogen.OperationID("getMultisigAccount"),
-		semconv.HTTPMethodKey.String("GET"),
+		semconv.HTTPRequestMethodKey.String("GET"),
 		semconv.HTTPRouteKey.String("/v2/multisig/{account_id}"),
 	}
 
@@ -7646,14 +9507,14 @@ func (c *Client) sendGetMultisigAccount(ctx context.Context, params GetMultisigA
 	defer func() {
 		// Use floating point division here for higher precision (instead of Millisecond method).
 		elapsedDuration := time.Since(startTime)
-		c.duration.Record(ctx, float64(float64(elapsedDuration)/float64(time.Millisecond)), metric.WithAttributes(otelAttrs...))
+		c.duration.Record(ctx, float64(elapsedDuration)/float64(time.Millisecond), metric.WithAttributes(otelAttrs...))
 	}()
 
 	// Increment request counter.
 	c.requests.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
 
 	// Start a span for this request.
-	ctx, span := c.cfg.Tracer.Start(ctx, "GetMultisigAccount",
+	ctx, span := c.cfg.Tracer.Start(ctx, GetMultisigAccountOperation,
 		trace.WithAttributes(otelAttrs...),
 		clientSpanKind,
 	)
@@ -7698,6 +9559,40 @@ func (c *Client) sendGetMultisigAccount(ctx context.Context, params GetMultisigA
 		return res, errors.Wrap(err, "create request")
 	}
 
+	{
+		type bitset = [1]uint8
+		var satisfied bitset
+		{
+			stage = "Security:BearerAuth"
+			switch err := c.securityBearerAuth(ctx, GetMultisigAccountOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 0
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"BearerAuth\"")
+			}
+		}
+
+		if ok := func() bool {
+		nextRequirement:
+			for _, requirement := range []bitset{
+				{0b00000001},
+				{},
+			} {
+				for i, mask := range requirement {
+					if satisfied[i]&mask != mask {
+						continue nextRequirement
+					}
+				}
+				return true
+			}
+			return false
+		}(); !ok {
+			return res, ogenerrors.ErrSecurityRequirementIsNotSatisfied
+		}
+	}
+
 	stage = "SendRequest"
 	resp, err := c.cfg.Client.Do(r)
 	if err != nil {
@@ -7727,7 +9622,7 @@ func (c *Client) GetNftCollection(ctx context.Context, params GetNftCollectionPa
 func (c *Client) sendGetNftCollection(ctx context.Context, params GetNftCollectionParams) (res *NftCollection, err error) {
 	otelAttrs := []attribute.KeyValue{
 		otelogen.OperationID("getNftCollection"),
-		semconv.HTTPMethodKey.String("GET"),
+		semconv.HTTPRequestMethodKey.String("GET"),
 		semconv.HTTPRouteKey.String("/v2/nfts/collections/{account_id}"),
 	}
 
@@ -7736,14 +9631,14 @@ func (c *Client) sendGetNftCollection(ctx context.Context, params GetNftCollecti
 	defer func() {
 		// Use floating point division here for higher precision (instead of Millisecond method).
 		elapsedDuration := time.Since(startTime)
-		c.duration.Record(ctx, float64(float64(elapsedDuration)/float64(time.Millisecond)), metric.WithAttributes(otelAttrs...))
+		c.duration.Record(ctx, float64(elapsedDuration)/float64(time.Millisecond), metric.WithAttributes(otelAttrs...))
 	}()
 
 	// Increment request counter.
 	c.requests.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
 
 	// Start a span for this request.
-	ctx, span := c.cfg.Tracer.Start(ctx, "GetNftCollection",
+	ctx, span := c.cfg.Tracer.Start(ctx, GetNftCollectionOperation,
 		trace.WithAttributes(otelAttrs...),
 		clientSpanKind,
 	)
@@ -7788,6 +9683,40 @@ func (c *Client) sendGetNftCollection(ctx context.Context, params GetNftCollecti
 		return res, errors.Wrap(err, "create request")
 	}
 
+	{
+		type bitset = [1]uint8
+		var satisfied bitset
+		{
+			stage = "Security:BearerAuth"
+			switch err := c.securityBearerAuth(ctx, GetNftCollectionOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 0
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"BearerAuth\"")
+			}
+		}
+
+		if ok := func() bool {
+		nextRequirement:
+			for _, requirement := range []bitset{
+				{0b00000001},
+				{},
+			} {
+				for i, mask := range requirement {
+					if satisfied[i]&mask != mask {
+						continue nextRequirement
+					}
+				}
+				return true
+			}
+			return false
+		}(); !ok {
+			return res, ogenerrors.ErrSecurityRequirementIsNotSatisfied
+		}
+	}
+
 	stage = "SendRequest"
 	resp, err := c.cfg.Client.Do(r)
 	if err != nil {
@@ -7797,6 +9726,131 @@ func (c *Client) sendGetNftCollection(ctx context.Context, params GetNftCollecti
 
 	stage = "DecodeResponse"
 	result, err := decodeGetNftCollectionResponse(resp)
+	if err != nil {
+		return res, errors.Wrap(err, "decode response")
+	}
+
+	return result, nil
+}
+
+// GetNftCollectionItemsByAddresses invokes getNftCollectionItemsByAddresses operation.
+//
+// Get NFT collection items by their addresses.
+//
+// POST /v2/nfts/collections/_bulk
+func (c *Client) GetNftCollectionItemsByAddresses(ctx context.Context, request OptGetNftCollectionItemsByAddressesReq) (*NftCollections, error) {
+	res, err := c.sendGetNftCollectionItemsByAddresses(ctx, request)
+	return res, err
+}
+
+func (c *Client) sendGetNftCollectionItemsByAddresses(ctx context.Context, request OptGetNftCollectionItemsByAddressesReq) (res *NftCollections, err error) {
+	// Validate request before sending.
+	if err := func() error {
+		if value, ok := request.Get(); ok {
+			if err := func() error {
+				if err := value.Validate(); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		return res, errors.Wrap(err, "validate")
+	}
+	otelAttrs := []attribute.KeyValue{
+		otelogen.OperationID("getNftCollectionItemsByAddresses"),
+		semconv.HTTPRequestMethodKey.String("POST"),
+		semconv.HTTPRouteKey.String("/v2/nfts/collections/_bulk"),
+	}
+
+	// Run stopwatch.
+	startTime := time.Now()
+	defer func() {
+		// Use floating point division here for higher precision (instead of Millisecond method).
+		elapsedDuration := time.Since(startTime)
+		c.duration.Record(ctx, float64(elapsedDuration)/float64(time.Millisecond), metric.WithAttributes(otelAttrs...))
+	}()
+
+	// Increment request counter.
+	c.requests.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
+
+	// Start a span for this request.
+	ctx, span := c.cfg.Tracer.Start(ctx, GetNftCollectionItemsByAddressesOperation,
+		trace.WithAttributes(otelAttrs...),
+		clientSpanKind,
+	)
+	// Track stage for error reporting.
+	var stage string
+	defer func() {
+		if err != nil {
+			span.RecordError(err)
+			span.SetStatus(codes.Error, stage)
+			c.errors.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
+		}
+		span.End()
+	}()
+
+	stage = "BuildURL"
+	u := uri.Clone(c.requestURL(ctx))
+	var pathParts [1]string
+	pathParts[0] = "/v2/nfts/collections/_bulk"
+	uri.AddPathParts(u, pathParts[:]...)
+
+	stage = "EncodeRequest"
+	r, err := ht.NewRequest(ctx, "POST", u)
+	if err != nil {
+		return res, errors.Wrap(err, "create request")
+	}
+	if err := encodeGetNftCollectionItemsByAddressesRequest(request, r); err != nil {
+		return res, errors.Wrap(err, "encode request")
+	}
+
+	{
+		type bitset = [1]uint8
+		var satisfied bitset
+		{
+			stage = "Security:BearerAuth"
+			switch err := c.securityBearerAuth(ctx, GetNftCollectionItemsByAddressesOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 0
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"BearerAuth\"")
+			}
+		}
+
+		if ok := func() bool {
+		nextRequirement:
+			for _, requirement := range []bitset{
+				{0b00000001},
+				{},
+			} {
+				for i, mask := range requirement {
+					if satisfied[i]&mask != mask {
+						continue nextRequirement
+					}
+				}
+				return true
+			}
+			return false
+		}(); !ok {
+			return res, ogenerrors.ErrSecurityRequirementIsNotSatisfied
+		}
+	}
+
+	stage = "SendRequest"
+	resp, err := c.cfg.Client.Do(r)
+	if err != nil {
+		return res, errors.Wrap(err, "do request")
+	}
+	defer resp.Body.Close()
+
+	stage = "DecodeResponse"
+	result, err := decodeGetNftCollectionItemsByAddressesResponse(resp)
 	if err != nil {
 		return res, errors.Wrap(err, "decode response")
 	}
@@ -7817,7 +9871,7 @@ func (c *Client) GetNftCollections(ctx context.Context, params GetNftCollections
 func (c *Client) sendGetNftCollections(ctx context.Context, params GetNftCollectionsParams) (res *NftCollections, err error) {
 	otelAttrs := []attribute.KeyValue{
 		otelogen.OperationID("getNftCollections"),
-		semconv.HTTPMethodKey.String("GET"),
+		semconv.HTTPRequestMethodKey.String("GET"),
 		semconv.HTTPRouteKey.String("/v2/nfts/collections"),
 	}
 
@@ -7826,14 +9880,14 @@ func (c *Client) sendGetNftCollections(ctx context.Context, params GetNftCollect
 	defer func() {
 		// Use floating point division here for higher precision (instead of Millisecond method).
 		elapsedDuration := time.Since(startTime)
-		c.duration.Record(ctx, float64(float64(elapsedDuration)/float64(time.Millisecond)), metric.WithAttributes(otelAttrs...))
+		c.duration.Record(ctx, float64(elapsedDuration)/float64(time.Millisecond), metric.WithAttributes(otelAttrs...))
 	}()
 
 	// Increment request counter.
 	c.requests.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
 
 	// Start a span for this request.
-	ctx, span := c.cfg.Tracer.Start(ctx, "GetNftCollections",
+	ctx, span := c.cfg.Tracer.Start(ctx, GetNftCollectionsOperation,
 		trace.WithAttributes(otelAttrs...),
 		clientSpanKind,
 	)
@@ -7898,6 +9952,40 @@ func (c *Client) sendGetNftCollections(ctx context.Context, params GetNftCollect
 		return res, errors.Wrap(err, "create request")
 	}
 
+	{
+		type bitset = [1]uint8
+		var satisfied bitset
+		{
+			stage = "Security:BearerAuth"
+			switch err := c.securityBearerAuth(ctx, GetNftCollectionsOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 0
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"BearerAuth\"")
+			}
+		}
+
+		if ok := func() bool {
+		nextRequirement:
+			for _, requirement := range []bitset{
+				{0b00000001},
+				{},
+			} {
+				for i, mask := range requirement {
+					if satisfied[i]&mask != mask {
+						continue nextRequirement
+					}
+				}
+				return true
+			}
+			return false
+		}(); !ok {
+			return res, ogenerrors.ErrSecurityRequirementIsNotSatisfied
+		}
+	}
+
 	stage = "SendRequest"
 	resp, err := c.cfg.Client.Do(r)
 	if err != nil {
@@ -7927,7 +10015,7 @@ func (c *Client) GetNftHistoryByID(ctx context.Context, params GetNftHistoryByID
 func (c *Client) sendGetNftHistoryByID(ctx context.Context, params GetNftHistoryByIDParams) (res *AccountEvents, err error) {
 	otelAttrs := []attribute.KeyValue{
 		otelogen.OperationID("getNftHistoryByID"),
-		semconv.HTTPMethodKey.String("GET"),
+		semconv.HTTPRequestMethodKey.String("GET"),
 		semconv.HTTPRouteKey.String("/v2/nfts/{account_id}/history"),
 	}
 
@@ -7936,14 +10024,14 @@ func (c *Client) sendGetNftHistoryByID(ctx context.Context, params GetNftHistory
 	defer func() {
 		// Use floating point division here for higher precision (instead of Millisecond method).
 		elapsedDuration := time.Since(startTime)
-		c.duration.Record(ctx, float64(float64(elapsedDuration)/float64(time.Millisecond)), metric.WithAttributes(otelAttrs...))
+		c.duration.Record(ctx, float64(elapsedDuration)/float64(time.Millisecond), metric.WithAttributes(otelAttrs...))
 	}()
 
 	// Increment request counter.
 	c.requests.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
 
 	// Start a span for this request.
-	ctx, span := c.cfg.Tracer.Start(ctx, "GetNftHistoryByID",
+	ctx, span := c.cfg.Tracer.Start(ctx, GetNftHistoryByIDOperation,
 		trace.WithAttributes(otelAttrs...),
 		clientSpanKind,
 	)
@@ -8075,6 +10163,40 @@ func (c *Client) sendGetNftHistoryByID(ctx context.Context, params GetNftHistory
 		}
 	}
 
+	{
+		type bitset = [1]uint8
+		var satisfied bitset
+		{
+			stage = "Security:BearerAuth"
+			switch err := c.securityBearerAuth(ctx, GetNftHistoryByIDOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 0
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"BearerAuth\"")
+			}
+		}
+
+		if ok := func() bool {
+		nextRequirement:
+			for _, requirement := range []bitset{
+				{0b00000001},
+				{},
+			} {
+				for i, mask := range requirement {
+					if satisfied[i]&mask != mask {
+						continue nextRequirement
+					}
+				}
+				return true
+			}
+			return false
+		}(); !ok {
+			return res, ogenerrors.ErrSecurityRequirementIsNotSatisfied
+		}
+	}
+
 	stage = "SendRequest"
 	resp, err := c.cfg.Client.Do(r)
 	if err != nil {
@@ -8104,7 +10226,7 @@ func (c *Client) GetNftItemByAddress(ctx context.Context, params GetNftItemByAdd
 func (c *Client) sendGetNftItemByAddress(ctx context.Context, params GetNftItemByAddressParams) (res *NftItem, err error) {
 	otelAttrs := []attribute.KeyValue{
 		otelogen.OperationID("getNftItemByAddress"),
-		semconv.HTTPMethodKey.String("GET"),
+		semconv.HTTPRequestMethodKey.String("GET"),
 		semconv.HTTPRouteKey.String("/v2/nfts/{account_id}"),
 	}
 
@@ -8113,14 +10235,14 @@ func (c *Client) sendGetNftItemByAddress(ctx context.Context, params GetNftItemB
 	defer func() {
 		// Use floating point division here for higher precision (instead of Millisecond method).
 		elapsedDuration := time.Since(startTime)
-		c.duration.Record(ctx, float64(float64(elapsedDuration)/float64(time.Millisecond)), metric.WithAttributes(otelAttrs...))
+		c.duration.Record(ctx, float64(elapsedDuration)/float64(time.Millisecond), metric.WithAttributes(otelAttrs...))
 	}()
 
 	// Increment request counter.
 	c.requests.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
 
 	// Start a span for this request.
-	ctx, span := c.cfg.Tracer.Start(ctx, "GetNftItemByAddress",
+	ctx, span := c.cfg.Tracer.Start(ctx, GetNftItemByAddressOperation,
 		trace.WithAttributes(otelAttrs...),
 		clientSpanKind,
 	)
@@ -8165,6 +10287,40 @@ func (c *Client) sendGetNftItemByAddress(ctx context.Context, params GetNftItemB
 		return res, errors.Wrap(err, "create request")
 	}
 
+	{
+		type bitset = [1]uint8
+		var satisfied bitset
+		{
+			stage = "Security:BearerAuth"
+			switch err := c.securityBearerAuth(ctx, GetNftItemByAddressOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 0
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"BearerAuth\"")
+			}
+		}
+
+		if ok := func() bool {
+		nextRequirement:
+			for _, requirement := range []bitset{
+				{0b00000001},
+				{},
+			} {
+				for i, mask := range requirement {
+					if satisfied[i]&mask != mask {
+						continue nextRequirement
+					}
+				}
+				return true
+			}
+			return false
+		}(); !ok {
+			return res, ogenerrors.ErrSecurityRequirementIsNotSatisfied
+		}
+	}
+
 	stage = "SendRequest"
 	resp, err := c.cfg.Client.Do(r)
 	if err != nil {
@@ -8192,11 +10348,6 @@ func (c *Client) GetNftItemsByAddresses(ctx context.Context, request OptGetNftIt
 }
 
 func (c *Client) sendGetNftItemsByAddresses(ctx context.Context, request OptGetNftItemsByAddressesReq) (res *NftItems, err error) {
-	otelAttrs := []attribute.KeyValue{
-		otelogen.OperationID("getNftItemsByAddresses"),
-		semconv.HTTPMethodKey.String("POST"),
-		semconv.HTTPRouteKey.String("/v2/nfts/_bulk"),
-	}
 	// Validate request before sending.
 	if err := func() error {
 		if value, ok := request.Get(); ok {
@@ -8213,20 +10364,25 @@ func (c *Client) sendGetNftItemsByAddresses(ctx context.Context, request OptGetN
 	}(); err != nil {
 		return res, errors.Wrap(err, "validate")
 	}
+	otelAttrs := []attribute.KeyValue{
+		otelogen.OperationID("getNftItemsByAddresses"),
+		semconv.HTTPRequestMethodKey.String("POST"),
+		semconv.HTTPRouteKey.String("/v2/nfts/_bulk"),
+	}
 
 	// Run stopwatch.
 	startTime := time.Now()
 	defer func() {
 		// Use floating point division here for higher precision (instead of Millisecond method).
 		elapsedDuration := time.Since(startTime)
-		c.duration.Record(ctx, float64(float64(elapsedDuration)/float64(time.Millisecond)), metric.WithAttributes(otelAttrs...))
+		c.duration.Record(ctx, float64(elapsedDuration)/float64(time.Millisecond), metric.WithAttributes(otelAttrs...))
 	}()
 
 	// Increment request counter.
 	c.requests.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
 
 	// Start a span for this request.
-	ctx, span := c.cfg.Tracer.Start(ctx, "GetNftItemsByAddresses",
+	ctx, span := c.cfg.Tracer.Start(ctx, GetNftItemsByAddressesOperation,
 		trace.WithAttributes(otelAttrs...),
 		clientSpanKind,
 	)
@@ -8256,6 +10412,40 @@ func (c *Client) sendGetNftItemsByAddresses(ctx context.Context, request OptGetN
 		return res, errors.Wrap(err, "encode request")
 	}
 
+	{
+		type bitset = [1]uint8
+		var satisfied bitset
+		{
+			stage = "Security:BearerAuth"
+			switch err := c.securityBearerAuth(ctx, GetNftItemsByAddressesOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 0
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"BearerAuth\"")
+			}
+		}
+
+		if ok := func() bool {
+		nextRequirement:
+			for _, requirement := range []bitset{
+				{0b00000001},
+				{},
+			} {
+				for i, mask := range requirement {
+					if satisfied[i]&mask != mask {
+						continue nextRequirement
+					}
+				}
+				return true
+			}
+			return false
+		}(); !ok {
+			return res, ogenerrors.ErrSecurityRequirementIsNotSatisfied
+		}
+	}
+
 	stage = "SendRequest"
 	resp, err := c.cfg.Client.Do(r)
 	if err != nil {
@@ -8265,6 +10455,218 @@ func (c *Client) sendGetNftItemsByAddresses(ctx context.Context, request OptGetN
 
 	stage = "DecodeResponse"
 	result, err := decodeGetNftItemsByAddressesResponse(resp)
+	if err != nil {
+		return res, errors.Wrap(err, "decode response")
+	}
+
+	return result, nil
+}
+
+// GetOpenapiJson invokes getOpenapiJson operation.
+//
+// Get the openapi.json file.
+//
+// GET /v2/openapi.json
+func (c *Client) GetOpenapiJson(ctx context.Context) (jx.Raw, error) {
+	res, err := c.sendGetOpenapiJson(ctx)
+	return res, err
+}
+
+func (c *Client) sendGetOpenapiJson(ctx context.Context) (res jx.Raw, err error) {
+	otelAttrs := []attribute.KeyValue{
+		otelogen.OperationID("getOpenapiJson"),
+		semconv.HTTPRequestMethodKey.String("GET"),
+		semconv.HTTPRouteKey.String("/v2/openapi.json"),
+	}
+
+	// Run stopwatch.
+	startTime := time.Now()
+	defer func() {
+		// Use floating point division here for higher precision (instead of Millisecond method).
+		elapsedDuration := time.Since(startTime)
+		c.duration.Record(ctx, float64(elapsedDuration)/float64(time.Millisecond), metric.WithAttributes(otelAttrs...))
+	}()
+
+	// Increment request counter.
+	c.requests.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
+
+	// Start a span for this request.
+	ctx, span := c.cfg.Tracer.Start(ctx, GetOpenapiJsonOperation,
+		trace.WithAttributes(otelAttrs...),
+		clientSpanKind,
+	)
+	// Track stage for error reporting.
+	var stage string
+	defer func() {
+		if err != nil {
+			span.RecordError(err)
+			span.SetStatus(codes.Error, stage)
+			c.errors.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
+		}
+		span.End()
+	}()
+
+	stage = "BuildURL"
+	u := uri.Clone(c.requestURL(ctx))
+	var pathParts [1]string
+	pathParts[0] = "/v2/openapi.json"
+	uri.AddPathParts(u, pathParts[:]...)
+
+	stage = "EncodeRequest"
+	r, err := ht.NewRequest(ctx, "GET", u)
+	if err != nil {
+		return res, errors.Wrap(err, "create request")
+	}
+
+	{
+		type bitset = [1]uint8
+		var satisfied bitset
+		{
+			stage = "Security:BearerAuth"
+			switch err := c.securityBearerAuth(ctx, GetOpenapiJsonOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 0
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"BearerAuth\"")
+			}
+		}
+
+		if ok := func() bool {
+		nextRequirement:
+			for _, requirement := range []bitset{
+				{0b00000001},
+				{},
+			} {
+				for i, mask := range requirement {
+					if satisfied[i]&mask != mask {
+						continue nextRequirement
+					}
+				}
+				return true
+			}
+			return false
+		}(); !ok {
+			return res, ogenerrors.ErrSecurityRequirementIsNotSatisfied
+		}
+	}
+
+	stage = "SendRequest"
+	resp, err := c.cfg.Client.Do(r)
+	if err != nil {
+		return res, errors.Wrap(err, "do request")
+	}
+	defer resp.Body.Close()
+
+	stage = "DecodeResponse"
+	result, err := decodeGetOpenapiJsonResponse(resp)
+	if err != nil {
+		return res, errors.Wrap(err, "decode response")
+	}
+
+	return result, nil
+}
+
+// GetOpenapiYml invokes getOpenapiYml operation.
+//
+// Get the openapi.yml file.
+//
+// GET /v2/openapi.yml
+func (c *Client) GetOpenapiYml(ctx context.Context) (GetOpenapiYmlOK, error) {
+	res, err := c.sendGetOpenapiYml(ctx)
+	return res, err
+}
+
+func (c *Client) sendGetOpenapiYml(ctx context.Context) (res GetOpenapiYmlOK, err error) {
+	otelAttrs := []attribute.KeyValue{
+		otelogen.OperationID("getOpenapiYml"),
+		semconv.HTTPRequestMethodKey.String("GET"),
+		semconv.HTTPRouteKey.String("/v2/openapi.yml"),
+	}
+
+	// Run stopwatch.
+	startTime := time.Now()
+	defer func() {
+		// Use floating point division here for higher precision (instead of Millisecond method).
+		elapsedDuration := time.Since(startTime)
+		c.duration.Record(ctx, float64(elapsedDuration)/float64(time.Millisecond), metric.WithAttributes(otelAttrs...))
+	}()
+
+	// Increment request counter.
+	c.requests.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
+
+	// Start a span for this request.
+	ctx, span := c.cfg.Tracer.Start(ctx, GetOpenapiYmlOperation,
+		trace.WithAttributes(otelAttrs...),
+		clientSpanKind,
+	)
+	// Track stage for error reporting.
+	var stage string
+	defer func() {
+		if err != nil {
+			span.RecordError(err)
+			span.SetStatus(codes.Error, stage)
+			c.errors.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
+		}
+		span.End()
+	}()
+
+	stage = "BuildURL"
+	u := uri.Clone(c.requestURL(ctx))
+	var pathParts [1]string
+	pathParts[0] = "/v2/openapi.yml"
+	uri.AddPathParts(u, pathParts[:]...)
+
+	stage = "EncodeRequest"
+	r, err := ht.NewRequest(ctx, "GET", u)
+	if err != nil {
+		return res, errors.Wrap(err, "create request")
+	}
+
+	{
+		type bitset = [1]uint8
+		var satisfied bitset
+		{
+			stage = "Security:BearerAuth"
+			switch err := c.securityBearerAuth(ctx, GetOpenapiYmlOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 0
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"BearerAuth\"")
+			}
+		}
+
+		if ok := func() bool {
+		nextRequirement:
+			for _, requirement := range []bitset{
+				{0b00000001},
+				{},
+			} {
+				for i, mask := range requirement {
+					if satisfied[i]&mask != mask {
+						continue nextRequirement
+					}
+				}
+				return true
+			}
+			return false
+		}(); !ok {
+			return res, ogenerrors.ErrSecurityRequirementIsNotSatisfied
+		}
+	}
+
+	stage = "SendRequest"
+	resp, err := c.cfg.Client.Do(r)
+	if err != nil {
+		return res, errors.Wrap(err, "do request")
+	}
+	defer resp.Body.Close()
+
+	stage = "DecodeResponse"
+	result, err := decodeGetOpenapiYmlResponse(resp)
 	if err != nil {
 		return res, errors.Wrap(err, "decode response")
 	}
@@ -8285,7 +10687,7 @@ func (c *Client) GetOutMsgQueueSizes(ctx context.Context) (*GetOutMsgQueueSizesO
 func (c *Client) sendGetOutMsgQueueSizes(ctx context.Context) (res *GetOutMsgQueueSizesOK, err error) {
 	otelAttrs := []attribute.KeyValue{
 		otelogen.OperationID("getOutMsgQueueSizes"),
-		semconv.HTTPMethodKey.String("GET"),
+		semconv.HTTPRequestMethodKey.String("GET"),
 		semconv.HTTPRouteKey.String("/v2/liteserver/get_out_msg_queue_sizes"),
 	}
 
@@ -8294,14 +10696,14 @@ func (c *Client) sendGetOutMsgQueueSizes(ctx context.Context) (res *GetOutMsgQue
 	defer func() {
 		// Use floating point division here for higher precision (instead of Millisecond method).
 		elapsedDuration := time.Since(startTime)
-		c.duration.Record(ctx, float64(float64(elapsedDuration)/float64(time.Millisecond)), metric.WithAttributes(otelAttrs...))
+		c.duration.Record(ctx, float64(elapsedDuration)/float64(time.Millisecond), metric.WithAttributes(otelAttrs...))
 	}()
 
 	// Increment request counter.
 	c.requests.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
 
 	// Start a span for this request.
-	ctx, span := c.cfg.Tracer.Start(ctx, "GetOutMsgQueueSizes",
+	ctx, span := c.cfg.Tracer.Start(ctx, GetOutMsgQueueSizesOperation,
 		trace.WithAttributes(otelAttrs...),
 		clientSpanKind,
 	)
@@ -8326,6 +10728,40 @@ func (c *Client) sendGetOutMsgQueueSizes(ctx context.Context) (res *GetOutMsgQue
 	r, err := ht.NewRequest(ctx, "GET", u)
 	if err != nil {
 		return res, errors.Wrap(err, "create request")
+	}
+
+	{
+		type bitset = [1]uint8
+		var satisfied bitset
+		{
+			stage = "Security:BearerAuth"
+			switch err := c.securityBearerAuth(ctx, GetOutMsgQueueSizesOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 0
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"BearerAuth\"")
+			}
+		}
+
+		if ok := func() bool {
+		nextRequirement:
+			for _, requirement := range []bitset{
+				{0b00000001},
+				{},
+			} {
+				for i, mask := range requirement {
+					if satisfied[i]&mask != mask {
+						continue nextRequirement
+					}
+				}
+				return true
+			}
+			return false
+		}(); !ok {
+			return res, ogenerrors.ErrSecurityRequirementIsNotSatisfied
+		}
 	}
 
 	stage = "SendRequest"
@@ -8358,7 +10794,7 @@ func (c *Client) GetRates(ctx context.Context, params GetRatesParams) (*GetRates
 func (c *Client) sendGetRates(ctx context.Context, params GetRatesParams) (res *GetRatesOK, err error) {
 	otelAttrs := []attribute.KeyValue{
 		otelogen.OperationID("getRates"),
-		semconv.HTTPMethodKey.String("GET"),
+		semconv.HTTPRequestMethodKey.String("GET"),
 		semconv.HTTPRouteKey.String("/v2/rates"),
 	}
 
@@ -8367,14 +10803,14 @@ func (c *Client) sendGetRates(ctx context.Context, params GetRatesParams) (res *
 	defer func() {
 		// Use floating point division here for higher precision (instead of Millisecond method).
 		elapsedDuration := time.Since(startTime)
-		c.duration.Record(ctx, float64(float64(elapsedDuration)/float64(time.Millisecond)), metric.WithAttributes(otelAttrs...))
+		c.duration.Record(ctx, float64(elapsedDuration)/float64(time.Millisecond), metric.WithAttributes(otelAttrs...))
 	}()
 
 	// Increment request counter.
 	c.requests.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
 
 	// Start a span for this request.
-	ctx, span := c.cfg.Tracer.Start(ctx, "GetRates",
+	ctx, span := c.cfg.Tracer.Start(ctx, GetRatesOperation,
 		trace.WithAttributes(otelAttrs...),
 		clientSpanKind,
 	)
@@ -8451,6 +10887,40 @@ func (c *Client) sendGetRates(ctx context.Context, params GetRatesParams) (res *
 		return res, errors.Wrap(err, "create request")
 	}
 
+	{
+		type bitset = [1]uint8
+		var satisfied bitset
+		{
+			stage = "Security:BearerAuth"
+			switch err := c.securityBearerAuth(ctx, GetRatesOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 0
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"BearerAuth\"")
+			}
+		}
+
+		if ok := func() bool {
+		nextRequirement:
+			for _, requirement := range []bitset{
+				{0b00000001},
+				{},
+			} {
+				for i, mask := range requirement {
+					if satisfied[i]&mask != mask {
+						continue nextRequirement
+					}
+				}
+				return true
+			}
+			return false
+		}(); !ok {
+			return res, ogenerrors.ErrSecurityRequirementIsNotSatisfied
+		}
+	}
+
 	stage = "SendRequest"
 	resp, err := c.cfg.Client.Do(r)
 	if err != nil {
@@ -8480,7 +10950,7 @@ func (c *Client) GetRawAccountState(ctx context.Context, params GetRawAccountSta
 func (c *Client) sendGetRawAccountState(ctx context.Context, params GetRawAccountStateParams) (res *GetRawAccountStateOK, err error) {
 	otelAttrs := []attribute.KeyValue{
 		otelogen.OperationID("getRawAccountState"),
-		semconv.HTTPMethodKey.String("GET"),
+		semconv.HTTPRequestMethodKey.String("GET"),
 		semconv.HTTPRouteKey.String("/v2/liteserver/get_account_state/{account_id}"),
 	}
 
@@ -8489,14 +10959,14 @@ func (c *Client) sendGetRawAccountState(ctx context.Context, params GetRawAccoun
 	defer func() {
 		// Use floating point division here for higher precision (instead of Millisecond method).
 		elapsedDuration := time.Since(startTime)
-		c.duration.Record(ctx, float64(float64(elapsedDuration)/float64(time.Millisecond)), metric.WithAttributes(otelAttrs...))
+		c.duration.Record(ctx, float64(elapsedDuration)/float64(time.Millisecond), metric.WithAttributes(otelAttrs...))
 	}()
 
 	// Increment request counter.
 	c.requests.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
 
 	// Start a span for this request.
-	ctx, span := c.cfg.Tracer.Start(ctx, "GetRawAccountState",
+	ctx, span := c.cfg.Tracer.Start(ctx, GetRawAccountStateOperation,
 		trace.WithAttributes(otelAttrs...),
 		clientSpanKind,
 	)
@@ -8562,6 +11032,40 @@ func (c *Client) sendGetRawAccountState(ctx context.Context, params GetRawAccoun
 		return res, errors.Wrap(err, "create request")
 	}
 
+	{
+		type bitset = [1]uint8
+		var satisfied bitset
+		{
+			stage = "Security:BearerAuth"
+			switch err := c.securityBearerAuth(ctx, GetRawAccountStateOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 0
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"BearerAuth\"")
+			}
+		}
+
+		if ok := func() bool {
+		nextRequirement:
+			for _, requirement := range []bitset{
+				{0b00000001},
+				{},
+			} {
+				for i, mask := range requirement {
+					if satisfied[i]&mask != mask {
+						continue nextRequirement
+					}
+				}
+				return true
+			}
+			return false
+		}(); !ok {
+			return res, ogenerrors.ErrSecurityRequirementIsNotSatisfied
+		}
+	}
+
 	stage = "SendRequest"
 	resp, err := c.cfg.Client.Do(r)
 	if err != nil {
@@ -8591,7 +11095,7 @@ func (c *Client) GetRawBlockProof(ctx context.Context, params GetRawBlockProofPa
 func (c *Client) sendGetRawBlockProof(ctx context.Context, params GetRawBlockProofParams) (res *GetRawBlockProofOK, err error) {
 	otelAttrs := []attribute.KeyValue{
 		otelogen.OperationID("getRawBlockProof"),
-		semconv.HTTPMethodKey.String("GET"),
+		semconv.HTTPRequestMethodKey.String("GET"),
 		semconv.HTTPRouteKey.String("/v2/liteserver/get_block_proof"),
 	}
 
@@ -8600,14 +11104,14 @@ func (c *Client) sendGetRawBlockProof(ctx context.Context, params GetRawBlockPro
 	defer func() {
 		// Use floating point division here for higher precision (instead of Millisecond method).
 		elapsedDuration := time.Since(startTime)
-		c.duration.Record(ctx, float64(float64(elapsedDuration)/float64(time.Millisecond)), metric.WithAttributes(otelAttrs...))
+		c.duration.Record(ctx, float64(elapsedDuration)/float64(time.Millisecond), metric.WithAttributes(otelAttrs...))
 	}()
 
 	// Increment request counter.
 	c.requests.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
 
 	// Start a span for this request.
-	ctx, span := c.cfg.Tracer.Start(ctx, "GetRawBlockProof",
+	ctx, span := c.cfg.Tracer.Start(ctx, GetRawBlockProofOperation,
 		trace.WithAttributes(otelAttrs...),
 		clientSpanKind,
 	)
@@ -8683,6 +11187,40 @@ func (c *Client) sendGetRawBlockProof(ctx context.Context, params GetRawBlockPro
 		return res, errors.Wrap(err, "create request")
 	}
 
+	{
+		type bitset = [1]uint8
+		var satisfied bitset
+		{
+			stage = "Security:BearerAuth"
+			switch err := c.securityBearerAuth(ctx, GetRawBlockProofOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 0
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"BearerAuth\"")
+			}
+		}
+
+		if ok := func() bool {
+		nextRequirement:
+			for _, requirement := range []bitset{
+				{0b00000001},
+				{},
+			} {
+				for i, mask := range requirement {
+					if satisfied[i]&mask != mask {
+						continue nextRequirement
+					}
+				}
+				return true
+			}
+			return false
+		}(); !ok {
+			return res, ogenerrors.ErrSecurityRequirementIsNotSatisfied
+		}
+	}
+
 	stage = "SendRequest"
 	resp, err := c.cfg.Client.Do(r)
 	if err != nil {
@@ -8712,7 +11250,7 @@ func (c *Client) GetRawBlockchainBlock(ctx context.Context, params GetRawBlockch
 func (c *Client) sendGetRawBlockchainBlock(ctx context.Context, params GetRawBlockchainBlockParams) (res *GetRawBlockchainBlockOK, err error) {
 	otelAttrs := []attribute.KeyValue{
 		otelogen.OperationID("getRawBlockchainBlock"),
-		semconv.HTTPMethodKey.String("GET"),
+		semconv.HTTPRequestMethodKey.String("GET"),
 		semconv.HTTPRouteKey.String("/v2/liteserver/get_block/{block_id}"),
 	}
 
@@ -8721,14 +11259,14 @@ func (c *Client) sendGetRawBlockchainBlock(ctx context.Context, params GetRawBlo
 	defer func() {
 		// Use floating point division here for higher precision (instead of Millisecond method).
 		elapsedDuration := time.Since(startTime)
-		c.duration.Record(ctx, float64(float64(elapsedDuration)/float64(time.Millisecond)), metric.WithAttributes(otelAttrs...))
+		c.duration.Record(ctx, float64(elapsedDuration)/float64(time.Millisecond), metric.WithAttributes(otelAttrs...))
 	}()
 
 	// Increment request counter.
 	c.requests.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
 
 	// Start a span for this request.
-	ctx, span := c.cfg.Tracer.Start(ctx, "GetRawBlockchainBlock",
+	ctx, span := c.cfg.Tracer.Start(ctx, GetRawBlockchainBlockOperation,
 		trace.WithAttributes(otelAttrs...),
 		clientSpanKind,
 	)
@@ -8773,6 +11311,40 @@ func (c *Client) sendGetRawBlockchainBlock(ctx context.Context, params GetRawBlo
 		return res, errors.Wrap(err, "create request")
 	}
 
+	{
+		type bitset = [1]uint8
+		var satisfied bitset
+		{
+			stage = "Security:BearerAuth"
+			switch err := c.securityBearerAuth(ctx, GetRawBlockchainBlockOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 0
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"BearerAuth\"")
+			}
+		}
+
+		if ok := func() bool {
+		nextRequirement:
+			for _, requirement := range []bitset{
+				{0b00000001},
+				{},
+			} {
+				for i, mask := range requirement {
+					if satisfied[i]&mask != mask {
+						continue nextRequirement
+					}
+				}
+				return true
+			}
+			return false
+		}(); !ok {
+			return res, ogenerrors.ErrSecurityRequirementIsNotSatisfied
+		}
+	}
+
 	stage = "SendRequest"
 	resp, err := c.cfg.Client.Do(r)
 	if err != nil {
@@ -8802,7 +11374,7 @@ func (c *Client) GetRawBlockchainBlockHeader(ctx context.Context, params GetRawB
 func (c *Client) sendGetRawBlockchainBlockHeader(ctx context.Context, params GetRawBlockchainBlockHeaderParams) (res *GetRawBlockchainBlockHeaderOK, err error) {
 	otelAttrs := []attribute.KeyValue{
 		otelogen.OperationID("getRawBlockchainBlockHeader"),
-		semconv.HTTPMethodKey.String("GET"),
+		semconv.HTTPRequestMethodKey.String("GET"),
 		semconv.HTTPRouteKey.String("/v2/liteserver/get_block_header/{block_id}"),
 	}
 
@@ -8811,14 +11383,14 @@ func (c *Client) sendGetRawBlockchainBlockHeader(ctx context.Context, params Get
 	defer func() {
 		// Use floating point division here for higher precision (instead of Millisecond method).
 		elapsedDuration := time.Since(startTime)
-		c.duration.Record(ctx, float64(float64(elapsedDuration)/float64(time.Millisecond)), metric.WithAttributes(otelAttrs...))
+		c.duration.Record(ctx, float64(elapsedDuration)/float64(time.Millisecond), metric.WithAttributes(otelAttrs...))
 	}()
 
 	// Increment request counter.
 	c.requests.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
 
 	// Start a span for this request.
-	ctx, span := c.cfg.Tracer.Start(ctx, "GetRawBlockchainBlockHeader",
+	ctx, span := c.cfg.Tracer.Start(ctx, GetRawBlockchainBlockHeaderOperation,
 		trace.WithAttributes(otelAttrs...),
 		clientSpanKind,
 	)
@@ -8881,6 +11453,40 @@ func (c *Client) sendGetRawBlockchainBlockHeader(ctx context.Context, params Get
 		return res, errors.Wrap(err, "create request")
 	}
 
+	{
+		type bitset = [1]uint8
+		var satisfied bitset
+		{
+			stage = "Security:BearerAuth"
+			switch err := c.securityBearerAuth(ctx, GetRawBlockchainBlockHeaderOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 0
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"BearerAuth\"")
+			}
+		}
+
+		if ok := func() bool {
+		nextRequirement:
+			for _, requirement := range []bitset{
+				{0b00000001},
+				{},
+			} {
+				for i, mask := range requirement {
+					if satisfied[i]&mask != mask {
+						continue nextRequirement
+					}
+				}
+				return true
+			}
+			return false
+		}(); !ok {
+			return res, ogenerrors.ErrSecurityRequirementIsNotSatisfied
+		}
+	}
+
 	stage = "SendRequest"
 	resp, err := c.cfg.Client.Do(r)
 	if err != nil {
@@ -8910,7 +11516,7 @@ func (c *Client) GetRawBlockchainBlockState(ctx context.Context, params GetRawBl
 func (c *Client) sendGetRawBlockchainBlockState(ctx context.Context, params GetRawBlockchainBlockStateParams) (res *GetRawBlockchainBlockStateOK, err error) {
 	otelAttrs := []attribute.KeyValue{
 		otelogen.OperationID("getRawBlockchainBlockState"),
-		semconv.HTTPMethodKey.String("GET"),
+		semconv.HTTPRequestMethodKey.String("GET"),
 		semconv.HTTPRouteKey.String("/v2/liteserver/get_state/{block_id}"),
 	}
 
@@ -8919,14 +11525,14 @@ func (c *Client) sendGetRawBlockchainBlockState(ctx context.Context, params GetR
 	defer func() {
 		// Use floating point division here for higher precision (instead of Millisecond method).
 		elapsedDuration := time.Since(startTime)
-		c.duration.Record(ctx, float64(float64(elapsedDuration)/float64(time.Millisecond)), metric.WithAttributes(otelAttrs...))
+		c.duration.Record(ctx, float64(elapsedDuration)/float64(time.Millisecond), metric.WithAttributes(otelAttrs...))
 	}()
 
 	// Increment request counter.
 	c.requests.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
 
 	// Start a span for this request.
-	ctx, span := c.cfg.Tracer.Start(ctx, "GetRawBlockchainBlockState",
+	ctx, span := c.cfg.Tracer.Start(ctx, GetRawBlockchainBlockStateOperation,
 		trace.WithAttributes(otelAttrs...),
 		clientSpanKind,
 	)
@@ -8971,6 +11577,40 @@ func (c *Client) sendGetRawBlockchainBlockState(ctx context.Context, params GetR
 		return res, errors.Wrap(err, "create request")
 	}
 
+	{
+		type bitset = [1]uint8
+		var satisfied bitset
+		{
+			stage = "Security:BearerAuth"
+			switch err := c.securityBearerAuth(ctx, GetRawBlockchainBlockStateOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 0
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"BearerAuth\"")
+			}
+		}
+
+		if ok := func() bool {
+		nextRequirement:
+			for _, requirement := range []bitset{
+				{0b00000001},
+				{},
+			} {
+				for i, mask := range requirement {
+					if satisfied[i]&mask != mask {
+						continue nextRequirement
+					}
+				}
+				return true
+			}
+			return false
+		}(); !ok {
+			return res, ogenerrors.ErrSecurityRequirementIsNotSatisfied
+		}
+	}
+
 	stage = "SendRequest"
 	resp, err := c.cfg.Client.Do(r)
 	if err != nil {
@@ -9000,7 +11640,7 @@ func (c *Client) GetRawBlockchainConfig(ctx context.Context) (*RawBlockchainConf
 func (c *Client) sendGetRawBlockchainConfig(ctx context.Context) (res *RawBlockchainConfig, err error) {
 	otelAttrs := []attribute.KeyValue{
 		otelogen.OperationID("getRawBlockchainConfig"),
-		semconv.HTTPMethodKey.String("GET"),
+		semconv.HTTPRequestMethodKey.String("GET"),
 		semconv.HTTPRouteKey.String("/v2/blockchain/config/raw"),
 	}
 
@@ -9009,14 +11649,14 @@ func (c *Client) sendGetRawBlockchainConfig(ctx context.Context) (res *RawBlockc
 	defer func() {
 		// Use floating point division here for higher precision (instead of Millisecond method).
 		elapsedDuration := time.Since(startTime)
-		c.duration.Record(ctx, float64(float64(elapsedDuration)/float64(time.Millisecond)), metric.WithAttributes(otelAttrs...))
+		c.duration.Record(ctx, float64(elapsedDuration)/float64(time.Millisecond), metric.WithAttributes(otelAttrs...))
 	}()
 
 	// Increment request counter.
 	c.requests.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
 
 	// Start a span for this request.
-	ctx, span := c.cfg.Tracer.Start(ctx, "GetRawBlockchainConfig",
+	ctx, span := c.cfg.Tracer.Start(ctx, GetRawBlockchainConfigOperation,
 		trace.WithAttributes(otelAttrs...),
 		clientSpanKind,
 	)
@@ -9041,6 +11681,40 @@ func (c *Client) sendGetRawBlockchainConfig(ctx context.Context) (res *RawBlockc
 	r, err := ht.NewRequest(ctx, "GET", u)
 	if err != nil {
 		return res, errors.Wrap(err, "create request")
+	}
+
+	{
+		type bitset = [1]uint8
+		var satisfied bitset
+		{
+			stage = "Security:BearerAuth"
+			switch err := c.securityBearerAuth(ctx, GetRawBlockchainConfigOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 0
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"BearerAuth\"")
+			}
+		}
+
+		if ok := func() bool {
+		nextRequirement:
+			for _, requirement := range []bitset{
+				{0b00000001},
+				{},
+			} {
+				for i, mask := range requirement {
+					if satisfied[i]&mask != mask {
+						continue nextRequirement
+					}
+				}
+				return true
+			}
+			return false
+		}(); !ok {
+			return res, ogenerrors.ErrSecurityRequirementIsNotSatisfied
+		}
 	}
 
 	stage = "SendRequest"
@@ -9072,7 +11746,7 @@ func (c *Client) GetRawBlockchainConfigFromBlock(ctx context.Context, params Get
 func (c *Client) sendGetRawBlockchainConfigFromBlock(ctx context.Context, params GetRawBlockchainConfigFromBlockParams) (res *RawBlockchainConfig, err error) {
 	otelAttrs := []attribute.KeyValue{
 		otelogen.OperationID("getRawBlockchainConfigFromBlock"),
-		semconv.HTTPMethodKey.String("GET"),
+		semconv.HTTPRequestMethodKey.String("GET"),
 		semconv.HTTPRouteKey.String("/v2/blockchain/masterchain/{masterchain_seqno}/config/raw"),
 	}
 
@@ -9081,14 +11755,14 @@ func (c *Client) sendGetRawBlockchainConfigFromBlock(ctx context.Context, params
 	defer func() {
 		// Use floating point division here for higher precision (instead of Millisecond method).
 		elapsedDuration := time.Since(startTime)
-		c.duration.Record(ctx, float64(float64(elapsedDuration)/float64(time.Millisecond)), metric.WithAttributes(otelAttrs...))
+		c.duration.Record(ctx, float64(elapsedDuration)/float64(time.Millisecond), metric.WithAttributes(otelAttrs...))
 	}()
 
 	// Increment request counter.
 	c.requests.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
 
 	// Start a span for this request.
-	ctx, span := c.cfg.Tracer.Start(ctx, "GetRawBlockchainConfigFromBlock",
+	ctx, span := c.cfg.Tracer.Start(ctx, GetRawBlockchainConfigFromBlockOperation,
 		trace.WithAttributes(otelAttrs...),
 		clientSpanKind,
 	)
@@ -9134,6 +11808,40 @@ func (c *Client) sendGetRawBlockchainConfigFromBlock(ctx context.Context, params
 		return res, errors.Wrap(err, "create request")
 	}
 
+	{
+		type bitset = [1]uint8
+		var satisfied bitset
+		{
+			stage = "Security:BearerAuth"
+			switch err := c.securityBearerAuth(ctx, GetRawBlockchainConfigFromBlockOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 0
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"BearerAuth\"")
+			}
+		}
+
+		if ok := func() bool {
+		nextRequirement:
+			for _, requirement := range []bitset{
+				{0b00000001},
+				{},
+			} {
+				for i, mask := range requirement {
+					if satisfied[i]&mask != mask {
+						continue nextRequirement
+					}
+				}
+				return true
+			}
+			return false
+		}(); !ok {
+			return res, ogenerrors.ErrSecurityRequirementIsNotSatisfied
+		}
+	}
+
 	stage = "SendRequest"
 	resp, err := c.cfg.Client.Do(r)
 	if err != nil {
@@ -9163,7 +11871,7 @@ func (c *Client) GetRawConfig(ctx context.Context, params GetRawConfigParams) (*
 func (c *Client) sendGetRawConfig(ctx context.Context, params GetRawConfigParams) (res *GetRawConfigOK, err error) {
 	otelAttrs := []attribute.KeyValue{
 		otelogen.OperationID("getRawConfig"),
-		semconv.HTTPMethodKey.String("GET"),
+		semconv.HTTPRequestMethodKey.String("GET"),
 		semconv.HTTPRouteKey.String("/v2/liteserver/get_config_all/{block_id}"),
 	}
 
@@ -9172,14 +11880,14 @@ func (c *Client) sendGetRawConfig(ctx context.Context, params GetRawConfigParams
 	defer func() {
 		// Use floating point division here for higher precision (instead of Millisecond method).
 		elapsedDuration := time.Since(startTime)
-		c.duration.Record(ctx, float64(float64(elapsedDuration)/float64(time.Millisecond)), metric.WithAttributes(otelAttrs...))
+		c.duration.Record(ctx, float64(elapsedDuration)/float64(time.Millisecond), metric.WithAttributes(otelAttrs...))
 	}()
 
 	// Increment request counter.
 	c.requests.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
 
 	// Start a span for this request.
-	ctx, span := c.cfg.Tracer.Start(ctx, "GetRawConfig",
+	ctx, span := c.cfg.Tracer.Start(ctx, GetRawConfigOperation,
 		trace.WithAttributes(otelAttrs...),
 		clientSpanKind,
 	)
@@ -9242,6 +11950,40 @@ func (c *Client) sendGetRawConfig(ctx context.Context, params GetRawConfigParams
 		return res, errors.Wrap(err, "create request")
 	}
 
+	{
+		type bitset = [1]uint8
+		var satisfied bitset
+		{
+			stage = "Security:BearerAuth"
+			switch err := c.securityBearerAuth(ctx, GetRawConfigOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 0
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"BearerAuth\"")
+			}
+		}
+
+		if ok := func() bool {
+		nextRequirement:
+			for _, requirement := range []bitset{
+				{0b00000001},
+				{},
+			} {
+				for i, mask := range requirement {
+					if satisfied[i]&mask != mask {
+						continue nextRequirement
+					}
+				}
+				return true
+			}
+			return false
+		}(); !ok {
+			return res, ogenerrors.ErrSecurityRequirementIsNotSatisfied
+		}
+	}
+
 	stage = "SendRequest"
 	resp, err := c.cfg.Client.Do(r)
 	if err != nil {
@@ -9271,7 +12013,7 @@ func (c *Client) GetRawListBlockTransactions(ctx context.Context, params GetRawL
 func (c *Client) sendGetRawListBlockTransactions(ctx context.Context, params GetRawListBlockTransactionsParams) (res *GetRawListBlockTransactionsOK, err error) {
 	otelAttrs := []attribute.KeyValue{
 		otelogen.OperationID("getRawListBlockTransactions"),
-		semconv.HTTPMethodKey.String("GET"),
+		semconv.HTTPRequestMethodKey.String("GET"),
 		semconv.HTTPRouteKey.String("/v2/liteserver/list_block_transactions/{block_id}"),
 	}
 
@@ -9280,14 +12022,14 @@ func (c *Client) sendGetRawListBlockTransactions(ctx context.Context, params Get
 	defer func() {
 		// Use floating point division here for higher precision (instead of Millisecond method).
 		elapsedDuration := time.Since(startTime)
-		c.duration.Record(ctx, float64(float64(elapsedDuration)/float64(time.Millisecond)), metric.WithAttributes(otelAttrs...))
+		c.duration.Record(ctx, float64(elapsedDuration)/float64(time.Millisecond), metric.WithAttributes(otelAttrs...))
 	}()
 
 	// Increment request counter.
 	c.requests.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
 
 	// Start a span for this request.
-	ctx, span := c.cfg.Tracer.Start(ctx, "GetRawListBlockTransactions",
+	ctx, span := c.cfg.Tracer.Start(ctx, GetRawListBlockTransactionsOperation,
 		trace.WithAttributes(otelAttrs...),
 		clientSpanKind,
 	)
@@ -9398,6 +12140,40 @@ func (c *Client) sendGetRawListBlockTransactions(ctx context.Context, params Get
 		return res, errors.Wrap(err, "create request")
 	}
 
+	{
+		type bitset = [1]uint8
+		var satisfied bitset
+		{
+			stage = "Security:BearerAuth"
+			switch err := c.securityBearerAuth(ctx, GetRawListBlockTransactionsOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 0
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"BearerAuth\"")
+			}
+		}
+
+		if ok := func() bool {
+		nextRequirement:
+			for _, requirement := range []bitset{
+				{0b00000001},
+				{},
+			} {
+				for i, mask := range requirement {
+					if satisfied[i]&mask != mask {
+						continue nextRequirement
+					}
+				}
+				return true
+			}
+			return false
+		}(); !ok {
+			return res, ogenerrors.ErrSecurityRequirementIsNotSatisfied
+		}
+	}
+
 	stage = "SendRequest"
 	resp, err := c.cfg.Client.Do(r)
 	if err != nil {
@@ -9427,7 +12203,7 @@ func (c *Client) GetRawMasterchainInfo(ctx context.Context) (*GetRawMasterchainI
 func (c *Client) sendGetRawMasterchainInfo(ctx context.Context) (res *GetRawMasterchainInfoOK, err error) {
 	otelAttrs := []attribute.KeyValue{
 		otelogen.OperationID("getRawMasterchainInfo"),
-		semconv.HTTPMethodKey.String("GET"),
+		semconv.HTTPRequestMethodKey.String("GET"),
 		semconv.HTTPRouteKey.String("/v2/liteserver/get_masterchain_info"),
 	}
 
@@ -9436,14 +12212,14 @@ func (c *Client) sendGetRawMasterchainInfo(ctx context.Context) (res *GetRawMast
 	defer func() {
 		// Use floating point division here for higher precision (instead of Millisecond method).
 		elapsedDuration := time.Since(startTime)
-		c.duration.Record(ctx, float64(float64(elapsedDuration)/float64(time.Millisecond)), metric.WithAttributes(otelAttrs...))
+		c.duration.Record(ctx, float64(elapsedDuration)/float64(time.Millisecond), metric.WithAttributes(otelAttrs...))
 	}()
 
 	// Increment request counter.
 	c.requests.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
 
 	// Start a span for this request.
-	ctx, span := c.cfg.Tracer.Start(ctx, "GetRawMasterchainInfo",
+	ctx, span := c.cfg.Tracer.Start(ctx, GetRawMasterchainInfoOperation,
 		trace.WithAttributes(otelAttrs...),
 		clientSpanKind,
 	)
@@ -9468,6 +12244,40 @@ func (c *Client) sendGetRawMasterchainInfo(ctx context.Context) (res *GetRawMast
 	r, err := ht.NewRequest(ctx, "GET", u)
 	if err != nil {
 		return res, errors.Wrap(err, "create request")
+	}
+
+	{
+		type bitset = [1]uint8
+		var satisfied bitset
+		{
+			stage = "Security:BearerAuth"
+			switch err := c.securityBearerAuth(ctx, GetRawMasterchainInfoOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 0
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"BearerAuth\"")
+			}
+		}
+
+		if ok := func() bool {
+		nextRequirement:
+			for _, requirement := range []bitset{
+				{0b00000001},
+				{},
+			} {
+				for i, mask := range requirement {
+					if satisfied[i]&mask != mask {
+						continue nextRequirement
+					}
+				}
+				return true
+			}
+			return false
+		}(); !ok {
+			return res, ogenerrors.ErrSecurityRequirementIsNotSatisfied
+		}
 	}
 
 	stage = "SendRequest"
@@ -9499,7 +12309,7 @@ func (c *Client) GetRawMasterchainInfoExt(ctx context.Context, params GetRawMast
 func (c *Client) sendGetRawMasterchainInfoExt(ctx context.Context, params GetRawMasterchainInfoExtParams) (res *GetRawMasterchainInfoExtOK, err error) {
 	otelAttrs := []attribute.KeyValue{
 		otelogen.OperationID("getRawMasterchainInfoExt"),
-		semconv.HTTPMethodKey.String("GET"),
+		semconv.HTTPRequestMethodKey.String("GET"),
 		semconv.HTTPRouteKey.String("/v2/liteserver/get_masterchain_info_ext"),
 	}
 
@@ -9508,14 +12318,14 @@ func (c *Client) sendGetRawMasterchainInfoExt(ctx context.Context, params GetRaw
 	defer func() {
 		// Use floating point division here for higher precision (instead of Millisecond method).
 		elapsedDuration := time.Since(startTime)
-		c.duration.Record(ctx, float64(float64(elapsedDuration)/float64(time.Millisecond)), metric.WithAttributes(otelAttrs...))
+		c.duration.Record(ctx, float64(elapsedDuration)/float64(time.Millisecond), metric.WithAttributes(otelAttrs...))
 	}()
 
 	// Increment request counter.
 	c.requests.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
 
 	// Start a span for this request.
-	ctx, span := c.cfg.Tracer.Start(ctx, "GetRawMasterchainInfoExt",
+	ctx, span := c.cfg.Tracer.Start(ctx, GetRawMasterchainInfoExtOperation,
 		trace.WithAttributes(otelAttrs...),
 		clientSpanKind,
 	)
@@ -9560,6 +12370,40 @@ func (c *Client) sendGetRawMasterchainInfoExt(ctx context.Context, params GetRaw
 		return res, errors.Wrap(err, "create request")
 	}
 
+	{
+		type bitset = [1]uint8
+		var satisfied bitset
+		{
+			stage = "Security:BearerAuth"
+			switch err := c.securityBearerAuth(ctx, GetRawMasterchainInfoExtOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 0
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"BearerAuth\"")
+			}
+		}
+
+		if ok := func() bool {
+		nextRequirement:
+			for _, requirement := range []bitset{
+				{0b00000001},
+				{},
+			} {
+				for i, mask := range requirement {
+					if satisfied[i]&mask != mask {
+						continue nextRequirement
+					}
+				}
+				return true
+			}
+			return false
+		}(); !ok {
+			return res, ogenerrors.ErrSecurityRequirementIsNotSatisfied
+		}
+	}
+
 	stage = "SendRequest"
 	resp, err := c.cfg.Client.Do(r)
 	if err != nil {
@@ -9589,7 +12433,7 @@ func (c *Client) GetRawShardBlockProof(ctx context.Context, params GetRawShardBl
 func (c *Client) sendGetRawShardBlockProof(ctx context.Context, params GetRawShardBlockProofParams) (res *GetRawShardBlockProofOK, err error) {
 	otelAttrs := []attribute.KeyValue{
 		otelogen.OperationID("getRawShardBlockProof"),
-		semconv.HTTPMethodKey.String("GET"),
+		semconv.HTTPRequestMethodKey.String("GET"),
 		semconv.HTTPRouteKey.String("/v2/liteserver/get_shard_block_proof/{block_id}"),
 	}
 
@@ -9598,14 +12442,14 @@ func (c *Client) sendGetRawShardBlockProof(ctx context.Context, params GetRawSha
 	defer func() {
 		// Use floating point division here for higher precision (instead of Millisecond method).
 		elapsedDuration := time.Since(startTime)
-		c.duration.Record(ctx, float64(float64(elapsedDuration)/float64(time.Millisecond)), metric.WithAttributes(otelAttrs...))
+		c.duration.Record(ctx, float64(elapsedDuration)/float64(time.Millisecond), metric.WithAttributes(otelAttrs...))
 	}()
 
 	// Increment request counter.
 	c.requests.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
 
 	// Start a span for this request.
-	ctx, span := c.cfg.Tracer.Start(ctx, "GetRawShardBlockProof",
+	ctx, span := c.cfg.Tracer.Start(ctx, GetRawShardBlockProofOperation,
 		trace.WithAttributes(otelAttrs...),
 		clientSpanKind,
 	)
@@ -9650,6 +12494,40 @@ func (c *Client) sendGetRawShardBlockProof(ctx context.Context, params GetRawSha
 		return res, errors.Wrap(err, "create request")
 	}
 
+	{
+		type bitset = [1]uint8
+		var satisfied bitset
+		{
+			stage = "Security:BearerAuth"
+			switch err := c.securityBearerAuth(ctx, GetRawShardBlockProofOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 0
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"BearerAuth\"")
+			}
+		}
+
+		if ok := func() bool {
+		nextRequirement:
+			for _, requirement := range []bitset{
+				{0b00000001},
+				{},
+			} {
+				for i, mask := range requirement {
+					if satisfied[i]&mask != mask {
+						continue nextRequirement
+					}
+				}
+				return true
+			}
+			return false
+		}(); !ok {
+			return res, ogenerrors.ErrSecurityRequirementIsNotSatisfied
+		}
+	}
+
 	stage = "SendRequest"
 	resp, err := c.cfg.Client.Do(r)
 	if err != nil {
@@ -9679,7 +12557,7 @@ func (c *Client) GetRawShardInfo(ctx context.Context, params GetRawShardInfoPara
 func (c *Client) sendGetRawShardInfo(ctx context.Context, params GetRawShardInfoParams) (res *GetRawShardInfoOK, err error) {
 	otelAttrs := []attribute.KeyValue{
 		otelogen.OperationID("getRawShardInfo"),
-		semconv.HTTPMethodKey.String("GET"),
+		semconv.HTTPRequestMethodKey.String("GET"),
 		semconv.HTTPRouteKey.String("/v2/liteserver/get_shard_info/{block_id}"),
 	}
 
@@ -9688,14 +12566,14 @@ func (c *Client) sendGetRawShardInfo(ctx context.Context, params GetRawShardInfo
 	defer func() {
 		// Use floating point division here for higher precision (instead of Millisecond method).
 		elapsedDuration := time.Since(startTime)
-		c.duration.Record(ctx, float64(float64(elapsedDuration)/float64(time.Millisecond)), metric.WithAttributes(otelAttrs...))
+		c.duration.Record(ctx, float64(elapsedDuration)/float64(time.Millisecond), metric.WithAttributes(otelAttrs...))
 	}()
 
 	// Increment request counter.
 	c.requests.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
 
 	// Start a span for this request.
-	ctx, span := c.cfg.Tracer.Start(ctx, "GetRawShardInfo",
+	ctx, span := c.cfg.Tracer.Start(ctx, GetRawShardInfoOperation,
 		trace.WithAttributes(otelAttrs...),
 		clientSpanKind,
 	)
@@ -9786,6 +12664,40 @@ func (c *Client) sendGetRawShardInfo(ctx context.Context, params GetRawShardInfo
 		return res, errors.Wrap(err, "create request")
 	}
 
+	{
+		type bitset = [1]uint8
+		var satisfied bitset
+		{
+			stage = "Security:BearerAuth"
+			switch err := c.securityBearerAuth(ctx, GetRawShardInfoOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 0
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"BearerAuth\"")
+			}
+		}
+
+		if ok := func() bool {
+		nextRequirement:
+			for _, requirement := range []bitset{
+				{0b00000001},
+				{},
+			} {
+				for i, mask := range requirement {
+					if satisfied[i]&mask != mask {
+						continue nextRequirement
+					}
+				}
+				return true
+			}
+			return false
+		}(); !ok {
+			return res, ogenerrors.ErrSecurityRequirementIsNotSatisfied
+		}
+	}
+
 	stage = "SendRequest"
 	resp, err := c.cfg.Client.Do(r)
 	if err != nil {
@@ -9815,7 +12727,7 @@ func (c *Client) GetRawTime(ctx context.Context) (*GetRawTimeOK, error) {
 func (c *Client) sendGetRawTime(ctx context.Context) (res *GetRawTimeOK, err error) {
 	otelAttrs := []attribute.KeyValue{
 		otelogen.OperationID("getRawTime"),
-		semconv.HTTPMethodKey.String("GET"),
+		semconv.HTTPRequestMethodKey.String("GET"),
 		semconv.HTTPRouteKey.String("/v2/liteserver/get_time"),
 	}
 
@@ -9824,14 +12736,14 @@ func (c *Client) sendGetRawTime(ctx context.Context) (res *GetRawTimeOK, err err
 	defer func() {
 		// Use floating point division here for higher precision (instead of Millisecond method).
 		elapsedDuration := time.Since(startTime)
-		c.duration.Record(ctx, float64(float64(elapsedDuration)/float64(time.Millisecond)), metric.WithAttributes(otelAttrs...))
+		c.duration.Record(ctx, float64(elapsedDuration)/float64(time.Millisecond), metric.WithAttributes(otelAttrs...))
 	}()
 
 	// Increment request counter.
 	c.requests.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
 
 	// Start a span for this request.
-	ctx, span := c.cfg.Tracer.Start(ctx, "GetRawTime",
+	ctx, span := c.cfg.Tracer.Start(ctx, GetRawTimeOperation,
 		trace.WithAttributes(otelAttrs...),
 		clientSpanKind,
 	)
@@ -9856,6 +12768,40 @@ func (c *Client) sendGetRawTime(ctx context.Context) (res *GetRawTimeOK, err err
 	r, err := ht.NewRequest(ctx, "GET", u)
 	if err != nil {
 		return res, errors.Wrap(err, "create request")
+	}
+
+	{
+		type bitset = [1]uint8
+		var satisfied bitset
+		{
+			stage = "Security:BearerAuth"
+			switch err := c.securityBearerAuth(ctx, GetRawTimeOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 0
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"BearerAuth\"")
+			}
+		}
+
+		if ok := func() bool {
+		nextRequirement:
+			for _, requirement := range []bitset{
+				{0b00000001},
+				{},
+			} {
+				for i, mask := range requirement {
+					if satisfied[i]&mask != mask {
+						continue nextRequirement
+					}
+				}
+				return true
+			}
+			return false
+		}(); !ok {
+			return res, ogenerrors.ErrSecurityRequirementIsNotSatisfied
+		}
 	}
 
 	stage = "SendRequest"
@@ -9887,7 +12833,7 @@ func (c *Client) GetRawTransactions(ctx context.Context, params GetRawTransactio
 func (c *Client) sendGetRawTransactions(ctx context.Context, params GetRawTransactionsParams) (res *GetRawTransactionsOK, err error) {
 	otelAttrs := []attribute.KeyValue{
 		otelogen.OperationID("getRawTransactions"),
-		semconv.HTTPMethodKey.String("GET"),
+		semconv.HTTPRequestMethodKey.String("GET"),
 		semconv.HTTPRouteKey.String("/v2/liteserver/get_transactions/{account_id}"),
 	}
 
@@ -9896,14 +12842,14 @@ func (c *Client) sendGetRawTransactions(ctx context.Context, params GetRawTransa
 	defer func() {
 		// Use floating point division here for higher precision (instead of Millisecond method).
 		elapsedDuration := time.Since(startTime)
-		c.duration.Record(ctx, float64(float64(elapsedDuration)/float64(time.Millisecond)), metric.WithAttributes(otelAttrs...))
+		c.duration.Record(ctx, float64(elapsedDuration)/float64(time.Millisecond), metric.WithAttributes(otelAttrs...))
 	}()
 
 	// Increment request counter.
 	c.requests.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
 
 	// Start a span for this request.
-	ctx, span := c.cfg.Tracer.Start(ctx, "GetRawTransactions",
+	ctx, span := c.cfg.Tracer.Start(ctx, GetRawTransactionsOperation,
 		trace.WithAttributes(otelAttrs...),
 		clientSpanKind,
 	)
@@ -9994,6 +12940,40 @@ func (c *Client) sendGetRawTransactions(ctx context.Context, params GetRawTransa
 		return res, errors.Wrap(err, "create request")
 	}
 
+	{
+		type bitset = [1]uint8
+		var satisfied bitset
+		{
+			stage = "Security:BearerAuth"
+			switch err := c.securityBearerAuth(ctx, GetRawTransactionsOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 0
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"BearerAuth\"")
+			}
+		}
+
+		if ok := func() bool {
+		nextRequirement:
+			for _, requirement := range []bitset{
+				{0b00000001},
+				{},
+			} {
+				for i, mask := range requirement {
+					if satisfied[i]&mask != mask {
+						continue nextRequirement
+					}
+				}
+				return true
+			}
+			return false
+		}(); !ok {
+			return res, ogenerrors.ErrSecurityRequirementIsNotSatisfied
+		}
+	}
+
 	stage = "SendRequest"
 	resp, err := c.cfg.Client.Do(r)
 	if err != nil {
@@ -10023,7 +13003,7 @@ func (c *Client) GetReducedBlockchainBlocks(ctx context.Context, params GetReduc
 func (c *Client) sendGetReducedBlockchainBlocks(ctx context.Context, params GetReducedBlockchainBlocksParams) (res *ReducedBlocks, err error) {
 	otelAttrs := []attribute.KeyValue{
 		otelogen.OperationID("getReducedBlockchainBlocks"),
-		semconv.HTTPMethodKey.String("GET"),
+		semconv.HTTPRequestMethodKey.String("GET"),
 		semconv.HTTPRouteKey.String("/v2/blockchain/reduced/blocks"),
 	}
 
@@ -10032,14 +13012,14 @@ func (c *Client) sendGetReducedBlockchainBlocks(ctx context.Context, params GetR
 	defer func() {
 		// Use floating point division here for higher precision (instead of Millisecond method).
 		elapsedDuration := time.Since(startTime)
-		c.duration.Record(ctx, float64(float64(elapsedDuration)/float64(time.Millisecond)), metric.WithAttributes(otelAttrs...))
+		c.duration.Record(ctx, float64(elapsedDuration)/float64(time.Millisecond), metric.WithAttributes(otelAttrs...))
 	}()
 
 	// Increment request counter.
 	c.requests.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
 
 	// Start a span for this request.
-	ctx, span := c.cfg.Tracer.Start(ctx, "GetReducedBlockchainBlocks",
+	ctx, span := c.cfg.Tracer.Start(ctx, GetReducedBlockchainBlocksOperation,
 		trace.WithAttributes(otelAttrs...),
 		clientSpanKind,
 	)
@@ -10098,6 +13078,40 @@ func (c *Client) sendGetReducedBlockchainBlocks(ctx context.Context, params GetR
 		return res, errors.Wrap(err, "create request")
 	}
 
+	{
+		type bitset = [1]uint8
+		var satisfied bitset
+		{
+			stage = "Security:BearerAuth"
+			switch err := c.securityBearerAuth(ctx, GetReducedBlockchainBlocksOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 0
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"BearerAuth\"")
+			}
+		}
+
+		if ok := func() bool {
+		nextRequirement:
+			for _, requirement := range []bitset{
+				{0b00000001},
+				{},
+			} {
+				for i, mask := range requirement {
+					if satisfied[i]&mask != mask {
+						continue nextRequirement
+					}
+				}
+				return true
+			}
+			return false
+		}(); !ok {
+			return res, ogenerrors.ErrSecurityRequirementIsNotSatisfied
+		}
+	}
+
 	stage = "SendRequest"
 	resp, err := c.cfg.Client.Do(r)
 	if err != nil {
@@ -10127,7 +13141,7 @@ func (c *Client) GetStakingPoolHistory(ctx context.Context, params GetStakingPoo
 func (c *Client) sendGetStakingPoolHistory(ctx context.Context, params GetStakingPoolHistoryParams) (res *GetStakingPoolHistoryOK, err error) {
 	otelAttrs := []attribute.KeyValue{
 		otelogen.OperationID("getStakingPoolHistory"),
-		semconv.HTTPMethodKey.String("GET"),
+		semconv.HTTPRequestMethodKey.String("GET"),
 		semconv.HTTPRouteKey.String("/v2/staking/pool/{account_id}/history"),
 	}
 
@@ -10136,14 +13150,14 @@ func (c *Client) sendGetStakingPoolHistory(ctx context.Context, params GetStakin
 	defer func() {
 		// Use floating point division here for higher precision (instead of Millisecond method).
 		elapsedDuration := time.Since(startTime)
-		c.duration.Record(ctx, float64(float64(elapsedDuration)/float64(time.Millisecond)), metric.WithAttributes(otelAttrs...))
+		c.duration.Record(ctx, float64(elapsedDuration)/float64(time.Millisecond), metric.WithAttributes(otelAttrs...))
 	}()
 
 	// Increment request counter.
 	c.requests.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
 
 	// Start a span for this request.
-	ctx, span := c.cfg.Tracer.Start(ctx, "GetStakingPoolHistory",
+	ctx, span := c.cfg.Tracer.Start(ctx, GetStakingPoolHistoryOperation,
 		trace.WithAttributes(otelAttrs...),
 		clientSpanKind,
 	)
@@ -10189,6 +13203,40 @@ func (c *Client) sendGetStakingPoolHistory(ctx context.Context, params GetStakin
 		return res, errors.Wrap(err, "create request")
 	}
 
+	{
+		type bitset = [1]uint8
+		var satisfied bitset
+		{
+			stage = "Security:BearerAuth"
+			switch err := c.securityBearerAuth(ctx, GetStakingPoolHistoryOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 0
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"BearerAuth\"")
+			}
+		}
+
+		if ok := func() bool {
+		nextRequirement:
+			for _, requirement := range []bitset{
+				{0b00000001},
+				{},
+			} {
+				for i, mask := range requirement {
+					if satisfied[i]&mask != mask {
+						continue nextRequirement
+					}
+				}
+				return true
+			}
+			return false
+		}(); !ok {
+			return res, ogenerrors.ErrSecurityRequirementIsNotSatisfied
+		}
+	}
+
 	stage = "SendRequest"
 	resp, err := c.cfg.Client.Do(r)
 	if err != nil {
@@ -10218,7 +13266,7 @@ func (c *Client) GetStakingPoolInfo(ctx context.Context, params GetStakingPoolIn
 func (c *Client) sendGetStakingPoolInfo(ctx context.Context, params GetStakingPoolInfoParams) (res *GetStakingPoolInfoOK, err error) {
 	otelAttrs := []attribute.KeyValue{
 		otelogen.OperationID("getStakingPoolInfo"),
-		semconv.HTTPMethodKey.String("GET"),
+		semconv.HTTPRequestMethodKey.String("GET"),
 		semconv.HTTPRouteKey.String("/v2/staking/pool/{account_id}"),
 	}
 
@@ -10227,14 +13275,14 @@ func (c *Client) sendGetStakingPoolInfo(ctx context.Context, params GetStakingPo
 	defer func() {
 		// Use floating point division here for higher precision (instead of Millisecond method).
 		elapsedDuration := time.Since(startTime)
-		c.duration.Record(ctx, float64(float64(elapsedDuration)/float64(time.Millisecond)), metric.WithAttributes(otelAttrs...))
+		c.duration.Record(ctx, float64(elapsedDuration)/float64(time.Millisecond), metric.WithAttributes(otelAttrs...))
 	}()
 
 	// Increment request counter.
 	c.requests.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
 
 	// Start a span for this request.
-	ctx, span := c.cfg.Tracer.Start(ctx, "GetStakingPoolInfo",
+	ctx, span := c.cfg.Tracer.Start(ctx, GetStakingPoolInfoOperation,
 		trace.WithAttributes(otelAttrs...),
 		clientSpanKind,
 	)
@@ -10296,6 +13344,40 @@ func (c *Client) sendGetStakingPoolInfo(ctx context.Context, params GetStakingPo
 		}
 	}
 
+	{
+		type bitset = [1]uint8
+		var satisfied bitset
+		{
+			stage = "Security:BearerAuth"
+			switch err := c.securityBearerAuth(ctx, GetStakingPoolInfoOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 0
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"BearerAuth\"")
+			}
+		}
+
+		if ok := func() bool {
+		nextRequirement:
+			for _, requirement := range []bitset{
+				{0b00000001},
+				{},
+			} {
+				for i, mask := range requirement {
+					if satisfied[i]&mask != mask {
+						continue nextRequirement
+					}
+				}
+				return true
+			}
+			return false
+		}(); !ok {
+			return res, ogenerrors.ErrSecurityRequirementIsNotSatisfied
+		}
+	}
+
 	stage = "SendRequest"
 	resp, err := c.cfg.Client.Do(r)
 	if err != nil {
@@ -10325,7 +13407,7 @@ func (c *Client) GetStakingPools(ctx context.Context, params GetStakingPoolsPara
 func (c *Client) sendGetStakingPools(ctx context.Context, params GetStakingPoolsParams) (res *GetStakingPoolsOK, err error) {
 	otelAttrs := []attribute.KeyValue{
 		otelogen.OperationID("getStakingPools"),
-		semconv.HTTPMethodKey.String("GET"),
+		semconv.HTTPRequestMethodKey.String("GET"),
 		semconv.HTTPRouteKey.String("/v2/staking/pools"),
 	}
 
@@ -10334,14 +13416,14 @@ func (c *Client) sendGetStakingPools(ctx context.Context, params GetStakingPools
 	defer func() {
 		// Use floating point division here for higher precision (instead of Millisecond method).
 		elapsedDuration := time.Since(startTime)
-		c.duration.Record(ctx, float64(float64(elapsedDuration)/float64(time.Millisecond)), metric.WithAttributes(otelAttrs...))
+		c.duration.Record(ctx, float64(elapsedDuration)/float64(time.Millisecond), metric.WithAttributes(otelAttrs...))
 	}()
 
 	// Increment request counter.
 	c.requests.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
 
 	// Start a span for this request.
-	ctx, span := c.cfg.Tracer.Start(ctx, "GetStakingPools",
+	ctx, span := c.cfg.Tracer.Start(ctx, GetStakingPoolsOperation,
 		trace.WithAttributes(otelAttrs...),
 		clientSpanKind,
 	)
@@ -10423,6 +13505,40 @@ func (c *Client) sendGetStakingPools(ctx context.Context, params GetStakingPools
 		}
 	}
 
+	{
+		type bitset = [1]uint8
+		var satisfied bitset
+		{
+			stage = "Security:BearerAuth"
+			switch err := c.securityBearerAuth(ctx, GetStakingPoolsOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 0
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"BearerAuth\"")
+			}
+		}
+
+		if ok := func() bool {
+		nextRequirement:
+			for _, requirement := range []bitset{
+				{0b00000001},
+				{},
+			} {
+				for i, mask := range requirement {
+					if satisfied[i]&mask != mask {
+						continue nextRequirement
+					}
+				}
+				return true
+			}
+			return false
+		}(); !ok {
+			return res, ogenerrors.ErrSecurityRequirementIsNotSatisfied
+		}
+	}
+
 	stage = "SendRequest"
 	resp, err := c.cfg.Client.Do(r)
 	if err != nil {
@@ -10452,7 +13568,7 @@ func (c *Client) GetStorageProviders(ctx context.Context) (*GetStorageProvidersO
 func (c *Client) sendGetStorageProviders(ctx context.Context) (res *GetStorageProvidersOK, err error) {
 	otelAttrs := []attribute.KeyValue{
 		otelogen.OperationID("getStorageProviders"),
-		semconv.HTTPMethodKey.String("GET"),
+		semconv.HTTPRequestMethodKey.String("GET"),
 		semconv.HTTPRouteKey.String("/v2/storage/providers"),
 	}
 
@@ -10461,14 +13577,14 @@ func (c *Client) sendGetStorageProviders(ctx context.Context) (res *GetStoragePr
 	defer func() {
 		// Use floating point division here for higher precision (instead of Millisecond method).
 		elapsedDuration := time.Since(startTime)
-		c.duration.Record(ctx, float64(float64(elapsedDuration)/float64(time.Millisecond)), metric.WithAttributes(otelAttrs...))
+		c.duration.Record(ctx, float64(elapsedDuration)/float64(time.Millisecond), metric.WithAttributes(otelAttrs...))
 	}()
 
 	// Increment request counter.
 	c.requests.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
 
 	// Start a span for this request.
-	ctx, span := c.cfg.Tracer.Start(ctx, "GetStorageProviders",
+	ctx, span := c.cfg.Tracer.Start(ctx, GetStorageProvidersOperation,
 		trace.WithAttributes(otelAttrs...),
 		clientSpanKind,
 	)
@@ -10493,6 +13609,40 @@ func (c *Client) sendGetStorageProviders(ctx context.Context) (res *GetStoragePr
 	r, err := ht.NewRequest(ctx, "GET", u)
 	if err != nil {
 		return res, errors.Wrap(err, "create request")
+	}
+
+	{
+		type bitset = [1]uint8
+		var satisfied bitset
+		{
+			stage = "Security:BearerAuth"
+			switch err := c.securityBearerAuth(ctx, GetStorageProvidersOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 0
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"BearerAuth\"")
+			}
+		}
+
+		if ok := func() bool {
+		nextRequirement:
+			for _, requirement := range []bitset{
+				{0b00000001},
+				{},
+			} {
+				for i, mask := range requirement {
+					if satisfied[i]&mask != mask {
+						continue nextRequirement
+					}
+				}
+				return true
+			}
+			return false
+		}(); !ok {
+			return res, ogenerrors.ErrSecurityRequirementIsNotSatisfied
+		}
 	}
 
 	stage = "SendRequest"
@@ -10524,7 +13674,7 @@ func (c *Client) GetTonConnectPayload(ctx context.Context) (*GetTonConnectPayloa
 func (c *Client) sendGetTonConnectPayload(ctx context.Context) (res *GetTonConnectPayloadOK, err error) {
 	otelAttrs := []attribute.KeyValue{
 		otelogen.OperationID("getTonConnectPayload"),
-		semconv.HTTPMethodKey.String("GET"),
+		semconv.HTTPRequestMethodKey.String("GET"),
 		semconv.HTTPRouteKey.String("/v2/tonconnect/payload"),
 	}
 
@@ -10533,14 +13683,14 @@ func (c *Client) sendGetTonConnectPayload(ctx context.Context) (res *GetTonConne
 	defer func() {
 		// Use floating point division here for higher precision (instead of Millisecond method).
 		elapsedDuration := time.Since(startTime)
-		c.duration.Record(ctx, float64(float64(elapsedDuration)/float64(time.Millisecond)), metric.WithAttributes(otelAttrs...))
+		c.duration.Record(ctx, float64(elapsedDuration)/float64(time.Millisecond), metric.WithAttributes(otelAttrs...))
 	}()
 
 	// Increment request counter.
 	c.requests.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
 
 	// Start a span for this request.
-	ctx, span := c.cfg.Tracer.Start(ctx, "GetTonConnectPayload",
+	ctx, span := c.cfg.Tracer.Start(ctx, GetTonConnectPayloadOperation,
 		trace.WithAttributes(otelAttrs...),
 		clientSpanKind,
 	)
@@ -10565,6 +13715,40 @@ func (c *Client) sendGetTonConnectPayload(ctx context.Context) (res *GetTonConne
 	r, err := ht.NewRequest(ctx, "GET", u)
 	if err != nil {
 		return res, errors.Wrap(err, "create request")
+	}
+
+	{
+		type bitset = [1]uint8
+		var satisfied bitset
+		{
+			stage = "Security:BearerAuth"
+			switch err := c.securityBearerAuth(ctx, GetTonConnectPayloadOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 0
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"BearerAuth\"")
+			}
+		}
+
+		if ok := func() bool {
+		nextRequirement:
+			for _, requirement := range []bitset{
+				{0b00000001},
+				{},
+			} {
+				for i, mask := range requirement {
+					if satisfied[i]&mask != mask {
+						continue nextRequirement
+					}
+				}
+				return true
+			}
+			return false
+		}(); !ok {
+			return res, ogenerrors.ErrSecurityRequirementIsNotSatisfied
+		}
 	}
 
 	stage = "SendRequest"
@@ -10596,7 +13780,7 @@ func (c *Client) GetTrace(ctx context.Context, params GetTraceParams) (*Trace, e
 func (c *Client) sendGetTrace(ctx context.Context, params GetTraceParams) (res *Trace, err error) {
 	otelAttrs := []attribute.KeyValue{
 		otelogen.OperationID("getTrace"),
-		semconv.HTTPMethodKey.String("GET"),
+		semconv.HTTPRequestMethodKey.String("GET"),
 		semconv.HTTPRouteKey.String("/v2/traces/{trace_id}"),
 	}
 
@@ -10605,14 +13789,14 @@ func (c *Client) sendGetTrace(ctx context.Context, params GetTraceParams) (res *
 	defer func() {
 		// Use floating point division here for higher precision (instead of Millisecond method).
 		elapsedDuration := time.Since(startTime)
-		c.duration.Record(ctx, float64(float64(elapsedDuration)/float64(time.Millisecond)), metric.WithAttributes(otelAttrs...))
+		c.duration.Record(ctx, float64(elapsedDuration)/float64(time.Millisecond), metric.WithAttributes(otelAttrs...))
 	}()
 
 	// Increment request counter.
 	c.requests.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
 
 	// Start a span for this request.
-	ctx, span := c.cfg.Tracer.Start(ctx, "GetTrace",
+	ctx, span := c.cfg.Tracer.Start(ctx, GetTraceOperation,
 		trace.WithAttributes(otelAttrs...),
 		clientSpanKind,
 	)
@@ -10657,6 +13841,40 @@ func (c *Client) sendGetTrace(ctx context.Context, params GetTraceParams) (res *
 		return res, errors.Wrap(err, "create request")
 	}
 
+	{
+		type bitset = [1]uint8
+		var satisfied bitset
+		{
+			stage = "Security:BearerAuth"
+			switch err := c.securityBearerAuth(ctx, GetTraceOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 0
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"BearerAuth\"")
+			}
+		}
+
+		if ok := func() bool {
+		nextRequirement:
+			for _, requirement := range []bitset{
+				{0b00000001},
+				{},
+			} {
+				for i, mask := range requirement {
+					if satisfied[i]&mask != mask {
+						continue nextRequirement
+					}
+				}
+				return true
+			}
+			return false
+		}(); !ok {
+			return res, ogenerrors.ErrSecurityRequirementIsNotSatisfied
+		}
+	}
+
 	stage = "SendRequest"
 	resp, err := c.cfg.Client.Do(r)
 	if err != nil {
@@ -10666,92 +13884,6 @@ func (c *Client) sendGetTrace(ctx context.Context, params GetTraceParams) (res *
 
 	stage = "DecodeResponse"
 	result, err := decodeGetTraceResponse(resp)
-	if err != nil {
-		return res, errors.Wrap(err, "decode response")
-	}
-
-	return result, nil
-}
-
-// GetWalletBackup invokes getWalletBackup operation.
-//
-// Get backup info.
-//
-// GET /v2/wallet/backup
-func (c *Client) GetWalletBackup(ctx context.Context, params GetWalletBackupParams) (*GetWalletBackupOK, error) {
-	res, err := c.sendGetWalletBackup(ctx, params)
-	return res, err
-}
-
-func (c *Client) sendGetWalletBackup(ctx context.Context, params GetWalletBackupParams) (res *GetWalletBackupOK, err error) {
-	otelAttrs := []attribute.KeyValue{
-		otelogen.OperationID("getWalletBackup"),
-		semconv.HTTPMethodKey.String("GET"),
-		semconv.HTTPRouteKey.String("/v2/wallet/backup"),
-	}
-
-	// Run stopwatch.
-	startTime := time.Now()
-	defer func() {
-		// Use floating point division here for higher precision (instead of Millisecond method).
-		elapsedDuration := time.Since(startTime)
-		c.duration.Record(ctx, float64(float64(elapsedDuration)/float64(time.Millisecond)), metric.WithAttributes(otelAttrs...))
-	}()
-
-	// Increment request counter.
-	c.requests.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
-
-	// Start a span for this request.
-	ctx, span := c.cfg.Tracer.Start(ctx, "GetWalletBackup",
-		trace.WithAttributes(otelAttrs...),
-		clientSpanKind,
-	)
-	// Track stage for error reporting.
-	var stage string
-	defer func() {
-		if err != nil {
-			span.RecordError(err)
-			span.SetStatus(codes.Error, stage)
-			c.errors.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
-		}
-		span.End()
-	}()
-
-	stage = "BuildURL"
-	u := uri.Clone(c.requestURL(ctx))
-	var pathParts [1]string
-	pathParts[0] = "/v2/wallet/backup"
-	uri.AddPathParts(u, pathParts[:]...)
-
-	stage = "EncodeRequest"
-	r, err := ht.NewRequest(ctx, "GET", u)
-	if err != nil {
-		return res, errors.Wrap(err, "create request")
-	}
-
-	stage = "EncodeHeaderParams"
-	h := uri.NewHeaderEncoder(r.Header)
-	{
-		cfg := uri.HeaderParameterEncodingConfig{
-			Name:    "X-TonConnect-Auth",
-			Explode: false,
-		}
-		if err := h.EncodeParam(cfg, func(e uri.Encoder) error {
-			return e.EncodeValue(conv.StringToString(params.XTonConnectAuth))
-		}); err != nil {
-			return res, errors.Wrap(err, "encode header")
-		}
-	}
-
-	stage = "SendRequest"
-	resp, err := c.cfg.Client.Do(r)
-	if err != nil {
-		return res, errors.Wrap(err, "do request")
-	}
-	defer resp.Body.Close()
-
-	stage = "DecodeResponse"
-	result, err := decodeGetWalletBackupResponse(resp)
 	if err != nil {
 		return res, errors.Wrap(err, "decode response")
 	}
@@ -10772,7 +13904,7 @@ func (c *Client) GetWalletsByPublicKey(ctx context.Context, params GetWalletsByP
 func (c *Client) sendGetWalletsByPublicKey(ctx context.Context, params GetWalletsByPublicKeyParams) (res *Accounts, err error) {
 	otelAttrs := []attribute.KeyValue{
 		otelogen.OperationID("getWalletsByPublicKey"),
-		semconv.HTTPMethodKey.String("GET"),
+		semconv.HTTPRequestMethodKey.String("GET"),
 		semconv.HTTPRouteKey.String("/v2/pubkeys/{public_key}/wallets"),
 	}
 
@@ -10781,14 +13913,14 @@ func (c *Client) sendGetWalletsByPublicKey(ctx context.Context, params GetWallet
 	defer func() {
 		// Use floating point division here for higher precision (instead of Millisecond method).
 		elapsedDuration := time.Since(startTime)
-		c.duration.Record(ctx, float64(float64(elapsedDuration)/float64(time.Millisecond)), metric.WithAttributes(otelAttrs...))
+		c.duration.Record(ctx, float64(elapsedDuration)/float64(time.Millisecond), metric.WithAttributes(otelAttrs...))
 	}()
 
 	// Increment request counter.
 	c.requests.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
 
 	// Start a span for this request.
-	ctx, span := c.cfg.Tracer.Start(ctx, "GetWalletsByPublicKey",
+	ctx, span := c.cfg.Tracer.Start(ctx, GetWalletsByPublicKeyOperation,
 		trace.WithAttributes(otelAttrs...),
 		clientSpanKind,
 	)
@@ -10834,6 +13966,40 @@ func (c *Client) sendGetWalletsByPublicKey(ctx context.Context, params GetWallet
 		return res, errors.Wrap(err, "create request")
 	}
 
+	{
+		type bitset = [1]uint8
+		var satisfied bitset
+		{
+			stage = "Security:BearerAuth"
+			switch err := c.securityBearerAuth(ctx, GetWalletsByPublicKeyOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 0
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"BearerAuth\"")
+			}
+		}
+
+		if ok := func() bool {
+		nextRequirement:
+			for _, requirement := range []bitset{
+				{0b00000001},
+				{},
+			} {
+				for i, mask := range requirement {
+					if satisfied[i]&mask != mask {
+						continue nextRequirement
+					}
+				}
+				return true
+			}
+			return false
+		}(); !ok {
+			return res, ogenerrors.ErrSecurityRequirementIsNotSatisfied
+		}
+	}
+
 	stage = "SendRequest"
 	resp, err := c.cfg.Client.Do(r)
 	if err != nil {
@@ -10863,7 +14029,7 @@ func (c *Client) ReindexAccount(ctx context.Context, params ReindexAccountParams
 func (c *Client) sendReindexAccount(ctx context.Context, params ReindexAccountParams) (res *ReindexAccountOK, err error) {
 	otelAttrs := []attribute.KeyValue{
 		otelogen.OperationID("reindexAccount"),
-		semconv.HTTPMethodKey.String("POST"),
+		semconv.HTTPRequestMethodKey.String("POST"),
 		semconv.HTTPRouteKey.String("/v2/accounts/{account_id}/reindex"),
 	}
 
@@ -10872,14 +14038,14 @@ func (c *Client) sendReindexAccount(ctx context.Context, params ReindexAccountPa
 	defer func() {
 		// Use floating point division here for higher precision (instead of Millisecond method).
 		elapsedDuration := time.Since(startTime)
-		c.duration.Record(ctx, float64(float64(elapsedDuration)/float64(time.Millisecond)), metric.WithAttributes(otelAttrs...))
+		c.duration.Record(ctx, float64(elapsedDuration)/float64(time.Millisecond), metric.WithAttributes(otelAttrs...))
 	}()
 
 	// Increment request counter.
 	c.requests.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
 
 	// Start a span for this request.
-	ctx, span := c.cfg.Tracer.Start(ctx, "ReindexAccount",
+	ctx, span := c.cfg.Tracer.Start(ctx, ReindexAccountOperation,
 		trace.WithAttributes(otelAttrs...),
 		clientSpanKind,
 	)
@@ -10925,6 +14091,40 @@ func (c *Client) sendReindexAccount(ctx context.Context, params ReindexAccountPa
 		return res, errors.Wrap(err, "create request")
 	}
 
+	{
+		type bitset = [1]uint8
+		var satisfied bitset
+		{
+			stage = "Security:BearerAuth"
+			switch err := c.securityBearerAuth(ctx, ReindexAccountOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 0
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"BearerAuth\"")
+			}
+		}
+
+		if ok := func() bool {
+		nextRequirement:
+			for _, requirement := range []bitset{
+				{0b00000001},
+				{},
+			} {
+				for i, mask := range requirement {
+					if satisfied[i]&mask != mask {
+						continue nextRequirement
+					}
+				}
+				return true
+			}
+			return false
+		}(); !ok {
+			return res, ogenerrors.ErrSecurityRequirementIsNotSatisfied
+		}
+	}
+
 	stage = "SendRequest"
 	resp, err := c.cfg.Client.Do(r)
 	if err != nil {
@@ -10954,7 +14154,7 @@ func (c *Client) SearchAccounts(ctx context.Context, params SearchAccountsParams
 func (c *Client) sendSearchAccounts(ctx context.Context, params SearchAccountsParams) (res *FoundAccounts, err error) {
 	otelAttrs := []attribute.KeyValue{
 		otelogen.OperationID("searchAccounts"),
-		semconv.HTTPMethodKey.String("GET"),
+		semconv.HTTPRequestMethodKey.String("GET"),
 		semconv.HTTPRouteKey.String("/v2/accounts/search"),
 	}
 
@@ -10963,14 +14163,14 @@ func (c *Client) sendSearchAccounts(ctx context.Context, params SearchAccountsPa
 	defer func() {
 		// Use floating point division here for higher precision (instead of Millisecond method).
 		elapsedDuration := time.Since(startTime)
-		c.duration.Record(ctx, float64(float64(elapsedDuration)/float64(time.Millisecond)), metric.WithAttributes(otelAttrs...))
+		c.duration.Record(ctx, float64(elapsedDuration)/float64(time.Millisecond), metric.WithAttributes(otelAttrs...))
 	}()
 
 	// Increment request counter.
 	c.requests.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
 
 	// Start a span for this request.
-	ctx, span := c.cfg.Tracer.Start(ctx, "SearchAccounts",
+	ctx, span := c.cfg.Tracer.Start(ctx, SearchAccountsOperation,
 		trace.WithAttributes(otelAttrs...),
 		clientSpanKind,
 	)
@@ -11015,6 +14215,40 @@ func (c *Client) sendSearchAccounts(ctx context.Context, params SearchAccountsPa
 		return res, errors.Wrap(err, "create request")
 	}
 
+	{
+		type bitset = [1]uint8
+		var satisfied bitset
+		{
+			stage = "Security:BearerAuth"
+			switch err := c.securityBearerAuth(ctx, SearchAccountsOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 0
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"BearerAuth\"")
+			}
+		}
+
+		if ok := func() bool {
+		nextRequirement:
+			for _, requirement := range []bitset{
+				{0b00000001},
+				{},
+			} {
+				for i, mask := range requirement {
+					if satisfied[i]&mask != mask {
+						continue nextRequirement
+					}
+				}
+				return true
+			}
+			return false
+		}(); !ok {
+			return res, ogenerrors.ErrSecurityRequirementIsNotSatisfied
+		}
+	}
+
 	stage = "SendRequest"
 	resp, err := c.cfg.Client.Do(r)
 	if err != nil {
@@ -11042,11 +14276,6 @@ func (c *Client) SendBlockchainMessage(ctx context.Context, request *SendBlockch
 }
 
 func (c *Client) sendSendBlockchainMessage(ctx context.Context, request *SendBlockchainMessageReq) (res *SendBlockchainMessageOK, err error) {
-	otelAttrs := []attribute.KeyValue{
-		otelogen.OperationID("sendBlockchainMessage"),
-		semconv.HTTPMethodKey.String("POST"),
-		semconv.HTTPRouteKey.String("/v2/blockchain/message"),
-	}
 	// Validate request before sending.
 	if err := func() error {
 		if err := request.Validate(); err != nil {
@@ -11056,20 +14285,25 @@ func (c *Client) sendSendBlockchainMessage(ctx context.Context, request *SendBlo
 	}(); err != nil {
 		return res, errors.Wrap(err, "validate")
 	}
+	otelAttrs := []attribute.KeyValue{
+		otelogen.OperationID("sendBlockchainMessage"),
+		semconv.HTTPRequestMethodKey.String("POST"),
+		semconv.HTTPRouteKey.String("/v2/blockchain/message"),
+	}
 
 	// Run stopwatch.
 	startTime := time.Now()
 	defer func() {
 		// Use floating point division here for higher precision (instead of Millisecond method).
 		elapsedDuration := time.Since(startTime)
-		c.duration.Record(ctx, float64(float64(elapsedDuration)/float64(time.Millisecond)), metric.WithAttributes(otelAttrs...))
+		c.duration.Record(ctx, float64(elapsedDuration)/float64(time.Millisecond), metric.WithAttributes(otelAttrs...))
 	}()
 
 	// Increment request counter.
 	c.requests.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
 
 	// Start a span for this request.
-	ctx, span := c.cfg.Tracer.Start(ctx, "SendBlockchainMessage",
+	ctx, span := c.cfg.Tracer.Start(ctx, SendBlockchainMessageOperation,
 		trace.WithAttributes(otelAttrs...),
 		clientSpanKind,
 	)
@@ -11097,6 +14331,40 @@ func (c *Client) sendSendBlockchainMessage(ctx context.Context, request *SendBlo
 	}
 	if err := encodeSendBlockchainMessageRequest(request, r); err != nil {
 		return res, errors.Wrap(err, "encode request")
+	}
+
+	{
+		type bitset = [1]uint8
+		var satisfied bitset
+		{
+			stage = "Security:BearerAuth"
+			switch err := c.securityBearerAuth(ctx, SendBlockchainMessageOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 0
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"BearerAuth\"")
+			}
+		}
+
+		if ok := func() bool {
+		nextRequirement:
+			for _, requirement := range []bitset{
+				{0b00000001},
+				{},
+			} {
+				for i, mask := range requirement {
+					if satisfied[i]&mask != mask {
+						continue nextRequirement
+					}
+				}
+				return true
+			}
+			return false
+		}(); !ok {
+			return res, ogenerrors.ErrSecurityRequirementIsNotSatisfied
+		}
 	}
 
 	stage = "SendRequest"
@@ -11128,7 +14396,7 @@ func (c *Client) SendRawMessage(ctx context.Context, request *SendRawMessageReq)
 func (c *Client) sendSendRawMessage(ctx context.Context, request *SendRawMessageReq) (res *SendRawMessageOK, err error) {
 	otelAttrs := []attribute.KeyValue{
 		otelogen.OperationID("sendRawMessage"),
-		semconv.HTTPMethodKey.String("POST"),
+		semconv.HTTPRequestMethodKey.String("POST"),
 		semconv.HTTPRouteKey.String("/v2/liteserver/send_message"),
 	}
 
@@ -11137,14 +14405,14 @@ func (c *Client) sendSendRawMessage(ctx context.Context, request *SendRawMessage
 	defer func() {
 		// Use floating point division here for higher precision (instead of Millisecond method).
 		elapsedDuration := time.Since(startTime)
-		c.duration.Record(ctx, float64(float64(elapsedDuration)/float64(time.Millisecond)), metric.WithAttributes(otelAttrs...))
+		c.duration.Record(ctx, float64(elapsedDuration)/float64(time.Millisecond), metric.WithAttributes(otelAttrs...))
 	}()
 
 	// Increment request counter.
 	c.requests.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
 
 	// Start a span for this request.
-	ctx, span := c.cfg.Tracer.Start(ctx, "SendRawMessage",
+	ctx, span := c.cfg.Tracer.Start(ctx, SendRawMessageOperation,
 		trace.WithAttributes(otelAttrs...),
 		clientSpanKind,
 	)
@@ -11174,6 +14442,40 @@ func (c *Client) sendSendRawMessage(ctx context.Context, request *SendRawMessage
 		return res, errors.Wrap(err, "encode request")
 	}
 
+	{
+		type bitset = [1]uint8
+		var satisfied bitset
+		{
+			stage = "Security:BearerAuth"
+			switch err := c.securityBearerAuth(ctx, SendRawMessageOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 0
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"BearerAuth\"")
+			}
+		}
+
+		if ok := func() bool {
+		nextRequirement:
+			for _, requirement := range []bitset{
+				{0b00000001},
+				{},
+			} {
+				for i, mask := range requirement {
+					if satisfied[i]&mask != mask {
+						continue nextRequirement
+					}
+				}
+				return true
+			}
+			return false
+		}(); !ok {
+			return res, ogenerrors.ErrSecurityRequirementIsNotSatisfied
+		}
+	}
+
 	stage = "SendRequest"
 	resp, err := c.cfg.Client.Do(r)
 	if err != nil {
@@ -11183,95 +14485,6 @@ func (c *Client) sendSendRawMessage(ctx context.Context, request *SendRawMessage
 
 	stage = "DecodeResponse"
 	result, err := decodeSendRawMessageResponse(resp)
-	if err != nil {
-		return res, errors.Wrap(err, "decode response")
-	}
-
-	return result, nil
-}
-
-// SetWalletBackup invokes setWalletBackup operation.
-//
-// Set backup info.
-//
-// PUT /v2/wallet/backup
-func (c *Client) SetWalletBackup(ctx context.Context, request SetWalletBackupReq, params SetWalletBackupParams) error {
-	_, err := c.sendSetWalletBackup(ctx, request, params)
-	return err
-}
-
-func (c *Client) sendSetWalletBackup(ctx context.Context, request SetWalletBackupReq, params SetWalletBackupParams) (res *SetWalletBackupOK, err error) {
-	otelAttrs := []attribute.KeyValue{
-		otelogen.OperationID("setWalletBackup"),
-		semconv.HTTPMethodKey.String("PUT"),
-		semconv.HTTPRouteKey.String("/v2/wallet/backup"),
-	}
-
-	// Run stopwatch.
-	startTime := time.Now()
-	defer func() {
-		// Use floating point division here for higher precision (instead of Millisecond method).
-		elapsedDuration := time.Since(startTime)
-		c.duration.Record(ctx, float64(float64(elapsedDuration)/float64(time.Millisecond)), metric.WithAttributes(otelAttrs...))
-	}()
-
-	// Increment request counter.
-	c.requests.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
-
-	// Start a span for this request.
-	ctx, span := c.cfg.Tracer.Start(ctx, "SetWalletBackup",
-		trace.WithAttributes(otelAttrs...),
-		clientSpanKind,
-	)
-	// Track stage for error reporting.
-	var stage string
-	defer func() {
-		if err != nil {
-			span.RecordError(err)
-			span.SetStatus(codes.Error, stage)
-			c.errors.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
-		}
-		span.End()
-	}()
-
-	stage = "BuildURL"
-	u := uri.Clone(c.requestURL(ctx))
-	var pathParts [1]string
-	pathParts[0] = "/v2/wallet/backup"
-	uri.AddPathParts(u, pathParts[:]...)
-
-	stage = "EncodeRequest"
-	r, err := ht.NewRequest(ctx, "PUT", u)
-	if err != nil {
-		return res, errors.Wrap(err, "create request")
-	}
-	if err := encodeSetWalletBackupRequest(request, r); err != nil {
-		return res, errors.Wrap(err, "encode request")
-	}
-
-	stage = "EncodeHeaderParams"
-	h := uri.NewHeaderEncoder(r.Header)
-	{
-		cfg := uri.HeaderParameterEncodingConfig{
-			Name:    "X-TonConnect-Auth",
-			Explode: false,
-		}
-		if err := h.EncodeParam(cfg, func(e uri.Encoder) error {
-			return e.EncodeValue(conv.StringToString(params.XTonConnectAuth))
-		}); err != nil {
-			return res, errors.Wrap(err, "encode header")
-		}
-	}
-
-	stage = "SendRequest"
-	resp, err := c.cfg.Client.Do(r)
-	if err != nil {
-		return res, errors.Wrap(err, "do request")
-	}
-	defer resp.Body.Close()
-
-	stage = "DecodeResponse"
-	result, err := decodeSetWalletBackupResponse(resp)
 	if err != nil {
 		return res, errors.Wrap(err, "decode response")
 	}
@@ -11292,7 +14505,7 @@ func (c *Client) Status(ctx context.Context) (*ServiceStatus, error) {
 func (c *Client) sendStatus(ctx context.Context) (res *ServiceStatus, err error) {
 	otelAttrs := []attribute.KeyValue{
 		otelogen.OperationID("status"),
-		semconv.HTTPMethodKey.String("GET"),
+		semconv.HTTPRequestMethodKey.String("GET"),
 		semconv.HTTPRouteKey.String("/v2/status"),
 	}
 
@@ -11301,14 +14514,14 @@ func (c *Client) sendStatus(ctx context.Context) (res *ServiceStatus, err error)
 	defer func() {
 		// Use floating point division here for higher precision (instead of Millisecond method).
 		elapsedDuration := time.Since(startTime)
-		c.duration.Record(ctx, float64(float64(elapsedDuration)/float64(time.Millisecond)), metric.WithAttributes(otelAttrs...))
+		c.duration.Record(ctx, float64(elapsedDuration)/float64(time.Millisecond), metric.WithAttributes(otelAttrs...))
 	}()
 
 	// Increment request counter.
 	c.requests.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
 
 	// Start a span for this request.
-	ctx, span := c.cfg.Tracer.Start(ctx, "Status",
+	ctx, span := c.cfg.Tracer.Start(ctx, StatusOperation,
 		trace.WithAttributes(otelAttrs...),
 		clientSpanKind,
 	)
@@ -11333,6 +14546,40 @@ func (c *Client) sendStatus(ctx context.Context) (res *ServiceStatus, err error)
 	r, err := ht.NewRequest(ctx, "GET", u)
 	if err != nil {
 		return res, errors.Wrap(err, "create request")
+	}
+
+	{
+		type bitset = [1]uint8
+		var satisfied bitset
+		{
+			stage = "Security:BearerAuth"
+			switch err := c.securityBearerAuth(ctx, StatusOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 0
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"BearerAuth\"")
+			}
+		}
+
+		if ok := func() bool {
+		nextRequirement:
+			for _, requirement := range []bitset{
+				{0b00000001},
+				{},
+			} {
+				for i, mask := range requirement {
+					if satisfied[i]&mask != mask {
+						continue nextRequirement
+					}
+				}
+				return true
+			}
+			return false
+		}(); !ok {
+			return res, ogenerrors.ErrSecurityRequirementIsNotSatisfied
+		}
 	}
 
 	stage = "SendRequest"
@@ -11364,7 +14611,7 @@ func (c *Client) TonConnectProof(ctx context.Context, request *TonConnectProofRe
 func (c *Client) sendTonConnectProof(ctx context.Context, request *TonConnectProofReq) (res *TonConnectProofOK, err error) {
 	otelAttrs := []attribute.KeyValue{
 		otelogen.OperationID("tonConnectProof"),
-		semconv.HTTPMethodKey.String("POST"),
+		semconv.HTTPRequestMethodKey.String("POST"),
 		semconv.HTTPRouteKey.String("/v2/wallet/auth/proof"),
 	}
 
@@ -11373,14 +14620,14 @@ func (c *Client) sendTonConnectProof(ctx context.Context, request *TonConnectPro
 	defer func() {
 		// Use floating point division here for higher precision (instead of Millisecond method).
 		elapsedDuration := time.Since(startTime)
-		c.duration.Record(ctx, float64(float64(elapsedDuration)/float64(time.Millisecond)), metric.WithAttributes(otelAttrs...))
+		c.duration.Record(ctx, float64(elapsedDuration)/float64(time.Millisecond), metric.WithAttributes(otelAttrs...))
 	}()
 
 	// Increment request counter.
 	c.requests.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
 
 	// Start a span for this request.
-	ctx, span := c.cfg.Tracer.Start(ctx, "TonConnectProof",
+	ctx, span := c.cfg.Tracer.Start(ctx, TonConnectProofOperation,
 		trace.WithAttributes(otelAttrs...),
 		clientSpanKind,
 	)
@@ -11408,6 +14655,40 @@ func (c *Client) sendTonConnectProof(ctx context.Context, request *TonConnectPro
 	}
 	if err := encodeTonConnectProofRequest(request, r); err != nil {
 		return res, errors.Wrap(err, "encode request")
+	}
+
+	{
+		type bitset = [1]uint8
+		var satisfied bitset
+		{
+			stage = "Security:BearerAuth"
+			switch err := c.securityBearerAuth(ctx, TonConnectProofOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 0
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"BearerAuth\"")
+			}
+		}
+
+		if ok := func() bool {
+		nextRequirement:
+			for _, requirement := range []bitset{
+				{0b00000001},
+				{},
+			} {
+				for i, mask := range requirement {
+					if satisfied[i]&mask != mask {
+						continue nextRequirement
+					}
+				}
+				return true
+			}
+			return false
+		}(); !ok {
+			return res, ogenerrors.ErrSecurityRequirementIsNotSatisfied
+		}
 	}
 
 	stage = "SendRequest"

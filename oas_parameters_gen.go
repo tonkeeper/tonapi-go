@@ -61,6 +61,7 @@ type ExecGetMethodForBlockchainAccountParams struct {
 
 // GaslessEstimateParams is parameters of gaslessEstimate operation.
 type GaslessEstimateParams struct {
+	AcceptLanguage OptString
 	// Jetton to pay commission.
 	MasterID string
 }
@@ -114,33 +115,18 @@ type GetAccountEventsParams struct {
 	EndDate   OptInt64
 }
 
-// GetAccountInscriptionsParams is parameters of getAccountInscriptions operation.
-type GetAccountInscriptionsParams struct {
+// GetAccountExtraCurrencyHistoryByIDParams is parameters of getAccountExtraCurrencyHistoryByID operation.
+type GetAccountExtraCurrencyHistoryByIDParams struct {
 	// Account ID.
 	AccountID string
-	Limit     OptInt
-	Offset    OptInt
-}
-
-// GetAccountInscriptionsHistoryParams is parameters of getAccountInscriptionsHistory operation.
-type GetAccountInscriptionsHistoryParams struct {
-	// Account ID.
-	AccountID      string
+	// Extra currency id.
+	ID             int32
 	AcceptLanguage OptString
 	// Omit this parameter to get last events.
-	BeforeLt OptInt64
-	Limit    OptInt
-}
-
-// GetAccountInscriptionsHistoryByTickerParams is parameters of getAccountInscriptionsHistoryByTicker operation.
-type GetAccountInscriptionsHistoryByTickerParams struct {
-	// Account ID.
-	AccountID      string
-	AcceptLanguage OptString
-	Ticker         string
-	// Omit this parameter to get last events.
-	BeforeLt OptInt64
-	Limit    OptInt
+	BeforeLt  OptInt64
+	Limit     int
+	StartDate OptInt64
+	EndDate   OptInt64
 }
 
 // GetAccountJettonBalanceParams is parameters of getAccountJettonBalance operation.
@@ -367,15 +353,10 @@ type GetEventParams struct {
 	AcceptLanguage OptString
 }
 
-// GetInscriptionOpTemplateParams is parameters of getInscriptionOpTemplate operation.
-type GetInscriptionOpTemplateParams struct {
-	Type        GetInscriptionOpTemplateType
-	Destination OptString
-	Comment     OptString
-	Operation   GetInscriptionOpTemplateOperation
-	Amount      string
-	Ticker      string
-	Who         string
+// GetExtraCurrencyInfoParams is parameters of getExtraCurrencyInfo operation.
+type GetExtraCurrencyInfoParams struct {
+	// Extra currency id.
+	ID int32
 }
 
 // GetItemsFromCollectionParams is parameters of getItemsFromCollection operation.
@@ -601,11 +582,6 @@ type GetTraceParams struct {
 	TraceID string
 }
 
-// GetWalletBackupParams is parameters of getWalletBackup operation.
-type GetWalletBackupParams struct {
-	XTonConnectAuth string
-}
-
 // GetWalletsByPublicKeyParams is parameters of getWalletsByPublicKey operation.
 type GetWalletsByPublicKeyParams struct {
 	PublicKey string
@@ -620,9 +596,4 @@ type ReindexAccountParams struct {
 // SearchAccountsParams is parameters of searchAccounts operation.
 type SearchAccountsParams struct {
 	Name string
-}
-
-// SetWalletBackupParams is parameters of setWalletBackup operation.
-type SetWalletBackupParams struct {
-	XTonConnectAuth string
 }

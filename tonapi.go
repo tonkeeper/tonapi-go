@@ -67,7 +67,7 @@ func (c *Client) GetAccountState(ctx context.Context, accountID tongo.AccountID)
 
 // Request sends an HTTP request with the given method, URL, parameters, and data,
 // and returns the response as a json.RawMessage.
-func (c *Client) Request(ctx context.Context, method, endpoint string, query map[string]string, data []byte) (json.RawMessage, error) {
+func (c *Client) Request(ctx context.Context, method, endpoint string, query map[string][]string, data []byte) (json.RawMessage, error) {
 	const contentType = "application/json"
 
 	// Start measuring the request duration
@@ -84,8 +84,10 @@ func (c *Client) Request(ctx context.Context, method, endpoint string, query map
 	// Add query parameters to the URL if any
 	if query != nil {
 		q := u.Query()
-		for key, value := range query {
-			q.Set(key, value)
+		for key, values := range query {
+			for _, value := range values {
+				q.Add(key, value)
+			}
 		}
 		u.RawQuery = q.Encode()
 	}
