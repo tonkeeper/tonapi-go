@@ -49,7 +49,7 @@ func main() {
 
 	// if you need to send lots of requests in parallel,
 	// make sure you use a tonapi token.
-	tonapiCli, err := tonapi.New()
+	tonapiCli, err := tonapi.NewClient(tonapi.TonApiURL, &tonapi.Security{})
 	if err != nil {
 		panic(err)
 	}
@@ -201,7 +201,7 @@ func main() {
 		WalletPublicKey: hex.EncodeToString(publicKey),
 		Boc:             msgBoc,
 	}
-	if err := tonapiCli.GaslessSend(context.Background(), &sendReq); err != nil {
+	if _, err = tonapiCli.GaslessSend(context.Background(), &sendReq); err != nil {
 		panic(err)
 	}
 	fmt.Printf("A gasless transfer sent\n")

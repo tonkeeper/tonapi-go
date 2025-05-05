@@ -11,7 +11,7 @@ import (
 const myAccount = "EQBszTJahYw3lpP64ryqscKQaDGk4QpsO7RO6LYVvKHSINS0"
 
 func printAccountInformation(myAccount string) error {
-	client, err := tonapi.New()
+	client, err := tonapi.NewClient(tonapi.TonApiURL, &tonapi.Security{})
 	if err != nil {
 		return err
 	}
