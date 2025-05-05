@@ -54,9 +54,9 @@ func TestThrottling(t *testing.T) {
 			var client *Client
 			var err error
 			if tt.token == "" {
-				client, err = New(nil, WithClient(throttledClient))
+				client, err = NewClient(TonApiURL, &Security{}, WithClient(throttledClient))
 			} else {
-				client, err = New(WithToken(tt.token), WithClient(throttledClient))
+				client, err = NewClient(TonApiURL, WithToken(tt.token), WithClient(throttledClient))
 			}
 			if err != nil {
 				t.Fatalf("failed to init tonapi client: %v", err)
@@ -76,7 +76,7 @@ func TestCustomRequest(t *testing.T) {
 			http.DefaultTransport,
 			rate.NewLimiter(1, 1)),
 	}
-	client, err := New(nil, WithClient(throttledClient))
+	client, err := NewClient(TonApiURL, &Security{}, WithClient(throttledClient))
 	if err != nil {
 		t.Fatalf("failed to init tonapi client: %v", err)
 	}

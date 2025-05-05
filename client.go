@@ -33,7 +33,7 @@ func (s *Security) BearerAuth(ctx context.Context, operationName OperationName, 
 //
 //	func main() {
 //	    token := "your-api-token"
-//	    client, err := tonapi.New(tonapi.WithToken(token))
+//	    client, err := tonapi.NewClient(tonapi.TonApiURL, tonapi.WithToken(token))
 //	    if err != nil {
 //	        // handle error
 //	    }
@@ -50,35 +50,3 @@ const TonApiURL = "https://tonapi.io"
 // Example:
 // client, err := NewClient(tonapi.TestnetTonApiURL)
 const TestnetTonApiURL = "https://testnet.tonapi.io"
-
-// You can also use a custom client by using WithClient, where you can, for example, pass a throttled client.
-//
-// Example:
-//
-// import (
-//
-//	"github.com/tonkeeper/tonapi-go"
-//
-// )
-//
-//	func main() {
-//	    throttledClient := &http.Client{
-//			Transport: throttled.NewTransport(
-//				http.DefaultTransport,
-//				rate.NewLimiter(1, 1)), // Set values according to the rate plan of the token
-//			}
-//	    token := "your-api-token"
-//	    client, err := tonapi.New(tonapi.WithToken(token), tonapi.WithClient(throttledClient))
-//	    if err != nil {
-//	        // handle error
-//	    }
-//	    // use client
-//	}
-
-// New returns a new Client instance.
-func New(sec SecuritySource, opts ...ClientOption) (*Client, error) {
-	if sec == nil {
-		sec = &Security{}
-	}
-	return NewClient(TonApiURL, sec, opts...)
-}
