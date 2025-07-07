@@ -26,6 +26,12 @@ type DnsResolveParams struct {
 	DomainName string
 }
 
+// DownloadBlockchainBlockBocParams is parameters of downloadBlockchainBlockBoc operation.
+type DownloadBlockchainBlockBocParams struct {
+	// Block ID.
+	BlockID string
+}
+
 // EmulateMessageToAccountEventParams is parameters of emulateMessageToAccountEvent operation.
 type EmulateMessageToAccountEventParams struct {
 	AcceptLanguage OptString
@@ -57,6 +63,14 @@ type ExecGetMethodForBlockchainAccountParams struct {
 	// Contract get method name.
 	MethodName string
 	Args       []string
+}
+
+// ExecGetMethodWithBodyForBlockchainAccountParams is parameters of execGetMethodWithBodyForBlockchainAccount operation.
+type ExecGetMethodWithBodyForBlockchainAccountParams struct {
+	// Account ID.
+	AccountID string
+	// Contract get method name.
+	MethodName string
 }
 
 // GaslessEstimateParams is parameters of gaslessEstimate operation.
@@ -168,13 +182,10 @@ type GetAccountJettonsBalancesParams struct {
 // GetAccountJettonsHistoryParams is parameters of getAccountJettonsHistory operation.
 type GetAccountJettonsHistoryParams struct {
 	// Account ID.
-	AccountID      string
-	AcceptLanguage OptString
+	AccountID string
 	// Omit this parameter to get last events.
-	BeforeLt  OptInt64
-	Limit     int
-	StartDate OptInt64
-	EndDate   OptInt64
+	BeforeLt OptInt64
+	Limit    int
 }
 
 // GetAccountMultisigsParams is parameters of getAccountMultisigs operation.
@@ -189,10 +200,8 @@ type GetAccountNftHistoryParams struct {
 	AccountID      string
 	AcceptLanguage OptString
 	// Omit this parameter to get last events.
-	BeforeLt  OptInt64
-	Limit     int
-	StartDate OptInt64
-	EndDate   OptInt64
+	BeforeLt OptInt64
+	Limit    int
 }
 
 // GetAccountNftItemsParams is parameters of getAccountNftItems operation.
@@ -367,6 +376,19 @@ type GetItemsFromCollectionParams struct {
 	Offset    OptInt
 }
 
+// GetJettonAccountHistoryByIDParams is parameters of getJettonAccountHistoryByID operation.
+type GetJettonAccountHistoryByIDParams struct {
+	// Account ID.
+	AccountID string
+	// Jetton ID.
+	JettonID string
+	// Omit this parameter to get last events.
+	BeforeLt  OptInt64
+	Limit     int
+	StartDate OptInt64
+	EndDate   OptInt64
+}
+
 // GetJettonHoldersParams is parameters of getJettonHolders operation.
 type GetJettonHoldersParams struct {
 	// Account ID.
@@ -408,6 +430,12 @@ type GetMultisigAccountParams struct {
 	AccountID string
 }
 
+// GetMultisigOrderParams is parameters of getMultisigOrder operation.
+type GetMultisigOrderParams struct {
+	// Account ID.
+	AccountID string
+}
+
 // GetNftCollectionParams is parameters of getNftCollection operation.
 type GetNftCollectionParams struct {
 	// Account ID.
@@ -436,6 +464,15 @@ type GetNftHistoryByIDParams struct {
 type GetNftItemByAddressParams struct {
 	// Account ID.
 	AccountID string
+}
+
+// GetPurchaseHistoryParams is parameters of getPurchaseHistory operation.
+type GetPurchaseHistoryParams struct {
+	// Account ID.
+	AccountID string
+	// Omit this parameter to get last invoices.
+	BeforeLt OptInt64
+	Limit    OptInt
 }
 
 // GetRatesParams is parameters of getRates operation.
@@ -580,6 +617,12 @@ type GetStakingPoolsParams struct {
 type GetTraceParams struct {
 	// Trace ID or transaction hash in hex (without 0x) or base64url format.
 	TraceID string
+}
+
+// GetWalletInfoParams is parameters of getWalletInfo operation.
+type GetWalletInfoParams struct {
+	// Account ID.
+	AccountID string
 }
 
 // GetWalletsByPublicKeyParams is parameters of getWalletsByPublicKey operation.
