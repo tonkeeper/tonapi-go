@@ -23,6 +23,11 @@ import (
 	"github.com/ogen-go/ogen/uri"
 )
 
+func trimTrailingSlashes(u *url.URL) {
+	u.Path = strings.TrimRight(u.Path, "/")
+	u.RawPath = strings.TrimRight(u.RawPath, "/")
+}
+
 // Invoker invokes operations described by OpenAPI v3 specification.
 type Invoker interface {
 	// AccountDnsBackResolve invokes accountDnsBackResolve operation.
@@ -55,6 +60,12 @@ type Invoker interface {
 	//
 	// GET /v2/dns/{domain_name}/resolve
 	DnsResolve(ctx context.Context, params DnsResolveParams) (*DnsRecord, error)
+	// DownloadBlockchainBlockBoc invokes downloadBlockchainBlockBoc operation.
+	//
+	// Download blockchain block BOC.
+	//
+	// GET /v2/blockchain/blocks/{block_id}/boc
+	DownloadBlockchainBlockBoc(ctx context.Context, params DownloadBlockchainBlockBocParams) (*DownloadBlockchainBlockBocOKHeaders, error)
 	// EmulateMessageToAccountEvent invokes emulateMessageToAccountEvent operation.
 	//
 	// Emulate sending message to retrieve account-specific events.
@@ -85,6 +96,12 @@ type Invoker interface {
 	//
 	// GET /v2/blockchain/accounts/{account_id}/methods/{method_name}
 	ExecGetMethodForBlockchainAccount(ctx context.Context, params ExecGetMethodForBlockchainAccountParams) (*MethodExecutionResult, error)
+	// ExecGetMethodWithBodyForBlockchainAccount invokes execGetMethodWithBodyForBlockchainAccount operation.
+	//
+	// Execute get method for account.
+	//
+	// POST /v2/blockchain/accounts/{account_id}/methods/{method_name}
+	ExecGetMethodWithBodyForBlockchainAccount(ctx context.Context, request OptExecGetMethodWithBodyForBlockchainAccountReq, params ExecGetMethodWithBodyForBlockchainAccountParams) (*MethodExecutionResult, error)
 	// GaslessConfig invokes gaslessConfig operation.
 	//
 	// Returns configuration of gasless transfers.
@@ -157,7 +174,9 @@ type Invoker interface {
 	GetAccountJettonBalance(ctx context.Context, params GetAccountJettonBalanceParams) (*JettonBalance, error)
 	// GetAccountJettonHistoryByID invokes getAccountJettonHistoryByID operation.
 	//
-	// Get the transfer jetton history for account and jetton.
+	// Please use `getJettonAccountHistoryByID`` instead.
+	//
+	// Deprecated: schema marks this operation as deprecated.
 	//
 	// GET /v2/accounts/{account_id}/jettons/{jetton_id}/history
 	GetAccountJettonHistoryByID(ctx context.Context, params GetAccountJettonHistoryByIDParams) (*AccountEvents, error)
@@ -172,7 +191,7 @@ type Invoker interface {
 	// Get the transfer jettons history for account.
 	//
 	// GET /v2/accounts/{account_id}/jettons/history
-	GetAccountJettonsHistory(ctx context.Context, params GetAccountJettonsHistoryParams) (*AccountEvents, error)
+	GetAccountJettonsHistory(ctx context.Context, params GetAccountJettonsHistoryParams) (*JettonOperations, error)
 	// GetAccountMultisigs invokes getAccountMultisigs operation.
 	//
 	// Get account's multisigs.
@@ -184,7 +203,7 @@ type Invoker interface {
 	// Get the transfer nft history.
 	//
 	// GET /v2/accounts/{account_id}/nfts/history
-	GetAccountNftHistory(ctx context.Context, params GetAccountNftHistoryParams) (*AccountEvents, error)
+	GetAccountNftHistory(ctx context.Context, params GetAccountNftHistoryParams) (*NftOperations, error)
 	// GetAccountNftItems invokes getAccountNftItems operation.
 	//
 	// Get all NFT items by owner address.
@@ -362,6 +381,12 @@ type Invoker interface {
 	//
 	// GET /v2/nfts/collections/{account_id}/items
 	GetItemsFromCollection(ctx context.Context, params GetItemsFromCollectionParams) (*NftItems, error)
+	// GetJettonAccountHistoryByID invokes getJettonAccountHistoryByID operation.
+	//
+	// Get the transfer jetton history for account and jetton.
+	//
+	// GET /v2/jettons/{jetton_id}/accounts/{account_id}/history
+	GetJettonAccountHistoryByID(ctx context.Context, params GetJettonAccountHistoryByIDParams) (*JettonOperations, error)
 	// GetJettonHolders invokes getJettonHolders operation.
 	//
 	// Get jetton's holders.
@@ -410,6 +435,12 @@ type Invoker interface {
 	//
 	// GET /v2/multisig/{account_id}
 	GetMultisigAccount(ctx context.Context, params GetMultisigAccountParams) (*Multisig, error)
+	// GetMultisigOrder invokes getMultisigOrder operation.
+	//
+	// Get multisig order.
+	//
+	// GET /v2/multisig/order/{account_id}
+	GetMultisigOrder(ctx context.Context, params GetMultisigOrderParams) (*MultisigOrder, error)
 	// GetNftCollection invokes getNftCollection operation.
 	//
 	// Get NFT collection by collection address.
@@ -430,7 +461,9 @@ type Invoker interface {
 	GetNftCollections(ctx context.Context, params GetNftCollectionsParams) (*NftCollections, error)
 	// GetNftHistoryByID invokes getNftHistoryByID operation.
 	//
-	// Get the transfer nfts history for account.
+	// Please use `getAccountNftHistory`` instead.
+	//
+	// Deprecated: schema marks this operation as deprecated.
 	//
 	// GET /v2/nfts/{account_id}/history
 	GetNftHistoryByID(ctx context.Context, params GetNftHistoryByIDParams) (*AccountEvents, error)
@@ -464,6 +497,12 @@ type Invoker interface {
 	//
 	// GET /v2/liteserver/get_out_msg_queue_sizes
 	GetOutMsgQueueSizes(ctx context.Context) (*GetOutMsgQueueSizesOK, error)
+	// GetPurchaseHistory invokes getPurchaseHistory operation.
+	//
+	// Get history of purchases.
+	//
+	// GET /v2/purchases/{account_id}/history
+	GetPurchaseHistory(ctx context.Context, params GetPurchaseHistoryParams) (*AccountPurchases, error)
 	// GetRates invokes getRates operation.
 	//
 	// Get the token price in the chosen currency for display only. Don’t use this for financial
@@ -603,12 +642,18 @@ type Invoker interface {
 	//
 	// GET /v2/traces/{trace_id}
 	GetTrace(ctx context.Context, params GetTraceParams) (*Trace, error)
+	// GetWalletInfo invokes getWalletInfo operation.
+	//
+	// Get human-friendly information about a wallet without low-level details.
+	//
+	// GET /v2/wallet/{account_id}
+	GetWalletInfo(ctx context.Context, params GetWalletInfoParams) (*Wallet, error)
 	// GetWalletsByPublicKey invokes getWalletsByPublicKey operation.
 	//
 	// Get wallets by public key.
 	//
 	// GET /v2/pubkeys/{public_key}/wallets
-	GetWalletsByPublicKey(ctx context.Context, params GetWalletsByPublicKeyParams) (*Accounts, error)
+	GetWalletsByPublicKey(ctx context.Context, params GetWalletsByPublicKeyParams) (*Wallets, error)
 	// ReindexAccount invokes reindexAccount operation.
 	//
 	// Update internal cache for a particular account.
@@ -652,11 +697,6 @@ type Client struct {
 	serverURL *url.URL
 	sec       SecuritySource
 	baseClient
-}
-
-func trimTrailingSlashes(u *url.URL) {
-	u.Path = strings.TrimRight(u.Path, "/")
-	u.RawPath = strings.TrimRight(u.RawPath, "/")
 }
 
 // NewClient initializes new Client defined by OAS.
@@ -1295,6 +1335,131 @@ func (c *Client) sendDnsResolve(ctx context.Context, params DnsResolveParams) (r
 
 	stage = "DecodeResponse"
 	result, err := decodeDnsResolveResponse(resp)
+	if err != nil {
+		return res, errors.Wrap(err, "decode response")
+	}
+
+	return result, nil
+}
+
+// DownloadBlockchainBlockBoc invokes downloadBlockchainBlockBoc operation.
+//
+// Download blockchain block BOC.
+//
+// GET /v2/blockchain/blocks/{block_id}/boc
+func (c *Client) DownloadBlockchainBlockBoc(ctx context.Context, params DownloadBlockchainBlockBocParams) (*DownloadBlockchainBlockBocOKHeaders, error) {
+	res, err := c.sendDownloadBlockchainBlockBoc(ctx, params)
+	return res, err
+}
+
+func (c *Client) sendDownloadBlockchainBlockBoc(ctx context.Context, params DownloadBlockchainBlockBocParams) (res *DownloadBlockchainBlockBocOKHeaders, err error) {
+	otelAttrs := []attribute.KeyValue{
+		otelogen.OperationID("downloadBlockchainBlockBoc"),
+		semconv.HTTPRequestMethodKey.String("GET"),
+		semconv.HTTPRouteKey.String("/v2/blockchain/blocks/{block_id}/boc"),
+	}
+
+	// Run stopwatch.
+	startTime := time.Now()
+	defer func() {
+		// Use floating point division here for higher precision (instead of Millisecond method).
+		elapsedDuration := time.Since(startTime)
+		c.duration.Record(ctx, float64(elapsedDuration)/float64(time.Millisecond), metric.WithAttributes(otelAttrs...))
+	}()
+
+	// Increment request counter.
+	c.requests.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
+
+	// Start a span for this request.
+	ctx, span := c.cfg.Tracer.Start(ctx, DownloadBlockchainBlockBocOperation,
+		trace.WithAttributes(otelAttrs...),
+		clientSpanKind,
+	)
+	// Track stage for error reporting.
+	var stage string
+	defer func() {
+		if err != nil {
+			span.RecordError(err)
+			span.SetStatus(codes.Error, stage)
+			c.errors.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
+		}
+		span.End()
+	}()
+
+	stage = "BuildURL"
+	u := uri.Clone(c.requestURL(ctx))
+	var pathParts [3]string
+	pathParts[0] = "/v2/blockchain/blocks/"
+	{
+		// Encode "block_id" parameter.
+		e := uri.NewPathEncoder(uri.PathEncoderConfig{
+			Param:   "block_id",
+			Style:   uri.PathStyleSimple,
+			Explode: false,
+		})
+		if err := func() error {
+			return e.EncodeValue(conv.StringToString(params.BlockID))
+		}(); err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		encoded, err := e.Result()
+		if err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		pathParts[1] = encoded
+	}
+	pathParts[2] = "/boc"
+	uri.AddPathParts(u, pathParts[:]...)
+
+	stage = "EncodeRequest"
+	r, err := ht.NewRequest(ctx, "GET", u)
+	if err != nil {
+		return res, errors.Wrap(err, "create request")
+	}
+
+	{
+		type bitset = [1]uint8
+		var satisfied bitset
+		{
+			stage = "Security:BearerAuth"
+			switch err := c.securityBearerAuth(ctx, DownloadBlockchainBlockBocOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 0
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"BearerAuth\"")
+			}
+		}
+
+		if ok := func() bool {
+		nextRequirement:
+			for _, requirement := range []bitset{
+				{0b00000001},
+				{},
+			} {
+				for i, mask := range requirement {
+					if satisfied[i]&mask != mask {
+						continue nextRequirement
+					}
+				}
+				return true
+			}
+			return false
+		}(); !ok {
+			return res, ogenerrors.ErrSecurityRequirementIsNotSatisfied
+		}
+	}
+
+	stage = "SendRequest"
+	resp, err := c.cfg.Client.Do(r)
+	if err != nil {
+		return res, errors.Wrap(err, "do request")
+	}
+	defer resp.Body.Close()
+
+	stage = "DecodeResponse"
+	result, err := decodeDownloadBlockchainBlockBocResponse(resp)
 	if err != nil {
 		return res, errors.Wrap(err, "decode response")
 	}
@@ -2037,6 +2202,168 @@ func (c *Client) sendExecGetMethodForBlockchainAccount(ctx context.Context, para
 
 	stage = "DecodeResponse"
 	result, err := decodeExecGetMethodForBlockchainAccountResponse(resp)
+	if err != nil {
+		return res, errors.Wrap(err, "decode response")
+	}
+
+	return result, nil
+}
+
+// ExecGetMethodWithBodyForBlockchainAccount invokes execGetMethodWithBodyForBlockchainAccount operation.
+//
+// Execute get method for account.
+//
+// POST /v2/blockchain/accounts/{account_id}/methods/{method_name}
+func (c *Client) ExecGetMethodWithBodyForBlockchainAccount(ctx context.Context, request OptExecGetMethodWithBodyForBlockchainAccountReq, params ExecGetMethodWithBodyForBlockchainAccountParams) (*MethodExecutionResult, error) {
+	res, err := c.sendExecGetMethodWithBodyForBlockchainAccount(ctx, request, params)
+	return res, err
+}
+
+func (c *Client) sendExecGetMethodWithBodyForBlockchainAccount(ctx context.Context, request OptExecGetMethodWithBodyForBlockchainAccountReq, params ExecGetMethodWithBodyForBlockchainAccountParams) (res *MethodExecutionResult, err error) {
+	// Validate request before sending.
+	if err := func() error {
+		if value, ok := request.Get(); ok {
+			if err := func() error {
+				if err := value.Validate(); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		return res, errors.Wrap(err, "validate")
+	}
+	otelAttrs := []attribute.KeyValue{
+		otelogen.OperationID("execGetMethodWithBodyForBlockchainAccount"),
+		semconv.HTTPRequestMethodKey.String("POST"),
+		semconv.HTTPRouteKey.String("/v2/blockchain/accounts/{account_id}/methods/{method_name}"),
+	}
+
+	// Run stopwatch.
+	startTime := time.Now()
+	defer func() {
+		// Use floating point division here for higher precision (instead of Millisecond method).
+		elapsedDuration := time.Since(startTime)
+		c.duration.Record(ctx, float64(elapsedDuration)/float64(time.Millisecond), metric.WithAttributes(otelAttrs...))
+	}()
+
+	// Increment request counter.
+	c.requests.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
+
+	// Start a span for this request.
+	ctx, span := c.cfg.Tracer.Start(ctx, ExecGetMethodWithBodyForBlockchainAccountOperation,
+		trace.WithAttributes(otelAttrs...),
+		clientSpanKind,
+	)
+	// Track stage for error reporting.
+	var stage string
+	defer func() {
+		if err != nil {
+			span.RecordError(err)
+			span.SetStatus(codes.Error, stage)
+			c.errors.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
+		}
+		span.End()
+	}()
+
+	stage = "BuildURL"
+	u := uri.Clone(c.requestURL(ctx))
+	var pathParts [4]string
+	pathParts[0] = "/v2/blockchain/accounts/"
+	{
+		// Encode "account_id" parameter.
+		e := uri.NewPathEncoder(uri.PathEncoderConfig{
+			Param:   "account_id",
+			Style:   uri.PathStyleSimple,
+			Explode: false,
+		})
+		if err := func() error {
+			return e.EncodeValue(conv.StringToString(params.AccountID))
+		}(); err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		encoded, err := e.Result()
+		if err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		pathParts[1] = encoded
+	}
+	pathParts[2] = "/methods/"
+	{
+		// Encode "method_name" parameter.
+		e := uri.NewPathEncoder(uri.PathEncoderConfig{
+			Param:   "method_name",
+			Style:   uri.PathStyleSimple,
+			Explode: false,
+		})
+		if err := func() error {
+			return e.EncodeValue(conv.StringToString(params.MethodName))
+		}(); err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		encoded, err := e.Result()
+		if err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		pathParts[3] = encoded
+	}
+	uri.AddPathParts(u, pathParts[:]...)
+
+	stage = "EncodeRequest"
+	r, err := ht.NewRequest(ctx, "POST", u)
+	if err != nil {
+		return res, errors.Wrap(err, "create request")
+	}
+	if err := encodeExecGetMethodWithBodyForBlockchainAccountRequest(request, r); err != nil {
+		return res, errors.Wrap(err, "encode request")
+	}
+
+	{
+		type bitset = [1]uint8
+		var satisfied bitset
+		{
+			stage = "Security:BearerAuth"
+			switch err := c.securityBearerAuth(ctx, ExecGetMethodWithBodyForBlockchainAccountOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 0
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"BearerAuth\"")
+			}
+		}
+
+		if ok := func() bool {
+		nextRequirement:
+			for _, requirement := range []bitset{
+				{0b00000001},
+				{},
+			} {
+				for i, mask := range requirement {
+					if satisfied[i]&mask != mask {
+						continue nextRequirement
+					}
+				}
+				return true
+			}
+			return false
+		}(); !ok {
+			return res, ogenerrors.ErrSecurityRequirementIsNotSatisfied
+		}
+	}
+
+	stage = "SendRequest"
+	resp, err := c.cfg.Client.Do(r)
+	if err != nil {
+		return res, errors.Wrap(err, "do request")
+	}
+	defer resp.Body.Close()
+
+	stage = "DecodeResponse"
+	result, err := decodeExecGetMethodWithBodyForBlockchainAccountResponse(resp)
 	if err != nil {
 		return res, errors.Wrap(err, "decode response")
 	}
@@ -3809,7 +4136,9 @@ func (c *Client) sendGetAccountJettonBalance(ctx context.Context, params GetAcco
 
 // GetAccountJettonHistoryByID invokes getAccountJettonHistoryByID operation.
 //
-// Get the transfer jetton history for account and jetton.
+// Please use `getJettonAccountHistoryByID“ instead.
+//
+// Deprecated: schema marks this operation as deprecated.
 //
 // GET /v2/accounts/{account_id}/jettons/{jetton_id}/history
 func (c *Client) GetAccountJettonHistoryByID(ctx context.Context, params GetAccountJettonHistoryByIDParams) (*AccountEvents, error) {
@@ -4223,12 +4552,12 @@ func (c *Client) sendGetAccountJettonsBalances(ctx context.Context, params GetAc
 // Get the transfer jettons history for account.
 //
 // GET /v2/accounts/{account_id}/jettons/history
-func (c *Client) GetAccountJettonsHistory(ctx context.Context, params GetAccountJettonsHistoryParams) (*AccountEvents, error) {
+func (c *Client) GetAccountJettonsHistory(ctx context.Context, params GetAccountJettonsHistoryParams) (*JettonOperations, error) {
 	res, err := c.sendGetAccountJettonsHistory(ctx, params)
 	return res, err
 }
 
-func (c *Client) sendGetAccountJettonsHistory(ctx context.Context, params GetAccountJettonsHistoryParams) (res *AccountEvents, err error) {
+func (c *Client) sendGetAccountJettonsHistory(ctx context.Context, params GetAccountJettonsHistoryParams) (res *JettonOperations, err error) {
 	otelAttrs := []attribute.KeyValue{
 		otelogen.OperationID("getAccountJettonsHistory"),
 		semconv.HTTPRequestMethodKey.String("GET"),
@@ -4320,63 +4649,12 @@ func (c *Client) sendGetAccountJettonsHistory(ctx context.Context, params GetAcc
 			return res, errors.Wrap(err, "encode query")
 		}
 	}
-	{
-		// Encode "start_date" parameter.
-		cfg := uri.QueryParameterEncodingConfig{
-			Name:    "start_date",
-			Style:   uri.QueryStyleForm,
-			Explode: true,
-		}
-
-		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
-			if val, ok := params.StartDate.Get(); ok {
-				return e.EncodeValue(conv.Int64ToString(val))
-			}
-			return nil
-		}); err != nil {
-			return res, errors.Wrap(err, "encode query")
-		}
-	}
-	{
-		// Encode "end_date" parameter.
-		cfg := uri.QueryParameterEncodingConfig{
-			Name:    "end_date",
-			Style:   uri.QueryStyleForm,
-			Explode: true,
-		}
-
-		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
-			if val, ok := params.EndDate.Get(); ok {
-				return e.EncodeValue(conv.Int64ToString(val))
-			}
-			return nil
-		}); err != nil {
-			return res, errors.Wrap(err, "encode query")
-		}
-	}
 	u.RawQuery = q.Values().Encode()
 
 	stage = "EncodeRequest"
 	r, err := ht.NewRequest(ctx, "GET", u)
 	if err != nil {
 		return res, errors.Wrap(err, "create request")
-	}
-
-	stage = "EncodeHeaderParams"
-	h := uri.NewHeaderEncoder(r.Header)
-	{
-		cfg := uri.HeaderParameterEncodingConfig{
-			Name:    "Accept-Language",
-			Explode: false,
-		}
-		if err := h.EncodeParam(cfg, func(e uri.Encoder) error {
-			if val, ok := params.AcceptLanguage.Get(); ok {
-				return e.EncodeValue(conv.StringToString(val))
-			}
-			return nil
-		}); err != nil {
-			return res, errors.Wrap(err, "encode header")
-		}
 	}
 
 	{
@@ -4559,12 +4837,12 @@ func (c *Client) sendGetAccountMultisigs(ctx context.Context, params GetAccountM
 // Get the transfer nft history.
 //
 // GET /v2/accounts/{account_id}/nfts/history
-func (c *Client) GetAccountNftHistory(ctx context.Context, params GetAccountNftHistoryParams) (*AccountEvents, error) {
+func (c *Client) GetAccountNftHistory(ctx context.Context, params GetAccountNftHistoryParams) (*NftOperations, error) {
 	res, err := c.sendGetAccountNftHistory(ctx, params)
 	return res, err
 }
 
-func (c *Client) sendGetAccountNftHistory(ctx context.Context, params GetAccountNftHistoryParams) (res *AccountEvents, err error) {
+func (c *Client) sendGetAccountNftHistory(ctx context.Context, params GetAccountNftHistoryParams) (res *NftOperations, err error) {
 	otelAttrs := []attribute.KeyValue{
 		otelogen.OperationID("getAccountNftHistory"),
 		semconv.HTTPRequestMethodKey.String("GET"),
@@ -4652,40 +4930,6 @@ func (c *Client) sendGetAccountNftHistory(ctx context.Context, params GetAccount
 
 		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
 			return e.EncodeValue(conv.IntToString(params.Limit))
-		}); err != nil {
-			return res, errors.Wrap(err, "encode query")
-		}
-	}
-	{
-		// Encode "start_date" parameter.
-		cfg := uri.QueryParameterEncodingConfig{
-			Name:    "start_date",
-			Style:   uri.QueryStyleForm,
-			Explode: true,
-		}
-
-		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
-			if val, ok := params.StartDate.Get(); ok {
-				return e.EncodeValue(conv.Int64ToString(val))
-			}
-			return nil
-		}); err != nil {
-			return res, errors.Wrap(err, "encode query")
-		}
-	}
-	{
-		// Encode "end_date" parameter.
-		cfg := uri.QueryParameterEncodingConfig{
-			Name:    "end_date",
-			Style:   uri.QueryStyleForm,
-			Explode: true,
-		}
-
-		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
-			if val, ok := params.EndDate.Get(); ok {
-				return e.EncodeValue(conv.Int64ToString(val))
-			}
-			return nil
 		}); err != nil {
 			return res, errors.Wrap(err, "encode query")
 		}
@@ -8537,6 +8781,219 @@ func (c *Client) sendGetItemsFromCollection(ctx context.Context, params GetItems
 	return result, nil
 }
 
+// GetJettonAccountHistoryByID invokes getJettonAccountHistoryByID operation.
+//
+// Get the transfer jetton history for account and jetton.
+//
+// GET /v2/jettons/{jetton_id}/accounts/{account_id}/history
+func (c *Client) GetJettonAccountHistoryByID(ctx context.Context, params GetJettonAccountHistoryByIDParams) (*JettonOperations, error) {
+	res, err := c.sendGetJettonAccountHistoryByID(ctx, params)
+	return res, err
+}
+
+func (c *Client) sendGetJettonAccountHistoryByID(ctx context.Context, params GetJettonAccountHistoryByIDParams) (res *JettonOperations, err error) {
+	otelAttrs := []attribute.KeyValue{
+		otelogen.OperationID("getJettonAccountHistoryByID"),
+		semconv.HTTPRequestMethodKey.String("GET"),
+		semconv.HTTPRouteKey.String("/v2/jettons/{jetton_id}/accounts/{account_id}/history"),
+	}
+
+	// Run stopwatch.
+	startTime := time.Now()
+	defer func() {
+		// Use floating point division here for higher precision (instead of Millisecond method).
+		elapsedDuration := time.Since(startTime)
+		c.duration.Record(ctx, float64(elapsedDuration)/float64(time.Millisecond), metric.WithAttributes(otelAttrs...))
+	}()
+
+	// Increment request counter.
+	c.requests.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
+
+	// Start a span for this request.
+	ctx, span := c.cfg.Tracer.Start(ctx, GetJettonAccountHistoryByIDOperation,
+		trace.WithAttributes(otelAttrs...),
+		clientSpanKind,
+	)
+	// Track stage for error reporting.
+	var stage string
+	defer func() {
+		if err != nil {
+			span.RecordError(err)
+			span.SetStatus(codes.Error, stage)
+			c.errors.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
+		}
+		span.End()
+	}()
+
+	stage = "BuildURL"
+	u := uri.Clone(c.requestURL(ctx))
+	var pathParts [5]string
+	pathParts[0] = "/v2/jettons/"
+	{
+		// Encode "jetton_id" parameter.
+		e := uri.NewPathEncoder(uri.PathEncoderConfig{
+			Param:   "jetton_id",
+			Style:   uri.PathStyleSimple,
+			Explode: false,
+		})
+		if err := func() error {
+			return e.EncodeValue(conv.StringToString(params.JettonID))
+		}(); err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		encoded, err := e.Result()
+		if err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		pathParts[1] = encoded
+	}
+	pathParts[2] = "/accounts/"
+	{
+		// Encode "account_id" parameter.
+		e := uri.NewPathEncoder(uri.PathEncoderConfig{
+			Param:   "account_id",
+			Style:   uri.PathStyleSimple,
+			Explode: false,
+		})
+		if err := func() error {
+			return e.EncodeValue(conv.StringToString(params.AccountID))
+		}(); err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		encoded, err := e.Result()
+		if err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		pathParts[3] = encoded
+	}
+	pathParts[4] = "/history"
+	uri.AddPathParts(u, pathParts[:]...)
+
+	stage = "EncodeQueryParams"
+	q := uri.NewQueryEncoder()
+	{
+		// Encode "before_lt" parameter.
+		cfg := uri.QueryParameterEncodingConfig{
+			Name:    "before_lt",
+			Style:   uri.QueryStyleForm,
+			Explode: true,
+		}
+
+		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
+			if val, ok := params.BeforeLt.Get(); ok {
+				return e.EncodeValue(conv.Int64ToString(val))
+			}
+			return nil
+		}); err != nil {
+			return res, errors.Wrap(err, "encode query")
+		}
+	}
+	{
+		// Encode "limit" parameter.
+		cfg := uri.QueryParameterEncodingConfig{
+			Name:    "limit",
+			Style:   uri.QueryStyleForm,
+			Explode: true,
+		}
+
+		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
+			return e.EncodeValue(conv.IntToString(params.Limit))
+		}); err != nil {
+			return res, errors.Wrap(err, "encode query")
+		}
+	}
+	{
+		// Encode "start_date" parameter.
+		cfg := uri.QueryParameterEncodingConfig{
+			Name:    "start_date",
+			Style:   uri.QueryStyleForm,
+			Explode: true,
+		}
+
+		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
+			if val, ok := params.StartDate.Get(); ok {
+				return e.EncodeValue(conv.Int64ToString(val))
+			}
+			return nil
+		}); err != nil {
+			return res, errors.Wrap(err, "encode query")
+		}
+	}
+	{
+		// Encode "end_date" parameter.
+		cfg := uri.QueryParameterEncodingConfig{
+			Name:    "end_date",
+			Style:   uri.QueryStyleForm,
+			Explode: true,
+		}
+
+		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
+			if val, ok := params.EndDate.Get(); ok {
+				return e.EncodeValue(conv.Int64ToString(val))
+			}
+			return nil
+		}); err != nil {
+			return res, errors.Wrap(err, "encode query")
+		}
+	}
+	u.RawQuery = q.Values().Encode()
+
+	stage = "EncodeRequest"
+	r, err := ht.NewRequest(ctx, "GET", u)
+	if err != nil {
+		return res, errors.Wrap(err, "create request")
+	}
+
+	{
+		type bitset = [1]uint8
+		var satisfied bitset
+		{
+			stage = "Security:BearerAuth"
+			switch err := c.securityBearerAuth(ctx, GetJettonAccountHistoryByIDOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 0
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"BearerAuth\"")
+			}
+		}
+
+		if ok := func() bool {
+		nextRequirement:
+			for _, requirement := range []bitset{
+				{0b00000001},
+				{},
+			} {
+				for i, mask := range requirement {
+					if satisfied[i]&mask != mask {
+						continue nextRequirement
+					}
+				}
+				return true
+			}
+			return false
+		}(); !ok {
+			return res, ogenerrors.ErrSecurityRequirementIsNotSatisfied
+		}
+	}
+
+	stage = "SendRequest"
+	resp, err := c.cfg.Client.Do(r)
+	if err != nil {
+		return res, errors.Wrap(err, "do request")
+	}
+	defer resp.Body.Close()
+
+	stage = "DecodeResponse"
+	result, err := decodeGetJettonAccountHistoryByIDResponse(resp)
+	if err != nil {
+		return res, errors.Wrap(err, "decode response")
+	}
+
+	return result, nil
+}
+
 // GetJettonHolders invokes getJettonHolders operation.
 //
 // Get jetton's holders.
@@ -9609,6 +10066,130 @@ func (c *Client) sendGetMultisigAccount(ctx context.Context, params GetMultisigA
 	return result, nil
 }
 
+// GetMultisigOrder invokes getMultisigOrder operation.
+//
+// Get multisig order.
+//
+// GET /v2/multisig/order/{account_id}
+func (c *Client) GetMultisigOrder(ctx context.Context, params GetMultisigOrderParams) (*MultisigOrder, error) {
+	res, err := c.sendGetMultisigOrder(ctx, params)
+	return res, err
+}
+
+func (c *Client) sendGetMultisigOrder(ctx context.Context, params GetMultisigOrderParams) (res *MultisigOrder, err error) {
+	otelAttrs := []attribute.KeyValue{
+		otelogen.OperationID("getMultisigOrder"),
+		semconv.HTTPRequestMethodKey.String("GET"),
+		semconv.HTTPRouteKey.String("/v2/multisig/order/{account_id}"),
+	}
+
+	// Run stopwatch.
+	startTime := time.Now()
+	defer func() {
+		// Use floating point division here for higher precision (instead of Millisecond method).
+		elapsedDuration := time.Since(startTime)
+		c.duration.Record(ctx, float64(elapsedDuration)/float64(time.Millisecond), metric.WithAttributes(otelAttrs...))
+	}()
+
+	// Increment request counter.
+	c.requests.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
+
+	// Start a span for this request.
+	ctx, span := c.cfg.Tracer.Start(ctx, GetMultisigOrderOperation,
+		trace.WithAttributes(otelAttrs...),
+		clientSpanKind,
+	)
+	// Track stage for error reporting.
+	var stage string
+	defer func() {
+		if err != nil {
+			span.RecordError(err)
+			span.SetStatus(codes.Error, stage)
+			c.errors.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
+		}
+		span.End()
+	}()
+
+	stage = "BuildURL"
+	u := uri.Clone(c.requestURL(ctx))
+	var pathParts [2]string
+	pathParts[0] = "/v2/multisig/order/"
+	{
+		// Encode "account_id" parameter.
+		e := uri.NewPathEncoder(uri.PathEncoderConfig{
+			Param:   "account_id",
+			Style:   uri.PathStyleSimple,
+			Explode: false,
+		})
+		if err := func() error {
+			return e.EncodeValue(conv.StringToString(params.AccountID))
+		}(); err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		encoded, err := e.Result()
+		if err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		pathParts[1] = encoded
+	}
+	uri.AddPathParts(u, pathParts[:]...)
+
+	stage = "EncodeRequest"
+	r, err := ht.NewRequest(ctx, "GET", u)
+	if err != nil {
+		return res, errors.Wrap(err, "create request")
+	}
+
+	{
+		type bitset = [1]uint8
+		var satisfied bitset
+		{
+			stage = "Security:BearerAuth"
+			switch err := c.securityBearerAuth(ctx, GetMultisigOrderOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 0
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"BearerAuth\"")
+			}
+		}
+
+		if ok := func() bool {
+		nextRequirement:
+			for _, requirement := range []bitset{
+				{0b00000001},
+				{},
+			} {
+				for i, mask := range requirement {
+					if satisfied[i]&mask != mask {
+						continue nextRequirement
+					}
+				}
+				return true
+			}
+			return false
+		}(); !ok {
+			return res, ogenerrors.ErrSecurityRequirementIsNotSatisfied
+		}
+	}
+
+	stage = "SendRequest"
+	resp, err := c.cfg.Client.Do(r)
+	if err != nil {
+		return res, errors.Wrap(err, "do request")
+	}
+	defer resp.Body.Close()
+
+	stage = "DecodeResponse"
+	result, err := decodeGetMultisigOrderResponse(resp)
+	if err != nil {
+		return res, errors.Wrap(err, "decode response")
+	}
+
+	return result, nil
+}
+
 // GetNftCollection invokes getNftCollection operation.
 //
 // Get NFT collection by collection address.
@@ -10004,7 +10585,9 @@ func (c *Client) sendGetNftCollections(ctx context.Context, params GetNftCollect
 
 // GetNftHistoryByID invokes getNftHistoryByID operation.
 //
-// Get the transfer nfts history for account.
+// Please use `getAccountNftHistory“ instead.
+//
+// Deprecated: schema marks this operation as deprecated.
 //
 // GET /v2/nfts/{account_id}/history
 func (c *Client) GetNftHistoryByID(ctx context.Context, params GetNftHistoryByIDParams) (*AccountEvents, error) {
@@ -10773,6 +11356,169 @@ func (c *Client) sendGetOutMsgQueueSizes(ctx context.Context) (res *GetOutMsgQue
 
 	stage = "DecodeResponse"
 	result, err := decodeGetOutMsgQueueSizesResponse(resp)
+	if err != nil {
+		return res, errors.Wrap(err, "decode response")
+	}
+
+	return result, nil
+}
+
+// GetPurchaseHistory invokes getPurchaseHistory operation.
+//
+// Get history of purchases.
+//
+// GET /v2/purchases/{account_id}/history
+func (c *Client) GetPurchaseHistory(ctx context.Context, params GetPurchaseHistoryParams) (*AccountPurchases, error) {
+	res, err := c.sendGetPurchaseHistory(ctx, params)
+	return res, err
+}
+
+func (c *Client) sendGetPurchaseHistory(ctx context.Context, params GetPurchaseHistoryParams) (res *AccountPurchases, err error) {
+	otelAttrs := []attribute.KeyValue{
+		otelogen.OperationID("getPurchaseHistory"),
+		semconv.HTTPRequestMethodKey.String("GET"),
+		semconv.HTTPRouteKey.String("/v2/purchases/{account_id}/history"),
+	}
+
+	// Run stopwatch.
+	startTime := time.Now()
+	defer func() {
+		// Use floating point division here for higher precision (instead of Millisecond method).
+		elapsedDuration := time.Since(startTime)
+		c.duration.Record(ctx, float64(elapsedDuration)/float64(time.Millisecond), metric.WithAttributes(otelAttrs...))
+	}()
+
+	// Increment request counter.
+	c.requests.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
+
+	// Start a span for this request.
+	ctx, span := c.cfg.Tracer.Start(ctx, GetPurchaseHistoryOperation,
+		trace.WithAttributes(otelAttrs...),
+		clientSpanKind,
+	)
+	// Track stage for error reporting.
+	var stage string
+	defer func() {
+		if err != nil {
+			span.RecordError(err)
+			span.SetStatus(codes.Error, stage)
+			c.errors.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
+		}
+		span.End()
+	}()
+
+	stage = "BuildURL"
+	u := uri.Clone(c.requestURL(ctx))
+	var pathParts [3]string
+	pathParts[0] = "/v2/purchases/"
+	{
+		// Encode "account_id" parameter.
+		e := uri.NewPathEncoder(uri.PathEncoderConfig{
+			Param:   "account_id",
+			Style:   uri.PathStyleSimple,
+			Explode: false,
+		})
+		if err := func() error {
+			return e.EncodeValue(conv.StringToString(params.AccountID))
+		}(); err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		encoded, err := e.Result()
+		if err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		pathParts[1] = encoded
+	}
+	pathParts[2] = "/history"
+	uri.AddPathParts(u, pathParts[:]...)
+
+	stage = "EncodeQueryParams"
+	q := uri.NewQueryEncoder()
+	{
+		// Encode "before_lt" parameter.
+		cfg := uri.QueryParameterEncodingConfig{
+			Name:    "before_lt",
+			Style:   uri.QueryStyleForm,
+			Explode: true,
+		}
+
+		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
+			if val, ok := params.BeforeLt.Get(); ok {
+				return e.EncodeValue(conv.Int64ToString(val))
+			}
+			return nil
+		}); err != nil {
+			return res, errors.Wrap(err, "encode query")
+		}
+	}
+	{
+		// Encode "limit" parameter.
+		cfg := uri.QueryParameterEncodingConfig{
+			Name:    "limit",
+			Style:   uri.QueryStyleForm,
+			Explode: true,
+		}
+
+		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
+			if val, ok := params.Limit.Get(); ok {
+				return e.EncodeValue(conv.IntToString(val))
+			}
+			return nil
+		}); err != nil {
+			return res, errors.Wrap(err, "encode query")
+		}
+	}
+	u.RawQuery = q.Values().Encode()
+
+	stage = "EncodeRequest"
+	r, err := ht.NewRequest(ctx, "GET", u)
+	if err != nil {
+		return res, errors.Wrap(err, "create request")
+	}
+
+	{
+		type bitset = [1]uint8
+		var satisfied bitset
+		{
+			stage = "Security:BearerAuth"
+			switch err := c.securityBearerAuth(ctx, GetPurchaseHistoryOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 0
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"BearerAuth\"")
+			}
+		}
+
+		if ok := func() bool {
+		nextRequirement:
+			for _, requirement := range []bitset{
+				{0b00000001},
+				{},
+			} {
+				for i, mask := range requirement {
+					if satisfied[i]&mask != mask {
+						continue nextRequirement
+					}
+				}
+				return true
+			}
+			return false
+		}(); !ok {
+			return res, ogenerrors.ErrSecurityRequirementIsNotSatisfied
+		}
+	}
+
+	stage = "SendRequest"
+	resp, err := c.cfg.Client.Do(r)
+	if err != nil {
+		return res, errors.Wrap(err, "do request")
+	}
+	defer resp.Body.Close()
+
+	stage = "DecodeResponse"
+	result, err := decodeGetPurchaseHistoryResponse(resp)
 	if err != nil {
 		return res, errors.Wrap(err, "decode response")
 	}
@@ -13891,17 +14637,141 @@ func (c *Client) sendGetTrace(ctx context.Context, params GetTraceParams) (res *
 	return result, nil
 }
 
+// GetWalletInfo invokes getWalletInfo operation.
+//
+// Get human-friendly information about a wallet without low-level details.
+//
+// GET /v2/wallet/{account_id}
+func (c *Client) GetWalletInfo(ctx context.Context, params GetWalletInfoParams) (*Wallet, error) {
+	res, err := c.sendGetWalletInfo(ctx, params)
+	return res, err
+}
+
+func (c *Client) sendGetWalletInfo(ctx context.Context, params GetWalletInfoParams) (res *Wallet, err error) {
+	otelAttrs := []attribute.KeyValue{
+		otelogen.OperationID("getWalletInfo"),
+		semconv.HTTPRequestMethodKey.String("GET"),
+		semconv.HTTPRouteKey.String("/v2/wallet/{account_id}"),
+	}
+
+	// Run stopwatch.
+	startTime := time.Now()
+	defer func() {
+		// Use floating point division here for higher precision (instead of Millisecond method).
+		elapsedDuration := time.Since(startTime)
+		c.duration.Record(ctx, float64(elapsedDuration)/float64(time.Millisecond), metric.WithAttributes(otelAttrs...))
+	}()
+
+	// Increment request counter.
+	c.requests.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
+
+	// Start a span for this request.
+	ctx, span := c.cfg.Tracer.Start(ctx, GetWalletInfoOperation,
+		trace.WithAttributes(otelAttrs...),
+		clientSpanKind,
+	)
+	// Track stage for error reporting.
+	var stage string
+	defer func() {
+		if err != nil {
+			span.RecordError(err)
+			span.SetStatus(codes.Error, stage)
+			c.errors.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
+		}
+		span.End()
+	}()
+
+	stage = "BuildURL"
+	u := uri.Clone(c.requestURL(ctx))
+	var pathParts [2]string
+	pathParts[0] = "/v2/wallet/"
+	{
+		// Encode "account_id" parameter.
+		e := uri.NewPathEncoder(uri.PathEncoderConfig{
+			Param:   "account_id",
+			Style:   uri.PathStyleSimple,
+			Explode: false,
+		})
+		if err := func() error {
+			return e.EncodeValue(conv.StringToString(params.AccountID))
+		}(); err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		encoded, err := e.Result()
+		if err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		pathParts[1] = encoded
+	}
+	uri.AddPathParts(u, pathParts[:]...)
+
+	stage = "EncodeRequest"
+	r, err := ht.NewRequest(ctx, "GET", u)
+	if err != nil {
+		return res, errors.Wrap(err, "create request")
+	}
+
+	{
+		type bitset = [1]uint8
+		var satisfied bitset
+		{
+			stage = "Security:BearerAuth"
+			switch err := c.securityBearerAuth(ctx, GetWalletInfoOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 0
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"BearerAuth\"")
+			}
+		}
+
+		if ok := func() bool {
+		nextRequirement:
+			for _, requirement := range []bitset{
+				{0b00000001},
+				{},
+			} {
+				for i, mask := range requirement {
+					if satisfied[i]&mask != mask {
+						continue nextRequirement
+					}
+				}
+				return true
+			}
+			return false
+		}(); !ok {
+			return res, ogenerrors.ErrSecurityRequirementIsNotSatisfied
+		}
+	}
+
+	stage = "SendRequest"
+	resp, err := c.cfg.Client.Do(r)
+	if err != nil {
+		return res, errors.Wrap(err, "do request")
+	}
+	defer resp.Body.Close()
+
+	stage = "DecodeResponse"
+	result, err := decodeGetWalletInfoResponse(resp)
+	if err != nil {
+		return res, errors.Wrap(err, "decode response")
+	}
+
+	return result, nil
+}
+
 // GetWalletsByPublicKey invokes getWalletsByPublicKey operation.
 //
 // Get wallets by public key.
 //
 // GET /v2/pubkeys/{public_key}/wallets
-func (c *Client) GetWalletsByPublicKey(ctx context.Context, params GetWalletsByPublicKeyParams) (*Accounts, error) {
+func (c *Client) GetWalletsByPublicKey(ctx context.Context, params GetWalletsByPublicKeyParams) (*Wallets, error) {
 	res, err := c.sendGetWalletsByPublicKey(ctx, params)
 	return res, err
 }
 
-func (c *Client) sendGetWalletsByPublicKey(ctx context.Context, params GetWalletsByPublicKeyParams) (res *Accounts, err error) {
+func (c *Client) sendGetWalletsByPublicKey(ctx context.Context, params GetWalletsByPublicKeyParams) (res *Wallets, err error) {
 	otelAttrs := []attribute.KeyValue{
 		otelogen.OperationID("getWalletsByPublicKey"),
 		semconv.HTTPRequestMethodKey.String("GET"),
