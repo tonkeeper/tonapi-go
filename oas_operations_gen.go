@@ -69,6 +69,7 @@ const (
 	GetJettonTransferPayloadOperation                  OperationName = "GetJettonTransferPayload"
 	GetJettonsOperation                                OperationName = "GetJettons"
 	GetJettonsEventsOperation                          OperationName = "GetJettonsEvents"
+	GetLibraryByHashOperation                          OperationName = "GetLibraryByHash"
 	GetMarketsRatesOperation                           OperationName = "GetMarketsRates"
 	GetMultisigAccountOperation                        OperationName = "GetMultisigAccount"
 	GetMultisigOrderOperation                          OperationName = "GetMultisigOrder"

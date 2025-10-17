@@ -412,6 +412,24 @@ func (s *Action) Validate() error {
 		})
 	}
 	if err := func() error {
+		if value, ok := s.Subscribe.Get(); ok {
+			if err := func() error {
+				if err := value.Validate(); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "Subscribe",
+			Error: err,
+		})
+	}
+	if err := func() error {
 		if value, ok := s.AuctionBid.Get(); ok {
 			if err := func() error {
 				if err := value.Validate(); err != nil {
@@ -556,6 +574,60 @@ func (s *Action) Validate() error {
 		})
 	}
 	if err := func() error {
+		if value, ok := s.DepositTokenStake.Get(); ok {
+			if err := func() error {
+				if err := value.Validate(); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "DepositTokenStake",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if value, ok := s.WithdrawTokenStakeRequest.Get(); ok {
+			if err := func() error {
+				if err := value.Validate(); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "WithdrawTokenStakeRequest",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if value, ok := s.LiquidityDeposit.Get(); ok {
+			if err := func() error {
+				if err := value.Validate(); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "LiquidityDeposit",
+			Error: err,
+		})
+	}
+	if err := func() error {
 		if err := s.SimplePreview.Validate(); err != nil {
 			return err
 		}
@@ -658,6 +730,20 @@ func (s ActionType) Validate() error {
 	case "DomainRenew":
 		return nil
 	case "Purchase":
+		return nil
+	case "AddExtension":
+		return nil
+	case "RemoveExtension":
+		return nil
+	case "SetSignatureAllowedAction":
+		return nil
+	case "GasRelay":
+		return nil
+	case "DepositTokenStake":
+		return nil
+	case "WithdrawTokenStakeRequest":
+		return nil
+	case "LiquidityDeposit":
 		return nil
 	case "Unknown":
 		return nil
@@ -2218,6 +2304,36 @@ func (s *DepositStakeAction) Validate() error {
 	return nil
 }
 
+func (s *DepositTokenStakeAction) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		if value, ok := s.StakeMeta.Get(); ok {
+			if err := func() error {
+				if err := value.Validate(); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "stake_meta",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
+}
+
 func (s *DnsExpiring) Validate() error {
 	if s == nil {
 		return validate.ErrNilPointer
@@ -3564,17 +3680,6 @@ func (s *JettonSwapAction) Validate() error {
 
 	var failures []validate.FieldError
 	if err := func() error {
-		if err := s.Dex.Validate(); err != nil {
-			return err
-		}
-		return nil
-	}(); err != nil {
-		failures = append(failures, validate.FieldError{
-			Name:  "dex",
-			Error: err,
-		})
-	}
-	if err := func() error {
 		if value, ok := s.JettonMasterIn.Get(); ok {
 			if err := func() error {
 				if err := value.Validate(); err != nil {
@@ -3614,19 +3719,6 @@ func (s *JettonSwapAction) Validate() error {
 		return &validate.Error{Fields: failures}
 	}
 	return nil
-}
-
-func (s JettonSwapActionDex) Validate() error {
-	switch s {
-	case "stonfi":
-		return nil
-	case "dedust":
-		return nil
-	case "megatonfi":
-		return nil
-	default:
-		return errors.Errorf("invalid value: %v", s)
-	}
 }
 
 func (s *JettonTransferAction) Validate() error {
@@ -3673,6 +3765,8 @@ func (s *JettonTransferAction) Validate() error {
 func (s JettonVerificationType) Validate() error {
 	switch s {
 	case "whitelist":
+		return nil
+	case "graylist":
 		return nil
 	case "blacklist":
 		return nil
@@ -3754,6 +3848,46 @@ func (s *JettonsBalances) Validate() error {
 	}(); err != nil {
 		failures = append(failures, validate.FieldError{
 			Name:  "balances",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
+}
+
+func (s *LiquidityDepositAction) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		if s.Tokens == nil {
+			return errors.New("nil is invalid value")
+		}
+		var failures []validate.FieldError
+		for i, elem := range s.Tokens {
+			if err := func() error {
+				if err := elem.Validate(); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				failures = append(failures, validate.FieldError{
+					Name:  fmt.Sprintf("[%d]", i),
+					Error: err,
+				})
+			}
+		}
+		if len(failures) > 0 {
+			return &validate.Error{Fields: failures}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "tokens",
 			Error: err,
 		})
 	}
@@ -4248,8 +4382,25 @@ func (s *NftItem) Validate() error {
 		})
 	}
 	if err := func() error {
-		if err := s.ApprovedBy.Validate(); err != nil {
-			return err
+		if s.ApprovedBy == nil {
+			return errors.New("nil is invalid value")
+		}
+		var failures []validate.FieldError
+		for i, elem := range s.ApprovedBy {
+			if err := func() error {
+				if err := elem.Validate(); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				failures = append(failures, validate.FieldError{
+					Name:  fmt.Sprintf("[%d]", i),
+					Error: err,
+				})
+			}
+		}
+		if len(failures) > 0 {
+			return &validate.Error{Fields: failures}
 		}
 		return nil
 	}(); err != nil {
@@ -4273,6 +4424,17 @@ func (s *NftItem) Validate() error {
 		return &validate.Error{Fields: failures}
 	}
 	return nil
+}
+
+func (s NftItemApprovedByItem) Validate() error {
+	switch s {
+	case "getgems":
+		return nil
+	case "tonkeeper":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
 }
 
 func (s *NftItemTransferAction) Validate() error {
@@ -4813,6 +4975,24 @@ func (s *Risk) Validate() error {
 			Error: err,
 		})
 	}
+	if err := func() error {
+		if value, ok := s.TotalEquivalent.Get(); ok {
+			if err := func() error {
+				if err := (validate.Float{}).Validate(float64(value)); err != nil {
+					return errors.Wrap(err, "float")
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "total_equivalent",
+			Error: err,
+		})
+	}
 	if len(failures) > 0 {
 		return &validate.Error{Fields: failures}
 	}
@@ -4849,9 +5029,6 @@ func (s *SendBlockchainMessageReq) Validate() error {
 
 	var failures []validate.FieldError
 	if err := func() error {
-		if s.Batch == nil {
-			return nil // optional
-		}
 		if err := (validate.Array{
 			MinLength:    0,
 			MinLengthSet: false,
@@ -5038,6 +5215,29 @@ func (s *Subscription) Validate() error {
 	}(); err != nil {
 		failures = append(failures, validate.FieldError{
 			Name:  "payment_per_period",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
+}
+
+func (s *SubscriptionAction) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		if err := s.Price.Validate(); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "price",
 			Error: err,
 		})
 	}
@@ -5658,6 +5858,29 @@ func (s *ValueFlowJettonsItem) Validate() error {
 	return nil
 }
 
+func (s *VaultDepositInfo) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		if err := s.Price.Validate(); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "price",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
+}
+
 func (s *Wallet) Validate() error {
 	if s == nil {
 		return validate.ErrNilPointer
@@ -5843,6 +6066,36 @@ func (s *WithdrawStakeRequestAction) Validate() error {
 	}(); err != nil {
 		failures = append(failures, validate.FieldError{
 			Name:  "implementation",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
+}
+
+func (s *WithdrawTokenStakeRequestAction) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		if value, ok := s.StakeMeta.Get(); ok {
+			if err := func() error {
+				if err := value.Validate(); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "stake_meta",
 			Error: err,
 		})
 	}

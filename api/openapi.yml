@@ -87,8 +87,8 @@ tags:
   - name: Purchases
 
 security:
-  - bearerAuth: []
-  - {}
+  - bearerAuth: [ ]
+  - { }
 
 paths:
   /v2/openapi.json:
@@ -540,6 +540,23 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/BlockchainAccountInspect'
+        'default':
+          $ref: '#/components/responses/Error'
+  /v2/blockchain/libraries/{hash}:
+    get:
+      description: Get library cell
+      operationId: getLibraryByHash
+      tags:
+        - Blockchain
+      parameters:
+        - $ref: '#/components/parameters/hashParameter'
+      responses:
+        '200':
+          description: library cell
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BlockchainLibrary'
         'default':
           $ref: '#/components/responses/Error'
   /v2/address/{account_id}/parse:
@@ -1065,7 +1082,7 @@ paths:
                 $ref: '#/components/schemas/Multisigs'
         'default':
           $ref: '#/components/responses/Error'
-
+  
   /v2/accounts/{account_id}/diff:
     get:
       description: Get account's balance change
@@ -1106,7 +1123,7 @@ paths:
                     example: 1000000000
         'default':
           $ref: '#/components/responses/Error'
-
+  
   /v2/accounts/{account_id}/extra-currency/{id}/history:
     get:
       description: Get the transfer history of extra currencies for an account.
@@ -1159,7 +1176,7 @@ paths:
                 $ref: '#/components/schemas/AccountEvents'
         'default':
           $ref: '#/components/responses/Error'
-
+  
   /v2/dns/{domain_name}:
     get:
       description: Get full information about domain name
@@ -1185,6 +1202,12 @@ paths:
         - DNS
       parameters:
         - $ref: '#/components/parameters/domainNameParameter'
+        - name: filter
+          in: query
+          schema:
+            type: boolean
+            default: false
+          required: false
       responses:
         '200':
           description: dns record
@@ -1618,7 +1641,7 @@ paths:
                 $ref: '#/components/schemas/JettonOperations'
         'default':
           $ref: '#/components/responses/Error'
-
+  
   /v2/extra-currency/{id}:
     get:
       description: Get extra currency info by id
@@ -1771,7 +1794,7 @@ paths:
                       $ref: '#/components/schemas/StorageProvider'
         'default':
           $ref: '#/components/responses/Error'
-
+  
   /v2/rates:
     get:
       description: Get the token price in the chosen currency for display only. Don’t use this for financial transactions.
@@ -1898,7 +1921,7 @@ paths:
                       $ref: '#/components/schemas/MarketTonRates'
         'default':
           $ref: '#/components/responses/Error'
-
+  
   /v2/tonconnect/payload:
     get:
       description: Get a payload for further token receipt
@@ -2821,6 +2844,7 @@ paths:
         - Wallet
       parameters:
         - $ref: '#/components/parameters/i18n'
+        - $ref: '#/components/parameters/currencyQuery'
       requestBody:
         $ref: "#/components/requestBodies/EmulationBoc"
       responses:
@@ -3018,6 +3042,14 @@ components:
       schema:
         type: string
         example: NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE2ODQ3...
+    hashParameter:
+      in: path
+      name: hash
+      required: true
+      description: "hash in hex (without 0x) format"
+      schema:
+        type: string
+        example: "131D0C65055F04E9C19D687B51BC70F952FD9CA6F02C2801D3B89964A779DF85"
     i18n:
       in: header
       name: Accept-Language
@@ -4694,6 +4726,15 @@ components:
               root:
                 type: string
                 format: cell
+    BlockchainLibrary:
+      type: object
+      required:
+        - boc
+      properties:
+        boc:
+          type: string
+          format: cell
+          example: b5ee9c7201010101005f0000baff0020dd2082014c97ba218201339cbab19c71b0ed44d0d31fd70bffe304e0a4f260810200d71820d70b1fed44d0d31fd3ffd15112baf2a122f901541044f910f2a2f80001d31f3120d74a96d307d402fb00ded1a4c8cb1fcbffc9ed54
     WalletStats:
       type: object
       required:
@@ -5604,6 +5645,7 @@ components:
       type: string
       enum:
         - whitelist
+        - graylist
         - blacklist
         - none
     JettonPreview:
@@ -5695,6 +5737,18 @@ components:
         - extra_currency
         - jetton
         - fiat
+    VaultDepositInfo:
+      type: object
+      required:
+        - price
+        - vault
+      properties:
+        price:
+          $ref: "#/components/schemas/Price"
+        vault:
+          type: string
+          format: address
+          example: 0:0BB5A9F69043EEBDDA5AD2E946EB953242BD8F603FE795D90698CEEC6BFC60A0
     Price:
       type: object
       required:
@@ -5868,9 +5922,7 @@ components:
           format: address
           example: "0:da6b1b6663a0e4d18cc8574ccd9db5296e367dd9324706f3bbd9eb1cd2caf0bf"
         seqno:
-          type: integer
-          format: int64
-          example: 1
+          type: string
         threshold:
           type: integer
           format: int32
@@ -5910,9 +5962,7 @@ components:
           format: address
           example: "0:da6b1b6663a0e4d18cc8574ccd9db5296e367dd9324706f3bbd9eb1cd2caf0bf"
         order_seqno:
-          type: integer
-          format: int64
-          example: 1
+          type: string
         threshold:
           type: integer
           format: int32
@@ -6058,6 +6108,13 @@ components:
             - SmartContractExec
             - DomainRenew
             - Purchase
+            - AddExtension
+            - RemoveExtension
+            - SetSignatureAllowedAction
+            - GasRelay
+            - DepositTokenStake
+            - WithdrawTokenStakeRequest
+            - LiquidityDeposit
             - Unknown
         status:
           type: string
@@ -6105,8 +6162,20 @@ components:
           $ref: '#/components/schemas/DomainRenewAction'
         Purchase:
           $ref: '#/components/schemas/PurchaseAction'
+        AddExtension:
+          $ref: '#/components/schemas/AddExtensionAction'
+        RemoveExtension:
+          $ref: '#/components/schemas/RemoveExtensionAction'
+        SetSignatureAllowedAction:
+          $ref: '#/components/schemas/SetSignatureAllowedAction'
         GasRelay:
           $ref: '#/components/schemas/GasRelayAction'
+        DepositTokenStake:
+          $ref: '#/components/schemas/DepositTokenStakeAction'
+        WithdrawTokenStakeRequest:
+          $ref: '#/components/schemas/WithdrawTokenStakeRequestAction'
+        LiquidityDeposit:
+          $ref: '#/components/schemas/LiquidityDepositAction'
         simple_preview:
           $ref: '#/components/schemas/ActionSimplePreview'
         base_transactions:
@@ -6271,6 +6340,40 @@ components:
           $ref: '#/components/schemas/Price'
         metadata:
           $ref: '#/components/schemas/Metadata'
+    AddExtensionAction:
+      type: object
+      required:
+        - wallet
+        - extension
+      properties:
+        wallet:
+          $ref: '#/components/schemas/AccountAddress'
+        extension:
+          type: string
+          format: address
+          example: 0:10C1073837B93FDAAD594284CE8B8EFF7B9CF25427440EB2FC682762E1471365
+    RemoveExtensionAction:
+      type: object
+      required:
+        - wallet
+        - extension
+      properties:
+        wallet:
+          $ref: '#/components/schemas/AccountAddress'
+        extension:
+          type: string
+          format: address
+          example: 0:10C1073837B93FDAAD594284CE8B8EFF7B9CF25427440EB2FC682762E1471365
+    SetSignatureAllowedAction:
+      type: object
+      required:
+        - wallet
+        - allowed
+      properties:
+        wallet:
+          $ref: '#/components/schemas/AccountAddress'
+        allowed:
+          type: boolean
     NftItemTransferAction:
       type: object
       required:
@@ -6391,7 +6494,8 @@ components:
         - subscriber
         - subscription
         - beneficiary
-        - amount
+        - admin
+        - price
         - initial
       properties:
         subscriber:
@@ -6402,11 +6506,16 @@ components:
           example: "0:da6b1b6663a0e4d18cc8574ccd9db5296e367dd9324706f3bbd9eb1cd2caf0bf"
         beneficiary:
           $ref: '#/components/schemas/AccountAddress'
+        admin:
+          $ref: '#/components/schemas/AccountAddress'
         amount:
+          deprecated: true
           type: integer
           format: int64
           example: 1000000000
           x-js-format: bigint
+        price:
+          $ref: '#/components/schemas/Price'
         initial:
           type: boolean
           example: false
@@ -6416,6 +6525,7 @@ components:
         - subscriber
         - subscription
         - beneficiary
+        - admin
       properties:
         subscriber:
           $ref: '#/components/schemas/AccountAddress'
@@ -6424,6 +6534,8 @@ components:
           format: address
           example: "0:da6b1b6663a0e4d18cc8574ccd9db5296e367dd9324706f3bbd9eb1cd2caf0bf"
         beneficiary:
+          $ref: '#/components/schemas/AccountAddress'
+        admin:
           $ref: '#/components/schemas/AccountAddress'
     AuctionBidAction:
       type: object
@@ -6544,10 +6656,7 @@ components:
       properties:
         dex:
           type: string
-          enum:
-            - stonfi
-            - dedust
-            - megatonfi
+          example: "stonfi"
         amount_in:
           type: string
           x-js-format: bigint
@@ -6598,6 +6707,45 @@ components:
           $ref: '#/components/schemas/AccountAddress'
         buyer:
           $ref: '#/components/schemas/AccountAddress'
+    DepositTokenStakeAction:
+      type: object
+      required:
+        - staker
+        - protocol
+      properties:
+        staker:
+          $ref: '#/components/schemas/AccountAddress'
+        protocol:
+          $ref: '#/components/schemas/Protocol'
+        stake_meta:
+          $ref: '#/components/schemas/Price'
+    WithdrawTokenStakeRequestAction:
+      type: object
+      required:
+        - staker
+        - protocol
+      properties:
+        staker:
+          $ref: '#/components/schemas/AccountAddress'
+        protocol:
+          $ref: '#/components/schemas/Protocol'
+        stake_meta:
+          $ref: '#/components/schemas/Price'
+    LiquidityDepositAction:
+      type: object
+      required:
+        - protocol
+        - from
+        - tokens
+      properties:
+        protocol:
+          $ref: '#/components/schemas/Protocol'
+        from:
+          $ref: '#/components/schemas/AccountAddress'
+        tokens:
+          type: array
+          items:
+            $ref: '#/components/schemas/VaultDepositInfo'
     ActionSimplePreview:
       type: object
       description: shortly describes what this action is about.
@@ -6830,6 +6978,8 @@ components:
           example: 0:dea8f638b789172ce36d10a20318125e52c649aa84893cd77858224fe2b9b0ee
         beneficiary:
           $ref: '#/components/schemas/AccountAddress'
+        admin:
+          $ref: '#/components/schemas/AccountAddress'
     Subscriptions:
       type: object
       required:
@@ -7045,6 +7195,10 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/NftItem'
+        total_equivalent:
+          type: number
+          format: float
+          description: "Estimated equivalent value of all assets at risk in selected currency (for example USD)"
     JettonQuantity:
       type: object
       required:
@@ -7600,7 +7754,7 @@ components:
         Each inner array is a pair [timestamp, price]:
           • index 0 — Unix timestamp (int64)  
           • index 1 — token price (decimal) in the requested currency.
-      example: [[1668436763, 97.21323234]]
+      example: [ [ 1668436763, 97.21323234 ] ]
     AccountInfoByStateInit:
       type: object
       required:
@@ -7946,6 +8100,17 @@ components:
           type: string
           description: String representation of the value according to the specified type
           example: "0xfa01d78381ae32"
+    Protocol:
+      type: object
+      required:
+        - name
+      properties:
+        name:
+          type: string
+          example: "Ethena"
+        image:
+          type: string
+          example: https://cache.tonapi.io/images/jetton.jpg
 
   responses:
     Error:

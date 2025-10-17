@@ -23,11 +23,6 @@ import (
 	"github.com/ogen-go/ogen/uri"
 )
 
-func trimTrailingSlashes(u *url.URL) {
-	u.Path = strings.TrimRight(u.Path, "/")
-	u.RawPath = strings.TrimRight(u.RawPath, "/")
-}
-
 // Invoker invokes operations described by OpenAPI v3 specification.
 type Invoker interface {
 	// AccountDnsBackResolve invokes accountDnsBackResolve operation.
@@ -423,6 +418,12 @@ type Invoker interface {
 	//
 	// GET /v2/events/{event_id}/jettons
 	GetJettonsEvents(ctx context.Context, params GetJettonsEventsParams) (*Event, error)
+	// GetLibraryByHash invokes getLibraryByHash operation.
+	//
+	// Get library cell.
+	//
+	// GET /v2/blockchain/libraries/{hash}
+	GetLibraryByHash(ctx context.Context, params GetLibraryByHashParams) (*BlockchainLibrary, error)
 	// GetMarketsRates invokes getMarketsRates operation.
 	//
 	// Get the TON price from markets.
@@ -697,6 +698,11 @@ type Client struct {
 	serverURL *url.URL
 	sec       SecuritySource
 	baseClient
+}
+
+func trimTrailingSlashes(u *url.URL) {
+	u.Path = strings.TrimRight(u.Path, "/")
+	u.RawPath = strings.TrimRight(u.RawPath, "/")
 }
 
 // NewClient initializes new Client defined by OAS.
@@ -1285,6 +1291,27 @@ func (c *Client) sendDnsResolve(ctx context.Context, params DnsResolveParams) (r
 	}
 	pathParts[2] = "/resolve"
 	uri.AddPathParts(u, pathParts[:]...)
+
+	stage = "EncodeQueryParams"
+	q := uri.NewQueryEncoder()
+	{
+		// Encode "filter" parameter.
+		cfg := uri.QueryParameterEncodingConfig{
+			Name:    "filter",
+			Style:   uri.QueryStyleForm,
+			Explode: true,
+		}
+
+		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
+			if val, ok := params.Filter.Get(); ok {
+				return e.EncodeValue(conv.BoolToString(val))
+			}
+			return nil
+		}); err != nil {
+			return res, errors.Wrap(err, "encode query")
+		}
+	}
+	u.RawQuery = q.Values().Encode()
 
 	stage = "EncodeRequest"
 	r, err := ht.NewRequest(ctx, "GET", u)
@@ -1959,6 +1986,27 @@ func (c *Client) sendEmulateMessageToWallet(ctx context.Context, request *Emulat
 	var pathParts [1]string
 	pathParts[0] = "/v2/wallet/emulate"
 	uri.AddPathParts(u, pathParts[:]...)
+
+	stage = "EncodeQueryParams"
+	q := uri.NewQueryEncoder()
+	{
+		// Encode "currency" parameter.
+		cfg := uri.QueryParameterEncodingConfig{
+			Name:    "currency",
+			Style:   uri.QueryStyleForm,
+			Explode: true,
+		}
+
+		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
+			if val, ok := params.Currency.Get(); ok {
+				return e.EncodeValue(conv.StringToString(val))
+			}
+			return nil
+		}); err != nil {
+			return res, errors.Wrap(err, "encode query")
+		}
+	}
+	u.RawQuery = q.Values().Encode()
 
 	stage = "EncodeRequest"
 	r, err := ht.NewRequest(ctx, "POST", u)
@@ -9829,6 +9877,130 @@ func (c *Client) sendGetJettonsEvents(ctx context.Context, params GetJettonsEven
 
 	stage = "DecodeResponse"
 	result, err := decodeGetJettonsEventsResponse(resp)
+	if err != nil {
+		return res, errors.Wrap(err, "decode response")
+	}
+
+	return result, nil
+}
+
+// GetLibraryByHash invokes getLibraryByHash operation.
+//
+// Get library cell.
+//
+// GET /v2/blockchain/libraries/{hash}
+func (c *Client) GetLibraryByHash(ctx context.Context, params GetLibraryByHashParams) (*BlockchainLibrary, error) {
+	res, err := c.sendGetLibraryByHash(ctx, params)
+	return res, err
+}
+
+func (c *Client) sendGetLibraryByHash(ctx context.Context, params GetLibraryByHashParams) (res *BlockchainLibrary, err error) {
+	otelAttrs := []attribute.KeyValue{
+		otelogen.OperationID("getLibraryByHash"),
+		semconv.HTTPRequestMethodKey.String("GET"),
+		semconv.HTTPRouteKey.String("/v2/blockchain/libraries/{hash}"),
+	}
+
+	// Run stopwatch.
+	startTime := time.Now()
+	defer func() {
+		// Use floating point division here for higher precision (instead of Millisecond method).
+		elapsedDuration := time.Since(startTime)
+		c.duration.Record(ctx, float64(elapsedDuration)/float64(time.Millisecond), metric.WithAttributes(otelAttrs...))
+	}()
+
+	// Increment request counter.
+	c.requests.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
+
+	// Start a span for this request.
+	ctx, span := c.cfg.Tracer.Start(ctx, GetLibraryByHashOperation,
+		trace.WithAttributes(otelAttrs...),
+		clientSpanKind,
+	)
+	// Track stage for error reporting.
+	var stage string
+	defer func() {
+		if err != nil {
+			span.RecordError(err)
+			span.SetStatus(codes.Error, stage)
+			c.errors.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
+		}
+		span.End()
+	}()
+
+	stage = "BuildURL"
+	u := uri.Clone(c.requestURL(ctx))
+	var pathParts [2]string
+	pathParts[0] = "/v2/blockchain/libraries/"
+	{
+		// Encode "hash" parameter.
+		e := uri.NewPathEncoder(uri.PathEncoderConfig{
+			Param:   "hash",
+			Style:   uri.PathStyleSimple,
+			Explode: false,
+		})
+		if err := func() error {
+			return e.EncodeValue(conv.StringToString(params.Hash))
+		}(); err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		encoded, err := e.Result()
+		if err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		pathParts[1] = encoded
+	}
+	uri.AddPathParts(u, pathParts[:]...)
+
+	stage = "EncodeRequest"
+	r, err := ht.NewRequest(ctx, "GET", u)
+	if err != nil {
+		return res, errors.Wrap(err, "create request")
+	}
+
+	{
+		type bitset = [1]uint8
+		var satisfied bitset
+		{
+			stage = "Security:BearerAuth"
+			switch err := c.securityBearerAuth(ctx, GetLibraryByHashOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 0
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"BearerAuth\"")
+			}
+		}
+
+		if ok := func() bool {
+		nextRequirement:
+			for _, requirement := range []bitset{
+				{0b00000001},
+				{},
+			} {
+				for i, mask := range requirement {
+					if satisfied[i]&mask != mask {
+						continue nextRequirement
+					}
+				}
+				return true
+			}
+			return false
+		}(); !ok {
+			return res, ogenerrors.ErrSecurityRequirementIsNotSatisfied
+		}
+	}
+
+	stage = "SendRequest"
+	resp, err := c.cfg.Client.Do(r)
+	if err != nil {
+		return res, errors.Wrap(err, "do request")
+	}
+	defer resp.Body.Close()
+
+	stage = "DecodeResponse"
+	result, err := decodeGetLibraryByHashResponse(resp)
 	if err != nil {
 		return res, errors.Wrap(err, "decode response")
 	}

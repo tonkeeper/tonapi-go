@@ -24,6 +24,7 @@ type BlockchainAccountInspectParams struct {
 type DnsResolveParams struct {
 	// Domain name with .ton or .t.me.
 	DomainName string
+	Filter     OptBool
 }
 
 // DownloadBlockchainBlockBocParams is parameters of downloadBlockchainBlockBoc operation.
@@ -54,6 +55,7 @@ type EmulateMessageToTraceParams struct {
 // EmulateMessageToWalletParams is parameters of emulateMessageToWallet operation.
 type EmulateMessageToWalletParams struct {
 	AcceptLanguage OptString
+	Currency       OptString
 }
 
 // ExecGetMethodForBlockchainAccountParams is parameters of execGetMethodForBlockchainAccount operation.
@@ -422,6 +424,12 @@ type GetJettonsEventsParams struct {
 	// Event ID or transaction hash in hex (without 0x) or base64url format.
 	EventID        string
 	AcceptLanguage OptString
+}
+
+// GetLibraryByHashParams is parameters of getLibraryByHash operation.
+type GetLibraryByHashParams struct {
+	// Hash in hex (without 0x) format.
+	Hash string
 }
 
 // GetMultisigAccountParams is parameters of getMultisigAccount operation.
