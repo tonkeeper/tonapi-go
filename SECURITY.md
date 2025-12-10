@@ -12,7 +12,7 @@
 
 ## Reporting a Vulnerability
 
-To report a security vulnerability, please email our security team at [security@example.com](mailto:security@example.com) with details of the issue.
+To report a security vulnerability, please email our security team at [security@yourdomain.com](mailto:security@yourdomain.com) with details of the issue.
 
 We aim to acknowledge your report within 3 business days and provide a more detailed response within 7 business days.
 
