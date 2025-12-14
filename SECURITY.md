@@ -10,7 +10,7 @@ We recommend always using the latest version of tonapi-go from the main branch. 
 
 ## Reporting a Vulnerability
 
-To report a security vulnerability, please email our security team at [security@yourdomain.com](mailto:security@yourdomain.com) with details of the issue.
+To report a security vulnerability, please email our security team at [security@tonapi.io](mailto:security@tonapi.io) with details of the issue.
 
 We aim to acknowledge your report within 3 business days and provide a more detailed response within 7 business days.
 
