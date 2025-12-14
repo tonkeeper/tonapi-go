@@ -2,13 +2,11 @@
 
 ## Supported Versions
 
+We recommend always using the latest version of tonapi-go from the main branch. Security updates will be applied to the main branch.
 
 | Version | Supported          |
 | ------- | ------------------ |
-| 5.1.x   | :white_check_mark: |
-| 5.0.x   | :x:                |
-| 4.0.x   | :white_check_mark: |
-| < 4.0   | :x:                |
+| latest  | :white_check_mark: |
 
 ## Reporting a Vulnerability
 
