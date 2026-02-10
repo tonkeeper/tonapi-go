@@ -2,13 +2,16 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	"net/http"
 	"os"
 	"sort"
 	"sync"
 	"time"
 
 	sse "github.com/r3labs/sse/v2"
+	"github.com/tonkeeper/tonapi-go"
 	"github.com/tonkeeper/tongo/liteapi"
 	"github.com/tonkeeper/tongo/tlb"
 	"github.com/tonkeeper/tongo/ton"
@@ -16,23 +19,26 @@ import (
 )
 
 const (
-	numRuns = 20
+	numRuns = 10
 )
 
 type RunResult struct {
-	SSELatency  time.Duration
-	LiteLatency time.Duration
-	SSESuccess  bool
-	LiteSuccess bool
+	SSELatency       time.Duration
+	LiteLatency      time.Duration
+	TonapiLatency    time.Duration
+	ToncenterLatency time.Duration
+	SSESuccess       bool
+	LiteSuccess      bool
+	TonapiSuccess    bool
+	ToncenterSuccess bool
 }
 
 func main() {
 	seed := ""
-	destinationStr := ""
 	apiKey := ""
+	toncenterApiKey := ""
+	version := wallet.V4R2
 	amount := uint64(10_000_000) // 0.01 TON
-
-	destination := ton.MustParseAccountID(destinationStr)
 
 	cli, err := liteapi.NewClient(liteapi.Testnet())
 	if err != nil {
@@ -46,18 +52,19 @@ func main() {
 		os.Exit(1)
 	}
 
-	w, err := wallet.New(privateKey, wallet.V3R2, cli)
+	w, err := wallet.New(privateKey, version, cli)
 	if err != nil {
 		fmt.Printf("failed to create wallet: %v\n", err)
 		os.Exit(1)
 	}
 
 	walletAddress := w.GetAddress()
+	destination := walletAddress
 	fmt.Printf("Wallet address: %v\n", walletAddress.ToHuman(true, false))
 	fmt.Printf("Running %d tests...\n\n", numRuns)
 
 	var results []RunResult
-	var sseLatencies, liteLatencies []time.Duration
+	var sseLatencies, liteLatencies, tonapiLatencies, toncenterLatencies []time.Duration
 
 	for i := 1; i <= numRuns; i++ {
 		fmt.Printf("=== RUN %d/%d ===\n", i, numRuns)
@@ -68,7 +75,7 @@ func main() {
 			continue
 		}
 
-		result := runTest(cli, w, walletAddress, destination, amount, apiKey)
+		result := runTest(cli, w, walletAddress, destination, amount, apiKey, toncenterApiKey)
 		results = append(results, result)
 
 		if result.SSESuccess {
@@ -83,6 +90,15 @@ func main() {
 			fmt.Printf("  Liteserver: %v\n", result.LiteLatency)
 		} else {
 			fmt.Printf("  Liteserver: ERROR\n")
+		}
+
+		if result.TonapiSuccess {
+			tonapiLatencies = append(tonapiLatencies, result.TonapiLatency)
+			fmt.Printf("  Tonapi:     %v\n", result.TonapiLatency)
+		}
+		if result.ToncenterSuccess {
+			toncenterLatencies = append(toncenterLatencies, result.ToncenterLatency)
+			fmt.Printf("  Toncenter:  %v\n", result.ToncenterLatency)
 		}
 
 		fmt.Println()
@@ -117,9 +133,111 @@ func main() {
 	} else {
 		fmt.Printf("Liteserver: No successful runs\n")
 	}
+
+	fmt.Println()
+
+	if len(tonapiLatencies) > 0 {
+		fmt.Printf("Tonapi Statistics (%d successful runs):\n", len(tonapiLatencies))
+		fmt.Printf("  Average: %v\n", average(tonapiLatencies))
+		fmt.Printf("  Min:     %v\n", min(tonapiLatencies))
+		fmt.Printf("  Max:     %v\n", max(tonapiLatencies))
+		fmt.Printf("  Median:  %v\n", median(tonapiLatencies))
+	} else {
+		fmt.Printf("Tonapi: No successful runs\n")
+	}
+
+	fmt.Println()
+
+	if len(toncenterLatencies) > 0 {
+		fmt.Printf("Toncenter Statistics (%d successful runs):\n", len(toncenterLatencies))
+		fmt.Printf("  Average: %v\n", average(toncenterLatencies))
+		fmt.Printf("  Min:     %v\n", min(toncenterLatencies))
+		fmt.Printf("  Max:     %v\n", max(toncenterLatencies))
+		fmt.Printf("  Median:  %v\n", median(toncenterLatencies))
+	} else {
+		fmt.Printf("Toncenter: No successful runs\n")
+	}
+
 }
 
-func runTest(cli *liteapi.Client, w wallet.Wallet, walletAddress ton.AccountID, destination ton.AccountID, amount uint64, apiKey string) RunResult {
+func pollTonapi(ctx context.Context, account ton.AccountID, token string, initialLT uint64, foundCh chan<- time.Time) {
+	ticker := time.NewTicker(50 * time.Millisecond)
+	defer ticker.Stop()
+	api, _ := tonapi.NewClient("https://testnet.tonapi.io", tonapi.WithToken(token))
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+			txs, err := api.GetBlockchainAccountTransactions(ctx, tonapi.GetBlockchainAccountTransactionsParams{
+				AccountID: account.String(),
+				Limit:     tonapi.NewOptInt32(3),
+			})
+			if err != nil {
+				if ctx.Err() != nil {
+					return
+				}
+				continue
+			}
+
+			currentLT := uint64(txs.Transactions[0].Lt)
+			if currentLT > initialLT {
+				select {
+				case foundCh <- time.Now():
+				default:
+				}
+				return
+			}
+		}
+	}
+}
+
+func pollToncenter(ctx context.Context, account ton.AccountID, token string, initialLT uint64, foundCh chan<- time.Time) {
+	ticker := time.NewTicker(50 * time.Millisecond)
+	defer ticker.Stop()
+	req, _ := http.NewRequest("GET", fmt.Sprintf("https://testnet.toncenter.com/api/v3/transactions?account=%s&limit=3&offset=0&sort=desc", account.String()), nil)
+	req.Header.Add("X-Api-Key", token)
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+			resp, err := http.DefaultClient.Do(req)
+			if err != nil {
+				fmt.Println(err)
+				return
+			}
+			if resp.StatusCode != http.StatusOK {
+				fmt.Printf("unexpected status code: %d\n", resp.StatusCode)
+				return
+			}
+			var body struct {
+				Transactions []struct {
+					Lt uint64 `json:"lt,string"`
+				} `json:"transactions"`
+			}
+			err = json.NewDecoder(resp.Body).Decode(&body)
+			if err != nil {
+				if ctx.Err() != nil {
+					fmt.Println(err)
+					return
+				}
+				continue
+			}
+
+			currentLT := uint64(body.Transactions[0].Lt)
+			if currentLT > initialLT {
+				select {
+				case foundCh <- time.Now():
+				default:
+				}
+				return
+			}
+		}
+	}
+}
+
+func runTest(cli *liteapi.Client, w wallet.Wallet, walletAddress ton.AccountID, destination ton.AccountID, amount uint64, apiKey, toncenterApikey string) RunResult {
 	result := RunResult{}
 
 	initialState, err := cli.GetAccountState(context.Background(), walletAddress)
@@ -131,6 +249,8 @@ func runTest(cli *liteapi.Client, w wallet.Wallet, walletAddress ton.AccountID, 
 
 	sseFoundCh := make(chan time.Time, 1)
 	liteFoundCh := make(chan time.Time, 1)
+	tonapiFoundCh := make(chan time.Time, 1)
+	toncenterFoundCh := make(chan time.Time, 1)
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
@@ -140,6 +260,16 @@ func runTest(cli *liteapi.Client, w wallet.Wallet, walletAddress ton.AccountID, 
 	go func() {
 		defer wg.Done()
 		listenSSE(ctx, walletAddress.ToRaw(), apiKey, sseFoundCh)
+	}()
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		pollTonapi(ctx, walletAddress, apiKey, initialLT, tonapiFoundCh)
+	}()
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		pollToncenter(ctx, walletAddress, toncenterApikey, initialLT, toncenterFoundCh)
 	}()
 
 	time.Sleep(500 * time.Millisecond)
@@ -170,7 +300,7 @@ func runTest(cli *liteapi.Client, w wallet.Wallet, walletAddress ton.AccountID, 
 
 	timeout := time.After(60 * time.Second)
 
-	for !result.SSESuccess || !result.LiteSuccess {
+	for !result.SSESuccess || !result.LiteSuccess || !result.TonapiSuccess || !result.ToncenterSuccess {
 		select {
 		case t := <-sseFoundCh:
 			if !result.SSESuccess {
@@ -181,6 +311,16 @@ func runTest(cli *liteapi.Client, w wallet.Wallet, walletAddress ton.AccountID, 
 			if !result.LiteSuccess {
 				result.LiteLatency = t.Sub(sendTime)
 				result.LiteSuccess = true
+			}
+		case t := <-tonapiFoundCh:
+			if !result.TonapiSuccess {
+				result.TonapiLatency = t.Sub(sendTime)
+				result.TonapiSuccess = true
+			}
+		case t := <-toncenterFoundCh:
+			if !result.ToncenterSuccess {
+				result.ToncenterLatency = t.Sub(sendTime)
+				result.ToncenterSuccess = true
 			}
 		case <-timeout:
 			cancel()
