@@ -23,6 +23,11 @@ import (
 	"github.com/ogen-go/ogen/uri"
 )
 
+func trimTrailingSlashes(u *url.URL) {
+	u.Path = strings.TrimRight(u.Path, "/")
+	u.RawPath = strings.TrimRight(u.RawPath, "/")
+}
+
 // Invoker invokes operations described by OpenAPI v3 specification.
 type Invoker interface {
 	// AccountDnsBackResolve invokes accountDnsBackResolve operation.
@@ -81,7 +86,8 @@ type Invoker interface {
 	EmulateMessageToTrace(ctx context.Context, request *EmulateMessageToTraceReq, params EmulateMessageToTraceParams) (*Trace, error)
 	// EmulateMessageToWallet invokes emulateMessageToWallet operation.
 	//
-	// Emulate sending message to retrieve the resulting wallet state.
+	// Emulates a wallet message on the current blockchain state and derives its consequences for the
+	// signing wallet.
 	//
 	// POST /v2/wallet/emulate
 	EmulateMessageToWallet(ctx context.Context, request *EmulateMessageToWalletReq, params EmulateMessageToWalletParams) (*MessageConsequences, error)
@@ -655,6 +661,12 @@ type Invoker interface {
 	//
 	// GET /v2/pubkeys/{public_key}/wallets
 	GetWalletsByPublicKey(ctx context.Context, params GetWalletsByPublicKeyParams) (*Wallets, error)
+	// GetWalletsByPublicKeyBulk invokes getWalletsByPublicKeyBulk operation.
+	//
+	// Get wallets by a list of public keys.
+	//
+	// POST /v2/pubkeys/wallets/_bulk
+	GetWalletsByPublicKeyBulk(ctx context.Context, request OptGetWalletsByPublicKeyBulkReq) (*WalletsByPublicKeys, error)
 	// ReindexAccount invokes reindexAccount operation.
 	//
 	// Update internal cache for a particular account.
@@ -698,11 +710,6 @@ type Client struct {
 	serverURL *url.URL
 	sec       SecuritySource
 	baseClient
-}
-
-func trimTrailingSlashes(u *url.URL) {
-	u.Path = strings.TrimRight(u.Path, "/")
-	u.RawPath = strings.TrimRight(u.RawPath, "/")
 }
 
 // NewClient initializes new Client defined by OAS.
@@ -1939,7 +1946,8 @@ func (c *Client) sendEmulateMessageToTrace(ctx context.Context, request *Emulate
 
 // EmulateMessageToWallet invokes emulateMessageToWallet operation.
 //
-// Emulate sending message to retrieve the resulting wallet state.
+// Emulates a wallet message on the current blockchain state and derives its consequences for the
+// signing wallet.
 //
 // POST /v2/wallet/emulate
 func (c *Client) EmulateMessageToWallet(ctx context.Context, request *EmulateMessageToWalletReq, params EmulateMessageToWalletParams) (*MessageConsequences, error) {
@@ -3505,6 +3513,23 @@ func (c *Client) sendGetAccountEvents(ctx context.Context, params GetAccountEven
 		}
 	}
 	{
+		// Encode "after_lt" parameter.
+		cfg := uri.QueryParameterEncodingConfig{
+			Name:    "after_lt",
+			Style:   uri.QueryStyleForm,
+			Explode: true,
+		}
+
+		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
+			if val, ok := params.AfterLt.Get(); ok {
+				return e.EncodeValue(conv.Int64ToString(val))
+			}
+			return nil
+		}); err != nil {
+			return res, errors.Wrap(err, "encode query")
+		}
+	}
+	{
 		// Encode "before_lt" parameter.
 		cfg := uri.QueryParameterEncodingConfig{
 			Name:    "before_lt",
@@ -3563,6 +3588,23 @@ func (c *Client) sendGetAccountEvents(ctx context.Context, params GetAccountEven
 		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
 			if val, ok := params.EndDate.Get(); ok {
 				return e.EncodeValue(conv.Int64ToString(val))
+			}
+			return nil
+		}); err != nil {
+			return res, errors.Wrap(err, "encode query")
+		}
+	}
+	{
+		// Encode "sort_order" parameter.
+		cfg := uri.QueryParameterEncodingConfig{
+			Name:    "sort_order",
+			Style:   uri.QueryStyleForm,
+			Explode: true,
+		}
+
+		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
+			if val, ok := params.SortOrder.Get(); ok {
+				return e.EncodeValue(conv.StringToString(string(val)))
 			}
 			return nil
 		}); err != nil {
@@ -4531,6 +4573,40 @@ func (c *Client) sendGetAccountJettonsBalances(ctx context.Context, params GetAc
 					}
 					return nil
 				})
+			}
+			return nil
+		}); err != nil {
+			return res, errors.Wrap(err, "encode query")
+		}
+	}
+	{
+		// Encode "limit" parameter.
+		cfg := uri.QueryParameterEncodingConfig{
+			Name:    "limit",
+			Style:   uri.QueryStyleForm,
+			Explode: true,
+		}
+
+		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
+			if val, ok := params.Limit.Get(); ok {
+				return e.EncodeValue(conv.IntToString(val))
+			}
+			return nil
+		}); err != nil {
+			return res, errors.Wrap(err, "encode query")
+		}
+	}
+	{
+		// Encode "offset" parameter.
+		cfg := uri.QueryParameterEncodingConfig{
+			Name:    "offset",
+			Style:   uri.QueryStyleForm,
+			Explode: true,
+		}
+
+		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
+			if val, ok := params.Offset.Get(); ok {
+				return e.EncodeValue(conv.IntToString(val))
 			}
 			return nil
 		}); err != nil {
@@ -14115,6 +14191,44 @@ func (c *Client) sendGetStakingPoolHistory(ctx context.Context, params GetStakin
 	pathParts[2] = "/history"
 	uri.AddPathParts(u, pathParts[:]...)
 
+	stage = "EncodeQueryParams"
+	q := uri.NewQueryEncoder()
+	{
+		// Encode "before_lt" parameter.
+		cfg := uri.QueryParameterEncodingConfig{
+			Name:    "before_lt",
+			Style:   uri.QueryStyleForm,
+			Explode: true,
+		}
+
+		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
+			if val, ok := params.BeforeLt.Get(); ok {
+				return e.EncodeValue(conv.Int64ToString(val))
+			}
+			return nil
+		}); err != nil {
+			return res, errors.Wrap(err, "encode query")
+		}
+	}
+	{
+		// Encode "limit" parameter.
+		cfg := uri.QueryParameterEncodingConfig{
+			Name:    "limit",
+			Style:   uri.QueryStyleForm,
+			Explode: true,
+		}
+
+		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
+			if val, ok := params.Limit.Get(); ok {
+				return e.EncodeValue(conv.Int32ToString(val))
+			}
+			return nil
+		}); err != nil {
+			return res, errors.Wrap(err, "encode query")
+		}
+	}
+	u.RawQuery = q.Values().Encode()
+
 	stage = "EncodeRequest"
 	r, err := ht.NewRequest(ctx, "GET", u)
 	if err != nil {
@@ -15051,6 +15165,131 @@ func (c *Client) sendGetWalletsByPublicKey(ctx context.Context, params GetWallet
 
 	stage = "DecodeResponse"
 	result, err := decodeGetWalletsByPublicKeyResponse(resp)
+	if err != nil {
+		return res, errors.Wrap(err, "decode response")
+	}
+
+	return result, nil
+}
+
+// GetWalletsByPublicKeyBulk invokes getWalletsByPublicKeyBulk operation.
+//
+// Get wallets by a list of public keys.
+//
+// POST /v2/pubkeys/wallets/_bulk
+func (c *Client) GetWalletsByPublicKeyBulk(ctx context.Context, request OptGetWalletsByPublicKeyBulkReq) (*WalletsByPublicKeys, error) {
+	res, err := c.sendGetWalletsByPublicKeyBulk(ctx, request)
+	return res, err
+}
+
+func (c *Client) sendGetWalletsByPublicKeyBulk(ctx context.Context, request OptGetWalletsByPublicKeyBulkReq) (res *WalletsByPublicKeys, err error) {
+	// Validate request before sending.
+	if err := func() error {
+		if value, ok := request.Get(); ok {
+			if err := func() error {
+				if err := value.Validate(); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		return res, errors.Wrap(err, "validate")
+	}
+	otelAttrs := []attribute.KeyValue{
+		otelogen.OperationID("getWalletsByPublicKeyBulk"),
+		semconv.HTTPRequestMethodKey.String("POST"),
+		semconv.HTTPRouteKey.String("/v2/pubkeys/wallets/_bulk"),
+	}
+
+	// Run stopwatch.
+	startTime := time.Now()
+	defer func() {
+		// Use floating point division here for higher precision (instead of Millisecond method).
+		elapsedDuration := time.Since(startTime)
+		c.duration.Record(ctx, float64(elapsedDuration)/float64(time.Millisecond), metric.WithAttributes(otelAttrs...))
+	}()
+
+	// Increment request counter.
+	c.requests.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
+
+	// Start a span for this request.
+	ctx, span := c.cfg.Tracer.Start(ctx, GetWalletsByPublicKeyBulkOperation,
+		trace.WithAttributes(otelAttrs...),
+		clientSpanKind,
+	)
+	// Track stage for error reporting.
+	var stage string
+	defer func() {
+		if err != nil {
+			span.RecordError(err)
+			span.SetStatus(codes.Error, stage)
+			c.errors.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
+		}
+		span.End()
+	}()
+
+	stage = "BuildURL"
+	u := uri.Clone(c.requestURL(ctx))
+	var pathParts [1]string
+	pathParts[0] = "/v2/pubkeys/wallets/_bulk"
+	uri.AddPathParts(u, pathParts[:]...)
+
+	stage = "EncodeRequest"
+	r, err := ht.NewRequest(ctx, "POST", u)
+	if err != nil {
+		return res, errors.Wrap(err, "create request")
+	}
+	if err := encodeGetWalletsByPublicKeyBulkRequest(request, r); err != nil {
+		return res, errors.Wrap(err, "encode request")
+	}
+
+	{
+		type bitset = [1]uint8
+		var satisfied bitset
+		{
+			stage = "Security:BearerAuth"
+			switch err := c.securityBearerAuth(ctx, GetWalletsByPublicKeyBulkOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 0
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"BearerAuth\"")
+			}
+		}
+
+		if ok := func() bool {
+		nextRequirement:
+			for _, requirement := range []bitset{
+				{0b00000001},
+				{},
+			} {
+				for i, mask := range requirement {
+					if satisfied[i]&mask != mask {
+						continue nextRequirement
+					}
+				}
+				return true
+			}
+			return false
+		}(); !ok {
+			return res, ogenerrors.ErrSecurityRequirementIsNotSatisfied
+		}
+	}
+
+	stage = "SendRequest"
+	resp, err := c.cfg.Client.Do(r)
+	if err != nil {
+		return res, errors.Wrap(err, "do request")
+	}
+	defer resp.Body.Close()
+
+	stage = "DecodeResponse"
+	result, err := decodeGetWalletsByPublicKeyBulkResponse(resp)
 	if err != nil {
 		return res, errors.Wrap(err, "decode response")
 	}

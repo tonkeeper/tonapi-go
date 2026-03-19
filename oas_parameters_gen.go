@@ -125,10 +125,13 @@ type GetAccountEventsParams struct {
 	// Filter actions where requested account is not real subject (for example sender or receiver jettons).
 	SubjectOnly OptBool
 	// Omit this parameter to get last events.
+	AfterLt OptInt64
+	// Omit this parameter to get last events.
 	BeforeLt  OptInt64
 	Limit     int
 	StartDate OptInt64
 	EndDate   OptInt64
+	SortOrder OptGetAccountEventsSortOrder
 }
 
 // GetAccountExtraCurrencyHistoryByIDParams is parameters of getAccountExtraCurrencyHistoryByID operation.
@@ -179,6 +182,8 @@ type GetAccountJettonsBalancesParams struct {
 	Currencies []string
 	// Comma separated list supported extensions.
 	SupportedExtensions []string
+	Limit               OptInt
+	Offset              OptInt
 }
 
 // GetAccountJettonsHistoryParams is parameters of getAccountJettonsHistory operation.
@@ -603,6 +608,9 @@ type GetReducedBlockchainBlocksParams struct {
 type GetStakingPoolHistoryParams struct {
 	// Account ID.
 	AccountID string
+	// Omit this parameter to get last log entries.
+	BeforeLt OptInt64
+	Limit    OptInt32
 }
 
 // GetStakingPoolInfoParams is parameters of getStakingPoolInfo operation.

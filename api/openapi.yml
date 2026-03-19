@@ -674,6 +674,8 @@ paths:
         - $ref: '#/components/parameters/accountIDParameter'
         - $ref: '#/components/parameters/currenciesQuery'
         - $ref: '#/components/parameters/supportedExtensions'
+        - $ref: '#/components/parameters/limitQuery'
+        - $ref: '#/components/parameters/offsetQuery'
       responses:
         '200':
           description: account jettons balances
@@ -869,6 +871,15 @@ paths:
             type: boolean
             default: false
           required: false
+        - name: after_lt
+          in: query
+          description: "omit this parameter to get last events"
+          required: false
+          schema:
+            type: integer
+            format: int64
+            example: 25758317000002
+            x-js-format: bigint
         - name: before_lt
           in: query
           description: "omit this parameter to get last events"
@@ -902,6 +913,15 @@ paths:
             format: int64
             maximum: 2114380800
             example: 1668436763
+        - name: sort_order
+          in: query
+          schema:
+            type: string
+            description: "used to sort the result-set in ascending or descending order by lt."
+            default: "desc"
+            enum:
+              - desc
+              - asc
       responses:
         '200':
           description: account's events
@@ -1711,6 +1731,25 @@ paths:
         - Staking
       parameters:
         - $ref: '#/components/parameters/accountIDParameter'
+        - name: before_lt
+          in: query
+          description: "omit this parameter to get last log entries"
+          required: false
+          schema:
+            type: integer
+            format: int64
+            example: 25758317000002
+            x-js-format: bigint
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            format: int32
+            default: 100
+            maximum: 100
+            minimum: 1
+            example: 100
       responses:
         '200':
           description: pool history
@@ -1812,6 +1851,7 @@ paths:
             maxItems: 100
             items:
               type: string
+              format: address
             example: [ "ton" ]
         - in: query
           name: currencies
@@ -2091,6 +2131,23 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Wallets'
+        'default':
+          $ref: '#/components/responses/Error'
+  /v2/pubkeys/wallets/_bulk:
+    post:
+      description: Get wallets by a list of public keys
+      operationId: getWalletsByPublicKeyBulk
+      tags:
+        - Wallet
+      requestBody:
+        $ref: '#/components/requestBodies/PublicKeys'
+      responses:
+        '200':
+          description: grouped wallets per public key
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WalletsByPublicKeys'
         'default':
           $ref: '#/components/responses/Error'
 
@@ -2837,7 +2894,7 @@ paths:
           $ref: '#/components/responses/Error'
   /v2/wallet/emulate:
     post:
-      description: Emulate sending message to retrieve the resulting wallet state
+      description: Emulates a wallet message on the current blockchain state and derives its consequences for the signing wallet
       operationId: emulateMessageToWallet
       tags:
         - Emulation
@@ -2849,7 +2906,7 @@ paths:
         $ref: "#/components/requestBodies/EmulationBoc"
       responses:
         '200':
-          description: emulated message
+          description: Emulated wallet message consequences
           content:
             application/json:
               schema:
@@ -3385,6 +3442,20 @@ components:
                   type: string
                   format: address
                   example: 0:97264395BD65A255A429B11326C84128B7D70FFED7949ABAE3036D506BA38621
+    PublicKeys:
+      description: a list of hex-encoded ed25519 public keys
+      content:
+        application/json:
+          schema:
+            type: object
+            required:
+              - public_keys
+            properties:
+              public_keys:
+                type: array
+                items:
+                  type: string
+                  example: d8519b83d5b04b17a706ef6d04f3566422be47c2b676b0823235d67b1ef4b1b2
     TonConnectProof:
       description: "Data that is expected from TON Connect"
       required: true
@@ -3490,7 +3561,7 @@ components:
       properties:
         address:
           type: string
-          format: address
+          format: maybe-address
           example: 0:10C1073837B93FDAAD594284CE8B8EFF7B9CF25427440EB2FC682762E1471365
         name:
           type: string
@@ -4784,6 +4855,30 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/Wallet'
+    WalletsByPublicKeys:
+      type: object
+      required:
+        - items
+      properties:
+        items:
+          type: array
+          description: Wallets grouped by the originating public key
+          items:
+            $ref: '#/components/schemas/WalletsByPublicKey'
+    WalletsByPublicKey:
+      type: object
+      required:
+        - public_key
+        - wallets
+      properties:
+        public_key:
+          type: string
+          description: hex-encoded ed25519 public key
+          example: d8519b83d5b04b17a706ef6d04f3566422be47c2b676b0823235d67b1ef4b1b2
+        wallets:
+          type: array
+          items:
+            $ref: '#/components/schemas/Wallet'
     Wallet:
       type: object
       required:
@@ -5544,7 +5639,6 @@ components:
                 properties:
                   code_hash:
                     type: string
-                    format: address
                   gas_usage:
                     type: integer
                     format: int64
@@ -5682,6 +5776,24 @@ components:
         score:
           type: integer
           format: int32
+        scaled_ui:
+          $ref: '#/components/schemas/ScaledUI'
+        description:
+          type: string
+    ScaledUI:
+      type: object
+      required:
+        - numerator
+        - denominator
+      properties:
+        numerator:
+          type: string
+          x-js-format: bigint
+          example: "597968399"
+        denominator:
+          type: string
+          x-js-format: bigint
+          example: "597968399"
     JettonBalance:
       type: object
       required:
@@ -5889,6 +6001,12 @@ components:
           example: false
         trust:
           $ref: '#/components/schemas/TrustType'
+        code_hash:
+          type: string
+          description: Hash of the NFT item account code cell (hex)
+        data_hash:
+          type: string
+          description: Hash of the NFT item account data cell (hex)
     NftItems:
       type: object
       required:
@@ -6092,6 +6210,7 @@ components:
             - ExtraCurrencyTransfer
             - ContractDeploy
             - JettonTransfer
+            - FlawedJettonTransfer
             - JettonBurn
             - JettonMint
             - NftItemTransfer
@@ -6130,6 +6249,8 @@ components:
           $ref: '#/components/schemas/ContractDeployAction'
         JettonTransfer:
           $ref: '#/components/schemas/JettonTransferAction'
+        FlawedJettonTransfer:
+          $ref: '#/components/schemas/FlawedJettonTransferAction'
         JettonBurn:
           $ref: '#/components/schemas/JettonBurnAction'
         JettonMint:
@@ -6385,6 +6506,7 @@ components:
           $ref: '#/components/schemas/AccountAddress'
         nft:
           type: string
+          format: maybe-address
           example: ""
         comment:
           type: string
@@ -6422,6 +6544,46 @@ components:
           x-js-format: bigint
           example: "1000000000"
           description: amount in quanta of tokens
+        comment:
+          type: string
+          example: "Hi! This is your salary. \nFrom accounting with love."
+        encrypted_comment:
+          $ref: '#/components/schemas/EncryptedComment'
+        refund:
+          $ref: '#/components/schemas/Refund'
+        jetton:
+          $ref: '#/components/schemas/JettonPreview'
+    FlawedJettonTransferAction:
+      type: object
+      required:
+        - sent_amount
+        - received_amount
+        - jetton
+        - senders_wallet
+        - recipients_wallet
+      properties:
+        sender:
+          $ref: '#/components/schemas/AccountAddress'
+        recipient:
+          $ref: '#/components/schemas/AccountAddress'
+        senders_wallet:
+          type: string
+          format: address
+          example: 0:E93E7D444180608B8520C00DC664383A387356FB6E16FDDF99DBE5E1415A574B
+        recipients_wallet:
+          type: string
+          format: address
+          example: 0:E93E7D444180608B8520C00DC664383A387356FB6E16FDDF99DBE5E1415A574B
+        sent_amount:
+          type: string
+          x-js-format: bigint
+          example: "1000000000"
+          description: sent amount in quanta of tokens
+        received_amount:
+          type: string
+          x-js-format: bigint
+          example: "1000000000"
+          description: actually received amount in quanta of tokens
         comment:
           type: string
           example: "Hi! This is your salary. \nFrom accounting with love."
@@ -6775,7 +6937,11 @@ components:
             $ref: '#/components/schemas/AccountAddress'
     AccountEvent:
       type: object
-      description: An event is built on top of a trace which is a series of transactions caused by one inbound message. TonAPI looks for known patterns inside the trace and splits the trace into actions, where a single action represents a meaningful high-level operation like a Jetton Transfer or an NFT Purchase. Actions are expected to be shown to users. It is advised not to build any logic on top of actions because actions can be changed at any time.
+      description: >
+        High-level view over a transaction trace caused by a single inbound message.
+        TonAPI analyses the trace, detects known patterns and groups low-level transactions
+        into user-facing actions (Jetton transfer, NFT purchase, etc.). Actions are a
+        best-effort UI abstraction and may change; do not rely on them for protocol-critical logic.
       required:
         - event_id
         - timestamp
@@ -6812,20 +6978,30 @@ components:
         in_progress:
           type: boolean
           example: false
-          description: Event is not finished yet. Transactions still happening
+          description: Event trace is not finished yet. Transactions still happening.
         extra:
-          description: TODO
           type: integer
           format: int64
+          x-js-format: bigint
           example: 3
+          description: >
+            Net TON change for this account not explained by actions, in nanotons:
+            extra = final_balance - initial_balance - sum(explicit TON changes from actions).
+            extra < 0 - implicit fee, extra > 0 - refund. For UI display only
         progress:
           type: number
           format: float
           minimum: 0
           maximum: 1
           example: 0.5
+          description: Event completion ratio in [0,1]
+        ext_msg_hash:
+          type: string
+          description: Normalized hash of the root external inbound message (hex).
+          example: a1b2c3d4e5f6789012345678901234567890abcdef1234567890abcdef123456
     AccountEvents:
       type: object
+      description: Paginated list of events for a single account.
       required:
         - events
         - next_from
@@ -6974,7 +7150,7 @@ components:
           $ref: '#/components/schemas/Metadata'
         address:
           type: string
-          format: address
+          format: maybe-address
           example: 0:dea8f638b789172ce36d10a20318125e52c649aa84893cd77858224fe2b9b0ee
         beneficiary:
           $ref: '#/components/schemas/AccountAddress'
@@ -7085,7 +7261,7 @@ components:
           $ref: '#/components/schemas/WalletDNS'
         next_resolver:
           type: string
-          format: address
+          format: maybe-address
           example: "0:da6b1b6663a0e4d18cc8574ccd9db5296e367dd9324706f3bbd9eb1cd2caf0bf"
         sites:
           type: array
@@ -7096,6 +7272,25 @@ components:
           type: string
           description: "tonstorage bag id"
           example: "da6b1b6663a0e4d18cc8574ccd9db5296e367dd9324706f3bbd9eb1cd2caf0bf"
+        picture:
+          $ref: '#/components/schemas/PictureDNS'
+    PictureDNS:
+      type: object
+      required:
+        - type
+      properties:
+        type:
+          type: string
+          enum:
+            - url
+            - bag_id
+        url:
+          type: string
+          description: |
+            WARNING! This is arbitrary url supplied by domain owner, use it very carefully.
+            There is no guarantee that URL resolves to an image file and is not a phishing site.
+        bag_id:
+          type: string
     NftCollection:
       type: object
       required:
@@ -7158,6 +7353,9 @@ components:
           example: false
     MessageConsequences:
       type: object
+      description: >
+        Result of emulating a wallet message on the current blockchain state: describes the expected
+        on-chain consequences (trace, high-level AccountEvent, risk) for the signing wallet. For UI display only.
       required:
         - trace
         - risk
@@ -7171,7 +7369,10 @@ components:
           $ref: '#/components/schemas/AccountEvent'
     Risk:
       type: object
-      description: Risk specifies assets that could be lost if a message would be sent to a malicious smart contract. It makes sense to understand the risk BEFORE sending a message to the blockchain.
+      description: >
+        Conservative upper bound on assets this wallet may lose if the emulated message is sent
+        and the counterparty behaves maliciously. Values may exceed current balances
+        (e.g. already-authorized future receipts). For UI display only.
       required:
         - transfer_all_remaining_balance
         - ton
@@ -7180,25 +7381,32 @@ components:
       properties:
         transfer_all_remaining_balance:
           type: boolean
-          description: transfer all the remaining balance of the wallet.
+          description: >
+            True if the message semantics allow sweeping all current and future remaining TON
+            balance of the wallet (e.g. “send all” / drain patterns).
           example: true
         ton:
           type: integer
           format: int64
-          example: 500
           x-js-format: bigint
+          example: 500
+          description: Maximum TON amount that may leave the wallet in the worst case, in nanotons.
         jettons:
           type: array
+          description: Jetton positions that may be debited from the wallet in the worst case.
           items:
             $ref: '#/components/schemas/JettonQuantity'
         nfts:
           type: array
+          description: NFT items that may be transferred out of the wallet in the worst case.
           items:
             $ref: '#/components/schemas/NftItem'
         total_equivalent:
           type: number
           format: float
-          description: "Estimated equivalent value of all assets at risk in selected currency (for example USD)"
+          description: >
+            Estimated equivalent of all assets at risk (TON, jettons, NFTs) in the selected
+            currency from currencyQuery (e.g. USD). Approximate, best-effort UI value.
     JettonQuantity:
       type: object
       required:
@@ -7378,13 +7586,22 @@ components:
         in_progress:
           type: boolean
           example: false
-          description: Event is not finished yet. Transactions still happening
+          description: Event trace is not finished yet. Transactions still happening.
         progress:
           type: number
           format: float
           minimum: 0
           maximum: 1
           example: 0.5
+        last_slice_id:
+          type: integer
+          format: int64
+          description: ID of the slice where this event was finalized. Null if not yet finalized.
+          example: 12345678
+        ext_msg_hash:
+          type: string
+          description: Normalized hash of the root external inbound message (hex).
+          example: a1b2c3d4e5f6789012345678901234567890abcdef1234567890abcdef123456
     JettonMetadata:
       type: object
       required:
@@ -7470,6 +7687,32 @@ components:
           type: integer
           format: int32
           example: 2000
+        scaled_ui:
+          $ref: '#/components/schemas/ScaledUI'
+        code_hash:
+          type: string
+          description: base64-encoded hash of jetton master code cell
+          example: 'rOIINk/O5kGub/FI/RARmMN6SY7BLesBSOonmxrz5f4='
+        data_hash:
+          type: string
+          description: base64-encoded hash of jetton master data cell
+          example: 'xd7cWaRQdVSysuG+WVJv9KRuRUGxnehLoByEcK5ukOE='
+        last_transaction_lt:
+          type: string
+          x-js-format: bigint
+          description: last transaction lt of the jetton master account
+          example: '26640202000003'
+        name:
+          type: string
+          nullable: true
+          description: DNS name resolving to this address (e.g. admin.ton)
+          example: "admin.ton"
+        interfaces:
+          type: array
+          items:
+            type: string
+          description: Contract interfaces implemented by the account (e.g. multisig_v2, wallet_v3r2)
+          example: ["multisig_v2", "wallet_v3r2"]
     JettonHolders:
       type: object
       required:
@@ -7754,7 +7997,7 @@ components:
         Each inner array is a pair [timestamp, price]:
           • index 0 — Unix timestamp (int64)  
           • index 1 — token price (decimal) in the requested currency.
-      example: [ [ 1668436763, 97.21323234 ] ]
+      example: [[1668436763, 97.21323234]]
     AccountInfoByStateInit:
       type: object
       required:
@@ -8111,7 +8354,6 @@ components:
         image:
           type: string
           example: https://cache.tonapi.io/images/jetton.jpg
-
   responses:
     Error:
       description: Some error during request processing

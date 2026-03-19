@@ -108,6 +108,7 @@ const (
 	GetTraceOperation                                  OperationName = "GetTrace"
 	GetWalletInfoOperation                             OperationName = "GetWalletInfo"
 	GetWalletsByPublicKeyOperation                     OperationName = "GetWalletsByPublicKey"
+	GetWalletsByPublicKeyBulkOperation                 OperationName = "GetWalletsByPublicKeyBulk"
 	ReindexAccountOperation                            OperationName = "ReindexAccount"
 	SearchAccountsOperation                            OperationName = "SearchAccounts"
 	SendBlockchainMessageOperation                     OperationName = "SendBlockchainMessage"
