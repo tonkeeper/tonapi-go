@@ -10,7 +10,7 @@ require (
 	github.com/ogen-go/ogen v1.8.1
 	github.com/r3labs/sse/v2 v2.10.0
 	github.com/stretchr/testify v1.11.1
-	github.com/tonkeeper/tongo v1.7.0
+	github.com/tonkeeper/tongo v1.18.4
 	go.opentelemetry.io/otel v1.42.0
 	go.opentelemetry.io/otel/metric v1.42.0
 	go.opentelemetry.io/otel/trace v1.42.0
