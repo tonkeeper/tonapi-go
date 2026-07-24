@@ -88,6 +88,12 @@ type GetAccountParams struct {
 	AccountID string
 }
 
+// GetAccountDefiAssetsParams is parameters of getAccountDefiAssets operation.
+type GetAccountDefiAssetsParams struct {
+	// Account ID.
+	AccountID string
+}
+
 // GetAccountDiffParams is parameters of getAccountDiff operation.
 type GetAccountDiffParams struct {
 	// Account ID.
@@ -154,7 +160,7 @@ type GetAccountJettonBalanceParams struct {
 	AccountID string
 	// Jetton ID.
 	JettonID string
-	// Accept ton and all possible fiat currencies, separated by commas.
+	// Accept gram and all possible fiat currencies, separated by commas.
 	Currencies []string
 	// Comma separated list supported extensions.
 	SupportedExtensions []string
@@ -178,7 +184,7 @@ type GetAccountJettonHistoryByIDParams struct {
 type GetAccountJettonsBalancesParams struct {
 	// Account ID.
 	AccountID string
-	// Accept ton and all possible fiat currencies, separated by commas.
+	// Accept gram and all possible fiat currencies, separated by commas.
 	Currencies []string
 	// Comma separated list supported extensions.
 	SupportedExtensions []string
@@ -219,7 +225,7 @@ type GetAccountNftItemsParams struct {
 	Collection OptString
 	Limit      OptInt
 	Offset     OptInt
-	// Selling nft items in ton implemented usually via transfer items to special selling account. This
+	// Selling nft items in TON implemented usually via transfer items to special selling account. This
 	// option enables including items which owned not directly.
 	IndirectOwnership OptBool
 }
@@ -320,6 +326,8 @@ type GetBlockchainMasterchainShardsParams struct {
 type GetBlockchainMasterchainTransactionsParams struct {
 	// Masterchain block seqno.
 	MasterchainSeqno int32
+	Offset           OptInt
+	Limit            OptInt
 }
 
 // GetBlockchainRawAccountParams is parameters of getBlockchainRawAccount operation.
@@ -437,6 +445,12 @@ type GetLibraryByHashParams struct {
 	Hash string
 }
 
+// GetMigrationWalletsParams is parameters of getMigrationWallets operation.
+type GetMigrationWalletsParams struct {
+	// Accept gram and all possible fiat currencies, separated by commas.
+	Currencies []string
+}
+
 // GetMultisigAccountParams is parameters of getMultisigAccount operation.
 type GetMultisigAccountParams struct {
 	// Account ID.
@@ -490,9 +504,9 @@ type GetPurchaseHistoryParams struct {
 
 // GetRatesParams is parameters of getRates operation.
 type GetRatesParams struct {
-	// Accept ton and jetton master addresses, separated by commas.
+	// Accept gram and jetton master addresses, separated by commas.
 	Tokens []string
-	// Accept ton and all possible fiat currencies, separated by commas.
+	// Accept gram and all possible fiat currencies, separated by commas.
 	Currencies []string
 }
 
@@ -604,6 +618,22 @@ type GetReducedBlockchainBlocksParams struct {
 	To   int64
 }
 
+// GetRoundRewardsParams is parameters of getRoundRewards operation.
+type GetRoundRewardsParams struct {
+	// Election ID of the finished round. Mutually exclusive with `block` and `unixtime`.
+	ElectionID OptInt64
+	// Masterchain block seqno within the finished round. Mutually exclusive with `election_id` and
+	// `unixtime`.
+	Block OptUint32
+	// Unix timestamp (seconds). Looks up the masterchain block at this time and uses it as the anchor.
+	// Mutually exclusive with `election_id` and `block`.
+	Unixtime OptUint32
+	// Set to `1` to return only basic validator info (rank, pubkey, effective_stake, weight, reward,
+	// pool). Skips pool type detection, owner/validator addresses, nominator data, and returned-stake
+	// lookup — significantly faster.
+	Shallow OptBool
+}
+
 // GetStakingPoolHistoryParams is parameters of getStakingPoolHistory operation.
 type GetStakingPoolHistoryParams struct {
 	// Account ID.
@@ -633,6 +663,31 @@ type GetStakingPoolsParams struct {
 type GetTraceParams struct {
 	// Trace ID or transaction hash in hex (without 0x) or base64url format.
 	TraceID string
+}
+
+// GetValidationRoundsParams is parameters of getValidationRounds operation.
+type GetValidationRoundsParams struct {
+	// Return the single round matching this election ID. Mutually exclusive with `block` and `unixtime`.
+	ElectionID OptInt64
+	// Find the round containing this masterchain block seqno and return it plus up to `limit-1` older
+	// rounds. Mutually exclusive with `election_id` and `unixtime`.
+	Block OptUint32
+	// Unix timestamp (seconds). Looks up the masterchain block at this time and uses it as the anchor.
+	// Mutually exclusive with `election_id` and `block`.
+	Unixtime OptUint32
+}
+
+// GetValidatorsParams is parameters of getValidators operation.
+type GetValidatorsParams struct {
+	// Masterchain block seqno. Defaults to latest. Mutually exclusive with `unixtime`.
+	Seqno OptUint32
+	// Unix timestamp (seconds). Looks up the masterchain block at this time and uses it as the anchor.
+	// Mutually exclusive with `seqno`.
+	Unixtime OptUint32
+	// Set to `1` to return only basic validator info (rank, pubkey, effective_stake, weight, reward,
+	// pool). Skips pool type detection, owner/validator addresses, nominator data, and returned-stake
+	// lookup — significantly faster.
+	Shallow OptBool
 }
 
 // GetWalletInfoParams is parameters of getWalletInfo operation.
