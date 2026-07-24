@@ -87,6 +87,10 @@ tags:
       url: https://docs.tonconsole.com/tonapi/rest-api/extra-currency
   - name: Purchases
 
+security:
+  - bearerAuth: [ ]
+  - { }
+
 paths:
   /v2/openapi.json:
     get:
@@ -3243,6 +3247,10 @@ paths:
         'default':
           $ref: '#/components/responses/Error'
 components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
   parameters:
     masterchainSeqno:
       in: path

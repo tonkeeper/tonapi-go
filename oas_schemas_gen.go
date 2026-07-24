@@ -1931,6 +1931,20 @@ func (s *Auctions) SetTotal(val int64) {
 	s.Total = val
 }
 
+type BearerAuth struct {
+	Token string
+}
+
+// GetToken returns the value of Token.
+func (s *BearerAuth) GetToken() string {
+	return s.Token
+}
+
+// SetToken sets the value of Token.
+func (s *BearerAuth) SetToken(val string) {
+	s.Token = val
+}
+
 // Ref: #/components/schemas/BlockCurrencyCollection
 type BlockCurrencyCollection struct {
 	Grams int64                              `json:"grams"`
