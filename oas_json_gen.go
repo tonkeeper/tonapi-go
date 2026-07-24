@@ -1986,9 +1986,9 @@ func (s *Action) encodeFields(e *jx.Encoder) {
 		}
 	}
 	{
-		if s.SetSignatureAllowedAction.Set {
-			e.FieldStart("SetSignatureAllowedAction")
-			s.SetSignatureAllowedAction.Encode(e)
+		if s.SetSignatureAllowed.Set {
+			e.FieldStart("SetSignatureAllowed")
+			s.SetSignatureAllowed.Encode(e)
 		}
 	}
 	{
@@ -2079,7 +2079,7 @@ var jsonFieldsNameOfAction = [36]string{
 	22: "Purchase",
 	23: "AddExtension",
 	24: "RemoveExtension",
-	25: "SetSignatureAllowedAction",
+	25: "SetSignatureAllowed",
 	26: "GasRelay",
 	27: "DepositTokenStake",
 	28: "WithdrawTokenStakeRequest",
@@ -2351,15 +2351,15 @@ func (s *Action) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"RemoveExtension\"")
 			}
-		case "SetSignatureAllowedAction":
+		case "SetSignatureAllowed":
 			if err := func() error {
-				s.SetSignatureAllowedAction.Reset()
-				if err := s.SetSignatureAllowedAction.Decode(d); err != nil {
+				s.SetSignatureAllowed.Reset()
+				if err := s.SetSignatureAllowed.Decode(d); err != nil {
 					return err
 				}
 				return nil
 			}(); err != nil {
-				return errors.Wrap(err, "decode field \"SetSignatureAllowedAction\"")
+				return errors.Wrap(err, "decode field \"SetSignatureAllowed\"")
 			}
 		case "GasRelay":
 			if err := func() error {
@@ -3039,8 +3039,8 @@ func (s *ActionType) Decode(d *jx.Decoder) error {
 		*s = ActionTypeAddExtension
 	case ActionTypeRemoveExtension:
 		*s = ActionTypeRemoveExtension
-	case ActionTypeSetSignatureAllowedAction:
-		*s = ActionTypeSetSignatureAllowedAction
+	case ActionTypeSetSignatureAllowed:
+		*s = ActionTypeSetSignatureAllowed
 	case ActionTypeGasRelay:
 		*s = ActionTypeGasRelay
 	case ActionTypeDepositTokenStake:

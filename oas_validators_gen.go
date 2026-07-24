@@ -773,7 +773,7 @@ func (s ActionType) Validate() error {
 		return nil
 	case "RemoveExtension":
 		return nil
-	case "SetSignatureAllowedAction":
+	case "SetSignatureAllowed":
 		return nil
 	case "GasRelay":
 		return nil

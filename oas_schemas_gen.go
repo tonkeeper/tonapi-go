@@ -734,7 +734,7 @@ type Action struct {
 	Purchase                  OptPurchaseAction                  `json:"Purchase"`
 	AddExtension              OptAddExtensionAction              `json:"AddExtension"`
 	RemoveExtension           OptRemoveExtensionAction           `json:"RemoveExtension"`
-	SetSignatureAllowedAction OptSetSignatureAllowedAction       `json:"SetSignatureAllowedAction"`
+	SetSignatureAllowed       OptSetSignatureAllowedAction       `json:"SetSignatureAllowed"`
 	GasRelay                  OptGasRelayAction                  `json:"GasRelay"`
 	DepositTokenStake         OptDepositTokenStakeAction         `json:"DepositTokenStake"`
 	WithdrawTokenStakeRequest OptWithdrawTokenStakeRequestAction `json:"WithdrawTokenStakeRequest"`
@@ -872,9 +872,9 @@ func (s *Action) GetRemoveExtension() OptRemoveExtensionAction {
 	return s.RemoveExtension
 }
 
-// GetSetSignatureAllowedAction returns the value of SetSignatureAllowedAction.
-func (s *Action) GetSetSignatureAllowedAction() OptSetSignatureAllowedAction {
-	return s.SetSignatureAllowedAction
+// GetSetSignatureAllowed returns the value of SetSignatureAllowed.
+func (s *Action) GetSetSignatureAllowed() OptSetSignatureAllowedAction {
+	return s.SetSignatureAllowed
 }
 
 // GetGasRelay returns the value of GasRelay.
@@ -1052,9 +1052,9 @@ func (s *Action) SetRemoveExtension(val OptRemoveExtensionAction) {
 	s.RemoveExtension = val
 }
 
-// SetSetSignatureAllowedAction sets the value of SetSignatureAllowedAction.
-func (s *Action) SetSetSignatureAllowedAction(val OptSetSignatureAllowedAction) {
-	s.SetSignatureAllowedAction = val
+// SetSetSignatureAllowed sets the value of SetSignatureAllowed.
+func (s *Action) SetSetSignatureAllowed(val OptSetSignatureAllowedAction) {
+	s.SetSignatureAllowed = val
 }
 
 // SetGasRelay sets the value of GasRelay.
@@ -1340,7 +1340,7 @@ const (
 	ActionTypePurchase                  ActionType = "Purchase"
 	ActionTypeAddExtension              ActionType = "AddExtension"
 	ActionTypeRemoveExtension           ActionType = "RemoveExtension"
-	ActionTypeSetSignatureAllowedAction ActionType = "SetSignatureAllowedAction"
+	ActionTypeSetSignatureAllowed       ActionType = "SetSignatureAllowed"
 	ActionTypeGasRelay                  ActionType = "GasRelay"
 	ActionTypeDepositTokenStake         ActionType = "DepositTokenStake"
 	ActionTypeWithdrawTokenStakeRequest ActionType = "WithdrawTokenStakeRequest"
@@ -1378,7 +1378,7 @@ func (ActionType) AllValues() []ActionType {
 		ActionTypePurchase,
 		ActionTypeAddExtension,
 		ActionTypeRemoveExtension,
-		ActionTypeSetSignatureAllowedAction,
+		ActionTypeSetSignatureAllowed,
 		ActionTypeGasRelay,
 		ActionTypeDepositTokenStake,
 		ActionTypeWithdrawTokenStakeRequest,
@@ -1440,7 +1440,7 @@ func (s ActionType) MarshalText() ([]byte, error) {
 		return []byte(s), nil
 	case ActionTypeRemoveExtension:
 		return []byte(s), nil
-	case ActionTypeSetSignatureAllowedAction:
+	case ActionTypeSetSignatureAllowed:
 		return []byte(s), nil
 	case ActionTypeGasRelay:
 		return []byte(s), nil
@@ -1537,8 +1537,8 @@ func (s *ActionType) UnmarshalText(data []byte) error {
 	case ActionTypeRemoveExtension:
 		*s = ActionTypeRemoveExtension
 		return nil
-	case ActionTypeSetSignatureAllowedAction:
-		*s = ActionTypeSetSignatureAllowedAction
+	case ActionTypeSetSignatureAllowed:
+		*s = ActionTypeSetSignatureAllowed
 		return nil
 	case ActionTypeGasRelay:
 		*s = ActionTypeGasRelay

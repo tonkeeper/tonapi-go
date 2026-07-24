@@ -6797,7 +6797,7 @@ components:
             - Purchase
             - AddExtension
             - RemoveExtension
-            - SetSignatureAllowedAction
+            - SetSignatureAllowed
             - GasRelay
             - DepositTokenStake
             - WithdrawTokenStakeRequest
@@ -6859,7 +6859,7 @@ components:
           $ref: '#/components/schemas/AddExtensionAction'
         RemoveExtension:
           $ref: '#/components/schemas/RemoveExtensionAction'
-        SetSignatureAllowedAction:
+        SetSignatureAllowed:
           $ref: '#/components/schemas/SetSignatureAllowedAction'
         GasRelay:
           $ref: '#/components/schemas/GasRelayAction'
