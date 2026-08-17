@@ -428,8 +428,13 @@ type GetJettonTransferPayloadParams struct {
 
 // GetJettonsParams is parameters of getJettons operation.
 type GetJettonsParams struct {
-	Limit  OptInt32
+	Limit OptInt32
+	// Deprecated: pagination is based on a daily snapshot, so some new jettons may not appear yet. Use
+	// `last_account_id` for real-time pagination instead.
 	Offset OptInt32
+	// Cursor for pagination, always resolved live. Pass the `metadata.address` of the last jetton master
+	// from the previous page to get the next page. Preferred over `offset`.
+	LastAccountID OptString
 }
 
 // GetJettonsEventsParams is parameters of getJettonsEvents operation.
