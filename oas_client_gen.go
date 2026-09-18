@@ -720,7 +720,7 @@ type Invoker interface {
 	// Prepare ordered signable transactions that migrate every asset from `from` to `to`.
 	//
 	// POST /v2/migration/prepare
-	PrepareMigration(ctx context.Context, request *MigrationPrepareRequest) (*MigrationPrepareResponse, error)
+	PrepareMigration(ctx context.Context, request *MigrationPrepareRequest) (PrepareMigrationRes, error)
 	// ReindexAccount invokes reindexAccount operation.
 	//
 	// Update internal cache for a particular account.
@@ -9571,6 +9571,40 @@ func (c *Client) sendGetJettonHolders(ctx context.Context, params GetJettonHolde
 			return res, errors.Wrap(err, "encode query")
 		}
 	}
+	{
+		// Encode "sort_by" parameter.
+		cfg := uri.QueryParameterEncodingConfig{
+			Name:    "sort_by",
+			Style:   uri.QueryStyleForm,
+			Explode: true,
+		}
+
+		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
+			if val, ok := params.SortBy.Get(); ok {
+				return e.EncodeValue(conv.StringToString(string(val)))
+			}
+			return nil
+		}); err != nil {
+			return res, errors.Wrap(err, "encode query")
+		}
+	}
+	{
+		// Encode "last_account_id" parameter.
+		cfg := uri.QueryParameterEncodingConfig{
+			Name:    "last_account_id",
+			Style:   uri.QueryStyleForm,
+			Explode: true,
+		}
+
+		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
+			if val, ok := params.LastAccountID.Get(); ok {
+				return e.EncodeValue(conv.StringToString(val))
+			}
+			return nil
+		}); err != nil {
+			return res, errors.Wrap(err, "encode query")
+		}
+	}
 	u.RawQuery = q.Values().Encode()
 
 	stage = "EncodeRequest"
@@ -16538,12 +16572,12 @@ func (c *Client) sendGetWalletsByPublicKeyBulk(ctx context.Context, request OptG
 // Prepare ordered signable transactions that migrate every asset from `from` to `to`.
 //
 // POST /v2/migration/prepare
-func (c *Client) PrepareMigration(ctx context.Context, request *MigrationPrepareRequest) (*MigrationPrepareResponse, error) {
+func (c *Client) PrepareMigration(ctx context.Context, request *MigrationPrepareRequest) (PrepareMigrationRes, error) {
 	res, err := c.sendPrepareMigration(ctx, request)
 	return res, err
 }
 
-func (c *Client) sendPrepareMigration(ctx context.Context, request *MigrationPrepareRequest) (res *MigrationPrepareResponse, err error) {
+func (c *Client) sendPrepareMigration(ctx context.Context, request *MigrationPrepareRequest) (res PrepareMigrationRes, err error) {
 	// Validate request before sending.
 	if err := func() error {
 		if err := request.Validate(); err != nil {

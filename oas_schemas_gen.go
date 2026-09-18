@@ -6975,9 +6975,11 @@ func (s *GasLimitPrices) SetDeleteDueLimit(val int64) {
 
 // Ref: #/components/schemas/GasRelayAction
 type GasRelayAction struct {
-	Amount  int64          `json:"amount"`
-	Relayer AccountAddress `json:"relayer"`
-	Target  AccountAddress `json:"target"`
+	Amount     int64          `json:"amount"`
+	Relayer    AccountAddress `json:"relayer"`
+	Target     AccountAddress `json:"target"`
+	IsBattery  OptBool        `json:"is_battery"`
+	RelayerFee OptGasRelayFee `json:"relayer_fee"`
 }
 
 // GetAmount returns the value of Amount.
@@ -6995,6 +6997,16 @@ func (s *GasRelayAction) GetTarget() AccountAddress {
 	return s.Target
 }
 
+// GetIsBattery returns the value of IsBattery.
+func (s *GasRelayAction) GetIsBattery() OptBool {
+	return s.IsBattery
+}
+
+// GetRelayerFee returns the value of RelayerFee.
+func (s *GasRelayAction) GetRelayerFee() OptGasRelayFee {
+	return s.RelayerFee
+}
+
 // SetAmount sets the value of Amount.
 func (s *GasRelayAction) SetAmount(val int64) {
 	s.Amount = val
@@ -7008,6 +7020,43 @@ func (s *GasRelayAction) SetRelayer(val AccountAddress) {
 // SetTarget sets the value of Target.
 func (s *GasRelayAction) SetTarget(val AccountAddress) {
 	s.Target = val
+}
+
+// SetIsBattery sets the value of IsBattery.
+func (s *GasRelayAction) SetIsBattery(val OptBool) {
+	s.IsBattery = val
+}
+
+// SetRelayerFee sets the value of RelayerFee.
+func (s *GasRelayAction) SetRelayerFee(val OptGasRelayFee) {
+	s.RelayerFee = val
+}
+
+// Ref: #/components/schemas/GasRelayFee
+type GasRelayFee struct {
+	Jetton JettonPreview `json:"jetton"`
+	// Amount in quanta of tokens.
+	Amount string `json:"amount"`
+}
+
+// GetJetton returns the value of Jetton.
+func (s *GasRelayFee) GetJetton() JettonPreview {
+	return s.Jetton
+}
+
+// GetAmount returns the value of Amount.
+func (s *GasRelayFee) GetAmount() string {
+	return s.Amount
+}
+
+// SetJetton sets the value of Jetton.
+func (s *GasRelayFee) SetJetton(val JettonPreview) {
+	s.Jetton = val
+}
+
+// SetAmount sets the value of Amount.
+func (s *GasRelayFee) SetAmount(val string) {
+	s.Amount = val
 }
 
 // Ref: #/components/schemas/GaslessConfig
@@ -7380,6 +7429,49 @@ func (s *GetChartRatesOK) GetPoints() ChartPoints {
 // SetPoints sets the value of Points.
 func (s *GetChartRatesOK) SetPoints(val ChartPoints) {
 	s.Points = val
+}
+
+// Address allows unlimited pagination via last_account_id cursor, balance sorting allow getting top
+// holders.
+type GetJettonHoldersSortBy string
+
+const (
+	GetJettonHoldersSortByBalance GetJettonHoldersSortBy = "balance"
+	GetJettonHoldersSortByAddress GetJettonHoldersSortBy = "address"
+)
+
+// AllValues returns all GetJettonHoldersSortBy values.
+func (GetJettonHoldersSortBy) AllValues() []GetJettonHoldersSortBy {
+	return []GetJettonHoldersSortBy{
+		GetJettonHoldersSortByBalance,
+		GetJettonHoldersSortByAddress,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s GetJettonHoldersSortBy) MarshalText() ([]byte, error) {
+	switch s {
+	case GetJettonHoldersSortByBalance:
+		return []byte(s), nil
+	case GetJettonHoldersSortByAddress:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *GetJettonHoldersSortBy) UnmarshalText(data []byte) error {
+	switch GetJettonHoldersSortBy(data) {
+	case GetJettonHoldersSortByBalance:
+		*s = GetJettonHoldersSortByBalance
+		return nil
+	case GetJettonHoldersSortByAddress:
+		*s = GetJettonHoldersSortByAddress
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
 }
 
 type GetJettonInfosByAddressesReq struct {
@@ -10573,6 +10665,93 @@ func (s *MigrationOutMessage) SetMode(val int32) {
 	s.Mode = val
 }
 
+// Merged schema.
+// Ref: #/components/schemas/MigrationPrepareConflict
+type MigrationPrepareConflict struct {
+	From string `json:"from"`
+	To   string `json:"to"`
+	// Source wallet version (informational).
+	WalletVersion string `json:"wallet_version"`
+	// Ordered; sign and broadcast in array order, one entry per external message.
+	Transactions []MigrationTransaction `json:"transactions"`
+	Error        string                 `json:"error"`
+	// Same extended code as on a plain error response (50000).
+	ErrorCode OptInt64             `json:"error_code"`
+	Details   OptInsufficientFunds `json:"details"`
+}
+
+// GetFrom returns the value of From.
+func (s *MigrationPrepareConflict) GetFrom() string {
+	return s.From
+}
+
+// GetTo returns the value of To.
+func (s *MigrationPrepareConflict) GetTo() string {
+	return s.To
+}
+
+// GetWalletVersion returns the value of WalletVersion.
+func (s *MigrationPrepareConflict) GetWalletVersion() string {
+	return s.WalletVersion
+}
+
+// GetTransactions returns the value of Transactions.
+func (s *MigrationPrepareConflict) GetTransactions() []MigrationTransaction {
+	return s.Transactions
+}
+
+// GetError returns the value of Error.
+func (s *MigrationPrepareConflict) GetError() string {
+	return s.Error
+}
+
+// GetErrorCode returns the value of ErrorCode.
+func (s *MigrationPrepareConflict) GetErrorCode() OptInt64 {
+	return s.ErrorCode
+}
+
+// GetDetails returns the value of Details.
+func (s *MigrationPrepareConflict) GetDetails() OptInsufficientFunds {
+	return s.Details
+}
+
+// SetFrom sets the value of From.
+func (s *MigrationPrepareConflict) SetFrom(val string) {
+	s.From = val
+}
+
+// SetTo sets the value of To.
+func (s *MigrationPrepareConflict) SetTo(val string) {
+	s.To = val
+}
+
+// SetWalletVersion sets the value of WalletVersion.
+func (s *MigrationPrepareConflict) SetWalletVersion(val string) {
+	s.WalletVersion = val
+}
+
+// SetTransactions sets the value of Transactions.
+func (s *MigrationPrepareConflict) SetTransactions(val []MigrationTransaction) {
+	s.Transactions = val
+}
+
+// SetError sets the value of Error.
+func (s *MigrationPrepareConflict) SetError(val string) {
+	s.Error = val
+}
+
+// SetErrorCode sets the value of ErrorCode.
+func (s *MigrationPrepareConflict) SetErrorCode(val OptInt64) {
+	s.ErrorCode = val
+}
+
+// SetDetails sets the value of Details.
+func (s *MigrationPrepareConflict) SetDetails(val OptInsufficientFunds) {
+	s.Details = val
+}
+
+func (*MigrationPrepareConflict) prepareMigrationRes() {}
+
 // Ref: #/components/schemas/MigrationPrepareRequest
 type MigrationPrepareRequest struct {
 	// Legacy source wallet to drain.
@@ -10758,6 +10937,8 @@ func (s *MigrationPrepareResponse) SetTransactions(val []MigrationTransaction) {
 	s.Transactions = val
 }
 
+func (*MigrationPrepareResponse) prepareMigrationRes() {}
+
 // Ref: #/components/schemas/MigrationTransaction
 type MigrationTransaction struct {
 	// Wallet seqno baked into the unsigned body.
@@ -10769,7 +10950,9 @@ type MigrationTransaction struct {
 	// body — sign and wrap it for /v2/gasless/send as in the gasless flow.
 	Boc string `json:"boc"`
 	// True — the Battery relay pays gas for this transaction; submit it via /v2/gasless/send. false
-	// — self-paid; sign and broadcast via /v2/blockchain/message as usual (e.g. the final TON sweep).
+	// — self-paid; sign and broadcast via /v2/blockchain/message as usual. The final TON sweep is
+	// always self-paid, whatever gas_payer says: the relay does not sponsor a TON-only batch, and
+	// gasless has no jetton balance left to bill a commission against.
 	Sponsored OptBool `json:"sponsored"`
 	// Gasless only; the relay commission in indivisible gas-jetton units, embedded in the boc as a
 	// jetton transfer to the relay. Exact for the first transaction; an estimate for later ones
@@ -10782,6 +10965,13 @@ type MigrationTransaction struct {
 	// are what populate the payload/actions.
 	Messages  []MigrationOutMessage `json:"messages"`
 	Emulation MessageConsequences   `json:"emulation"`
+	// TON burned as network fees by this transaction, in nanotons — the sum over every transaction in
+	// `emulation.trace`. For a transfer batch this is only part of the gas attached to its messages: the
+	// transfers name the destination wallet as response_destination, so the unburned remainder arrives
+	// there instead of returning to the source. For the final balance sweep it is the fee deducted from
+	// the swept amount. When `sponsored` is true these fees are covered by the relay, which charges
+	// `commission` instead.
+	GasSpent int64 `json:"gas_spent"`
 }
 
 // GetSeqno returns the value of Seqno.
@@ -10819,6 +11009,11 @@ func (s *MigrationTransaction) GetEmulation() MessageConsequences {
 	return s.Emulation
 }
 
+// GetGasSpent returns the value of GasSpent.
+func (s *MigrationTransaction) GetGasSpent() int64 {
+	return s.GasSpent
+}
+
 // SetSeqno sets the value of Seqno.
 func (s *MigrationTransaction) SetSeqno(val int32) {
 	s.Seqno = val
@@ -10852,6 +11047,11 @@ func (s *MigrationTransaction) SetMessages(val []MigrationOutMessage) {
 // SetEmulation sets the value of Emulation.
 func (s *MigrationTransaction) SetEmulation(val MessageConsequences) {
 	s.Emulation = val
+}
+
+// SetGasSpent sets the value of GasSpent.
+func (s *MigrationTransaction) SetGasSpent(val int64) {
+	s.GasSpent = val
 }
 
 // Ref: #/components/schemas/MigrationWalletValue
@@ -15364,6 +15564,52 @@ func (o OptGasRelayAction) Or(d GasRelayAction) GasRelayAction {
 	return d
 }
 
+// NewOptGasRelayFee returns new OptGasRelayFee with value set to v.
+func NewOptGasRelayFee(v GasRelayFee) OptGasRelayFee {
+	return OptGasRelayFee{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptGasRelayFee is optional GasRelayFee.
+type OptGasRelayFee struct {
+	Value GasRelayFee
+	Set   bool
+}
+
+// IsSet returns true if OptGasRelayFee was set.
+func (o OptGasRelayFee) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptGasRelayFee) Reset() {
+	var v GasRelayFee
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptGasRelayFee) SetTo(v GasRelayFee) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptGasRelayFee) Get() (v GasRelayFee, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptGasRelayFee) Or(d GasRelayFee) GasRelayFee {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
 // NewOptGetAccountEventsSortOrder returns new OptGetAccountEventsSortOrder with value set to v.
 func NewOptGetAccountEventsSortOrder(v GetAccountEventsSortOrder) OptGetAccountEventsSortOrder {
 	return OptGetAccountEventsSortOrder{
@@ -15542,6 +15788,52 @@ func (o OptGetBlockchainRawAccountsReq) Get() (v GetBlockchainRawAccountsReq, ok
 
 // Or returns value if set, or given parameter if does not.
 func (o OptGetBlockchainRawAccountsReq) Or(d GetBlockchainRawAccountsReq) GetBlockchainRawAccountsReq {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptGetJettonHoldersSortBy returns new OptGetJettonHoldersSortBy with value set to v.
+func NewOptGetJettonHoldersSortBy(v GetJettonHoldersSortBy) OptGetJettonHoldersSortBy {
+	return OptGetJettonHoldersSortBy{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptGetJettonHoldersSortBy is optional GetJettonHoldersSortBy.
+type OptGetJettonHoldersSortBy struct {
+	Value GetJettonHoldersSortBy
+	Set   bool
+}
+
+// IsSet returns true if OptGetJettonHoldersSortBy was set.
+func (o OptGetJettonHoldersSortBy) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptGetJettonHoldersSortBy) Reset() {
+	var v GetJettonHoldersSortBy
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptGetJettonHoldersSortBy) SetTo(v GetJettonHoldersSortBy) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptGetJettonHoldersSortBy) Get() (v GetJettonHoldersSortBy, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptGetJettonHoldersSortBy) Or(d GetJettonHoldersSortBy) GetJettonHoldersSortBy {
 	if v, ok := o.Get(); ok {
 		return v
 	}
@@ -18764,6 +19056,7 @@ const (
 	PoolImplementationTypeTf       PoolImplementationType = "tf"
 	PoolImplementationTypeLiquidTF PoolImplementationType = "liquidTF"
 	PoolImplementationTypeFfvault  PoolImplementationType = "ffvault"
+	PoolImplementationTypeHipo     PoolImplementationType = "hipo"
 )
 
 // AllValues returns all PoolImplementationType values.
@@ -18773,6 +19066,7 @@ func (PoolImplementationType) AllValues() []PoolImplementationType {
 		PoolImplementationTypeTf,
 		PoolImplementationTypeLiquidTF,
 		PoolImplementationTypeFfvault,
+		PoolImplementationTypeHipo,
 	}
 }
 
@@ -18786,6 +19080,8 @@ func (s PoolImplementationType) MarshalText() ([]byte, error) {
 	case PoolImplementationTypeLiquidTF:
 		return []byte(s), nil
 	case PoolImplementationTypeFfvault:
+		return []byte(s), nil
+	case PoolImplementationTypeHipo:
 		return []byte(s), nil
 	default:
 		return nil, errors.Errorf("invalid value: %q", s)
@@ -18806,6 +19102,9 @@ func (s *PoolImplementationType) UnmarshalText(data []byte) error {
 		return nil
 	case PoolImplementationTypeFfvault:
 		*s = PoolImplementationTypeFfvault
+		return nil
+	case PoolImplementationTypeHipo:
+		*s = PoolImplementationTypeHipo
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
