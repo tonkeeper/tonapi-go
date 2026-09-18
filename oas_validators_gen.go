@@ -592,6 +592,24 @@ func (s *Action) Validate() error {
 		})
 	}
 	if err := func() error {
+		if value, ok := s.GasRelay.Get(); ok {
+			if err := func() error {
+				if err := value.Validate(); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "GasRelay",
+			Error: err,
+		})
+	}
+	if err := func() error {
 		if value, ok := s.DepositTokenStake.Get(); ok {
 			if err := func() error {
 				if err := value.Validate(); err != nil {
@@ -3098,6 +3116,59 @@ func (s *FoundAccountsAddressesItem) Validate() error {
 	return nil
 }
 
+func (s *GasRelayAction) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		if value, ok := s.RelayerFee.Get(); ok {
+			if err := func() error {
+				if err := value.Validate(); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "relayer_fee",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
+}
+
+func (s *GasRelayFee) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		if err := s.Jetton.Validate(); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "jetton",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
+}
+
 func (s *GaslessConfig) Validate() error {
 	if s == nil {
 		return validate.ErrNilPointer
@@ -3233,6 +3304,17 @@ func (s *GetChartRatesOK) Validate() error {
 		return &validate.Error{Fields: failures}
 	}
 	return nil
+}
+
+func (s GetJettonHoldersSortBy) Validate() error {
+	switch s {
+	case "balance":
+		return nil
+	case "address":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
 }
 
 func (s *GetJettonInfosByAddressesReq) Validate() error {
@@ -4558,6 +4640,46 @@ func (s *MethodExecutionResult) Validate() error {
 	return nil
 }
 
+func (s *MigrationPrepareConflict) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		if s.Transactions == nil {
+			return errors.New("nil is invalid value")
+		}
+		var failures []validate.FieldError
+		for i, elem := range s.Transactions {
+			if err := func() error {
+				if err := elem.Validate(); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				failures = append(failures, validate.FieldError{
+					Name:  fmt.Sprintf("[%d]", i),
+					Error: err,
+				})
+			}
+		}
+		if len(failures) > 0 {
+			return &validate.Error{Fields: failures}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "transactions",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
+}
+
 func (s *MigrationPrepareRequest) Validate() error {
 	if s == nil {
 		return validate.ErrNilPointer
@@ -5530,6 +5652,8 @@ func (s PoolImplementationType) Validate() error {
 	case "liquidTF":
 		return nil
 	case "ffvault":
+		return nil
+	case "hipo":
 		return nil
 	default:
 		return errors.Errorf("invalid value: %v", s)
