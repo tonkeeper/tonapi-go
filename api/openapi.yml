@@ -6232,6 +6232,12 @@ components:
           example:
             - custom_payload
             - non_transferable
+        balance_lt:
+          type: integer
+          format: int64
+          x-js-format: bigint
+          description: logical time of the jetton wallet's transaction the balance is as of; absent when unknown, such as for an unclaimed mintless balance
+          example: 25713146000001
         lock:
           type: object
           required:
@@ -7348,6 +7354,10 @@ components:
       properties:
         sender:
           $ref: '#/components/schemas/AccountAddress'
+          description: Account that sent the burn message.
+        owner:
+          $ref: '#/components/schemas/AccountAddress'
+          description: Owner of the jetton wallet the tokens were burned from. Equals `sender` unless someone else initiated the burn (e.g. the jetton master forcing a burn).
         senders_wallet:
           type: string
           format: address
@@ -8984,6 +8994,7 @@ components:
             - func
             - fift
             - tact
+            - tolk
         source:
           $ref: '#/components/schemas/Source'
     PoolImplementationType:
@@ -9183,6 +9194,9 @@ components:
           $ref: '#/components/schemas/AccountAddress'
         destination:
           $ref: '#/components/schemas/AccountAddress'
+        owner:
+          $ref: '#/components/schemas/AccountAddress'
+          description: Owner of the jetton wallet the tokens were burned from; present when operation = burn.
         amount:
           type: string
           x-js-format: bigint

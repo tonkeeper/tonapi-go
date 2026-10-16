@@ -2346,6 +2346,7 @@ const (
 	BlockchainAccountInspectCompilerFunc BlockchainAccountInspectCompiler = "func"
 	BlockchainAccountInspectCompilerFift BlockchainAccountInspectCompiler = "fift"
 	BlockchainAccountInspectCompilerTact BlockchainAccountInspectCompiler = "tact"
+	BlockchainAccountInspectCompilerTolk BlockchainAccountInspectCompiler = "tolk"
 )
 
 // AllValues returns all BlockchainAccountInspectCompiler values.
@@ -2354,6 +2355,7 @@ func (BlockchainAccountInspectCompiler) AllValues() []BlockchainAccountInspectCo
 		BlockchainAccountInspectCompilerFunc,
 		BlockchainAccountInspectCompilerFift,
 		BlockchainAccountInspectCompilerTact,
+		BlockchainAccountInspectCompilerTolk,
 	}
 }
 
@@ -2365,6 +2367,8 @@ func (s BlockchainAccountInspectCompiler) MarshalText() ([]byte, error) {
 	case BlockchainAccountInspectCompilerFift:
 		return []byte(s), nil
 	case BlockchainAccountInspectCompilerTact:
+		return []byte(s), nil
+	case BlockchainAccountInspectCompilerTolk:
 		return []byte(s), nil
 	default:
 		return nil, errors.Errorf("invalid value: %q", s)
@@ -2382,6 +2386,9 @@ func (s *BlockchainAccountInspectCompiler) UnmarshalText(data []byte) error {
 		return nil
 	case BlockchainAccountInspectCompilerTact:
 		*s = BlockchainAccountInspectCompilerTact
+		return nil
+	case BlockchainAccountInspectCompilerTolk:
+		*s = BlockchainAccountInspectCompilerTolk
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -8745,13 +8752,16 @@ func (s *JettonAssetInfo) SetPoolAssets(val OptDefiLiquidPoolAssets) {
 
 // Ref: #/components/schemas/JettonBalance
 type JettonBalance struct {
-	Balance       string               `json:"balance"`
-	Price         OptTokenRates        `json:"price"`
-	WalletAddress AccountAddress       `json:"wallet_address"`
-	Jetton        JettonPreview        `json:"jetton"`
-	DefiAsset     OptJettonAssetInfo   `json:"defi_asset"`
-	Extensions    []string             `json:"extensions"`
-	Lock          OptJettonBalanceLock `json:"lock"`
+	Balance       string             `json:"balance"`
+	Price         OptTokenRates      `json:"price"`
+	WalletAddress AccountAddress     `json:"wallet_address"`
+	Jetton        JettonPreview      `json:"jetton"`
+	DefiAsset     OptJettonAssetInfo `json:"defi_asset"`
+	Extensions    []string           `json:"extensions"`
+	// Logical time of the jetton wallet's transaction the balance is as of; absent when unknown, such as
+	// for an unclaimed mintless balance.
+	BalanceLt OptInt64             `json:"balance_lt"`
+	Lock      OptJettonBalanceLock `json:"lock"`
 }
 
 // GetBalance returns the value of Balance.
@@ -8782,6 +8792,11 @@ func (s *JettonBalance) GetDefiAsset() OptJettonAssetInfo {
 // GetExtensions returns the value of Extensions.
 func (s *JettonBalance) GetExtensions() []string {
 	return s.Extensions
+}
+
+// GetBalanceLt returns the value of BalanceLt.
+func (s *JettonBalance) GetBalanceLt() OptInt64 {
+	return s.BalanceLt
 }
 
 // GetLock returns the value of Lock.
@@ -8817,6 +8832,11 @@ func (s *JettonBalance) SetDefiAsset(val OptJettonAssetInfo) {
 // SetExtensions sets the value of Extensions.
 func (s *JettonBalance) SetExtensions(val []string) {
 	s.Extensions = val
+}
+
+// SetBalanceLt sets the value of BalanceLt.
+func (s *JettonBalance) SetBalanceLt(val OptInt64) {
+	s.BalanceLt = val
 }
 
 // SetLock sets the value of Lock.
@@ -9030,8 +9050,12 @@ func (s *JettonBridgePrices) SetDiscoverGasConsumption(val int64) {
 
 // Ref: #/components/schemas/JettonBurnAction
 type JettonBurnAction struct {
-	Sender        AccountAddress `json:"sender"`
-	SendersWallet string         `json:"senders_wallet"`
+	// Account that sent the burn message.
+	Sender AccountAddress `json:"sender"`
+	// Owner of the jetton wallet the tokens were burned from. Equals `sender` unless someone else
+	// initiated the burn (e.g. the jetton master forcing a burn).
+	Owner         OptAccountAddress `json:"owner"`
+	SendersWallet string            `json:"senders_wallet"`
 	// Amount in quanta of tokens.
 	Amount string        `json:"amount"`
 	Jetton JettonPreview `json:"jetton"`
@@ -9040,6 +9064,11 @@ type JettonBurnAction struct {
 // GetSender returns the value of Sender.
 func (s *JettonBurnAction) GetSender() AccountAddress {
 	return s.Sender
+}
+
+// GetOwner returns the value of Owner.
+func (s *JettonBurnAction) GetOwner() OptAccountAddress {
+	return s.Owner
 }
 
 // GetSendersWallet returns the value of SendersWallet.
@@ -9060,6 +9089,11 @@ func (s *JettonBurnAction) GetJetton() JettonPreview {
 // SetSender sets the value of Sender.
 func (s *JettonBurnAction) SetSender(val AccountAddress) {
 	s.Sender = val
+}
+
+// SetOwner sets the value of Owner.
+func (s *JettonBurnAction) SetOwner(val OptAccountAddress) {
+	s.Owner = val
 }
 
 // SetSendersWallet sets the value of SendersWallet.
@@ -9467,11 +9501,13 @@ type JettonOperation struct {
 	TransactionHash string                   `json:"transaction_hash"`
 	Source          OptAccountAddress        `json:"source"`
 	Destination     OptAccountAddress        `json:"destination"`
-	Amount          string                   `json:"amount"`
-	Jetton          JettonPreview            `json:"jetton"`
-	TraceID         string                   `json:"trace_id"`
-	QueryID         string                   `json:"query_id"`
-	Payload         jx.Raw                   `json:"payload"`
+	// Owner of the jetton wallet the tokens were burned from; present when operation = burn.
+	Owner   OptAccountAddress `json:"owner"`
+	Amount  string            `json:"amount"`
+	Jetton  JettonPreview     `json:"jetton"`
+	TraceID string            `json:"trace_id"`
+	QueryID string            `json:"query_id"`
+	Payload jx.Raw            `json:"payload"`
 }
 
 // GetOperation returns the value of Operation.
@@ -9502,6 +9538,11 @@ func (s *JettonOperation) GetSource() OptAccountAddress {
 // GetDestination returns the value of Destination.
 func (s *JettonOperation) GetDestination() OptAccountAddress {
 	return s.Destination
+}
+
+// GetOwner returns the value of Owner.
+func (s *JettonOperation) GetOwner() OptAccountAddress {
+	return s.Owner
 }
 
 // GetAmount returns the value of Amount.
@@ -9557,6 +9598,11 @@ func (s *JettonOperation) SetSource(val OptAccountAddress) {
 // SetDestination sets the value of Destination.
 func (s *JettonOperation) SetDestination(val OptAccountAddress) {
 	s.Destination = val
+}
+
+// SetOwner sets the value of Owner.
+func (s *JettonOperation) SetOwner(val OptAccountAddress) {
+	s.Owner = val
 }
 
 // SetAmount sets the value of Amount.
