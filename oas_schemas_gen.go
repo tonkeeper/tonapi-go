@@ -12574,6 +12574,83 @@ func (s *NominatorRewardEntry) SetStake(val int64) {
 	s.Stake = val
 }
 
+// Ref: #/components/schemas/OmnistonVault
+type OmnistonVault struct {
+	Address string `json:"address"`
+	Minter  string `json:"minter"`
+	// The minter's wallet of the jetton the fees are in.
+	MinterJettonWallet string `json:"minter_jetton_wallet"`
+	// Master of the jetton the fees are in; absent when the minter's jetton wallet is not known.
+	Jetton OptString `json:"jetton"`
+	// Fees accrued and not withdrawn, in the jetton's units.
+	Balance string `json:"balance"`
+}
+
+// GetAddress returns the value of Address.
+func (s *OmnistonVault) GetAddress() string {
+	return s.Address
+}
+
+// GetMinter returns the value of Minter.
+func (s *OmnistonVault) GetMinter() string {
+	return s.Minter
+}
+
+// GetMinterJettonWallet returns the value of MinterJettonWallet.
+func (s *OmnistonVault) GetMinterJettonWallet() string {
+	return s.MinterJettonWallet
+}
+
+// GetJetton returns the value of Jetton.
+func (s *OmnistonVault) GetJetton() OptString {
+	return s.Jetton
+}
+
+// GetBalance returns the value of Balance.
+func (s *OmnistonVault) GetBalance() string {
+	return s.Balance
+}
+
+// SetAddress sets the value of Address.
+func (s *OmnistonVault) SetAddress(val string) {
+	s.Address = val
+}
+
+// SetMinter sets the value of Minter.
+func (s *OmnistonVault) SetMinter(val string) {
+	s.Minter = val
+}
+
+// SetMinterJettonWallet sets the value of MinterJettonWallet.
+func (s *OmnistonVault) SetMinterJettonWallet(val string) {
+	s.MinterJettonWallet = val
+}
+
+// SetJetton sets the value of Jetton.
+func (s *OmnistonVault) SetJetton(val OptString) {
+	s.Jetton = val
+}
+
+// SetBalance sets the value of Balance.
+func (s *OmnistonVault) SetBalance(val string) {
+	s.Balance = val
+}
+
+// Ref: #/components/schemas/OmnistonVaults
+type OmnistonVaults struct {
+	Vaults []OmnistonVault `json:"vaults"`
+}
+
+// GetVaults returns the value of Vaults.
+func (s *OmnistonVaults) GetVaults() []OmnistonVault {
+	return s.Vaults
+}
+
+// SetVaults sets the value of Vaults.
+func (s *OmnistonVaults) SetVaults(val []OmnistonVault) {
+	s.Vaults = val
+}
+
 // NewOptAccountAddress returns new OptAccountAddress with value set to v.
 func NewOptAccountAddress(v AccountAddress) OptAccountAddress {
 	return OptAccountAddress{

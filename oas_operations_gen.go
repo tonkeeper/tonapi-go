@@ -37,6 +37,7 @@ const (
 	GetAccountNftHistoryOperation                      OperationName = "GetAccountNftHistory"
 	GetAccountNftItemsOperation                        OperationName = "GetAccountNftItems"
 	GetAccountNominatorsPoolsOperation                 OperationName = "GetAccountNominatorsPools"
+	GetAccountOmnistonVaultsOperation                  OperationName = "GetAccountOmnistonVaults"
 	GetAccountPublicKeyOperation                       OperationName = "GetAccountPublicKey"
 	GetAccountSeqnoOperation                           OperationName = "GetAccountSeqno"
 	GetAccountSubscriptionsOperation                   OperationName = "GetAccountSubscriptions"

@@ -1176,6 +1176,25 @@ paths:
         'default':
           $ref: '#/components/responses/Error'
   
+  /v2/accounts/{account_id}/omniston/vaults:
+    get:
+      description: Get the Omniston referral fee vaults the account owns, with the fees accrued in each.
+      operationId: getAccountOmnistonVaults
+      tags:
+        - Accounts
+      parameters:
+        - $ref: '#/components/parameters/accountIDParameter'
+        - $ref: '#/components/parameters/limitQuery'
+        - $ref: '#/components/parameters/offsetQuery'
+      responses:
+        '200':
+          description: account's Omniston vaults
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OmnistonVaults'
+        'default':
+          $ref: '#/components/responses/Error'
   /v2/accounts/{account_id}/diff:
     get:
       description: Get account's balance change
@@ -6657,6 +6676,46 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/NftItem'
+    OmnistonVaults:
+      type: object
+      required:
+        - vaults
+      properties:
+        vaults:
+          type: array
+          items:
+            $ref: '#/components/schemas/OmnistonVault'
+    OmnistonVault:
+      type: object
+      required:
+        - address
+        - minter
+        - minter_jetton_wallet
+        - balance
+      properties:
+        address:
+          type: string
+          format: address
+          example: 0:a7d187d93bc359b4ddf9b9e86a95693f20f3a689a05c85cfcf413887abbd4739
+        minter:
+          type: string
+          format: address
+          example: 0:9c25fd8a1651fdc48c77773b72b71c51164dca419284601afe7f49c520ed61dd
+        minter_jetton_wallet:
+          type: string
+          format: address
+          description: the minter's wallet of the jetton the fees are in
+          example: 0:a335f33f868f6f1aa7a5cf0e7541a2e739dca52fbed5334e9f72939a8cb67b49
+        jetton:
+          type: string
+          format: address
+          description: master of the jetton the fees are in; absent when the minter's jetton wallet is not known
+          example: 0:f42a9711321fac28edb3e7ebce8e0bc58d34f9f2d3bed8d9afc6a839a1c15016
+        balance:
+          type: string
+          x-js-format: bigint
+          description: fees accrued and not withdrawn, in the jetton's units
+          example: "301091391964"
     Multisigs:
       type: object
       required:
