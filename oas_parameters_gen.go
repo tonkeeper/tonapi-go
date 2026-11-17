@@ -236,6 +236,14 @@ type GetAccountNominatorsPoolsParams struct {
 	AccountID string
 }
 
+// GetAccountOmnistonVaultsParams is parameters of getAccountOmnistonVaults operation.
+type GetAccountOmnistonVaultsParams struct {
+	// Account ID.
+	AccountID string
+	Limit     OptInt
+	Offset    OptInt
+}
+
 // GetAccountPublicKeyParams is parameters of getAccountPublicKey operation.
 type GetAccountPublicKeyParams struct {
 	// Account ID.
