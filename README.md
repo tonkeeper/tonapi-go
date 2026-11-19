@@ -89,6 +89,7 @@ import (
 	"net/http"
 	"time"
 	
+	"github.com/graze/go-throttled"
 	"github.com/tonkeeper/tonapi-go"
 	"golang.org/x/time/rate"
 )
@@ -129,16 +130,16 @@ account, err := client.GetAccount(context.Background(), tonapi.GetAccountParams{
 ### Get Transactions
 
 ```go
-transactions, err := client.GetTransactions(context.Background(), tonapi.GetTransactionsParams{
+transactions, err := client.GetBlockchainAccountTransactions(context.Background(), tonapi.GetBlockchainAccountTransactionsParams{
 	AccountID: "EQBszTJahYw3lpP64ryqscKQaDGk4QpsO7RO6LYVvKHSINS0",
-	Limit:     10,
+	Limit:     tonapi.NewOptInt32(10),
 })
 ```
 
 ### Get Jettons
 
 ```go
-jettons, err := client.GetAccountJettons(context.Background(), tonapi.GetAccountJettonsParams{
+jettons, err := client.GetAccountJettonsBalances(context.Background(), tonapi.GetAccountJettonsBalancesParams{
 	AccountID: "EQBszTJahYw3lpP64ryqscKQaDGk4QpsO7RO6LYVvKHSINS0",
 })
 ```
@@ -151,8 +152,9 @@ Always check for errors when making API calls:
 result, err := client.GetAccount(context.Background(), params)
 if err != nil {
     // Check if it's a TonAPI error
-    if apiErr, ok := err.(*tonapi.Error); ok {
-        fmt.Printf("API Error: %v\n", apiErr.Error)
+    var apiErr *tonapi.ErrorStatusCode
+    if errors.As(err, &apiErr) {
+        fmt.Printf("API Error %d: %v\n", apiErr.StatusCode, apiErr.Response.Error)
     } else {
         fmt.Printf("Error: %s\n", err.Error())
     }
@@ -166,7 +168,7 @@ TonAPI has rate limits based on your authentication:
 - Anonymous users: Strict rate limits
 - API token users: Higher limits based on your plan
 
-For high-volume applications, consider implementing a throttled client as shown in the examples.
+For high-volume applications, consider implementing a throttled client as shown in [Custom HTTP Client](#custom-http-client).
 
 ## Best Practices
 
