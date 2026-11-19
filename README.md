@@ -87,7 +87,6 @@ You can also use a custom client by using WithClient, where you can, for example
 ```go
 import (
 	"net/http"
-	"time"
 	
 	"github.com/graze/go-throttled"
 	"github.com/tonkeeper/tonapi-go"
